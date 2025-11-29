@@ -1,6 +1,8 @@
-import { Menu, Search, User } from "lucide-react";
+import { Menu, Search, User, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -8,6 +10,25 @@ interface HeaderProps {
 }
 
 export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    checkAdminStatus();
+  }, []);
+
+  const checkAdminStatus = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: roles } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id);
+
+    const role = roles?.[0]?.role;
+    setIsAdmin(role === 'admin' || role === 'editor' || role === 'contributor');
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background">
       <div className="container flex h-14 items-center justify-between px-4">
@@ -38,6 +59,19 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
           >
             <Search className="h-5 w-5" />
           </Button>
+          {isAdmin && (
+            <Button
+              variant="ghost"
+              size="icon"
+              asChild
+              className="hover:bg-transparent"
+              aria-label="Admin Dashboard"
+            >
+              <Link to="/admin">
+                <Settings className="h-5 w-5" />
+              </Link>
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"

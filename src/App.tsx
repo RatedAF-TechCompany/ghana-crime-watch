@@ -8,6 +8,8 @@ import Index from "./pages/Index";
 import CategoryPage from "./pages/CategoryPage";
 import ArticlePage from "./pages/ArticlePage";
 import AuthPage from "./pages/AuthPage";
+import Dashboard from "./pages/admin/Dashboard";
+import ArticleEditor from "./pages/admin/ArticleEditor";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -18,16 +20,15 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<AuthPage />} />
-            <Route path="/:categorySlug" element={<CategoryPage />} />
-            <Route path="/:categorySlug/:articleSlug" element={<ArticlePage />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Layout>
+        <Routes>
+          <Route path="/admin" element={<Dashboard />} />
+          <Route path="/admin/articles/:id" element={<ArticleEditor />} />
+          <Route path="/" element={<Layout><Index /></Layout>} />
+          <Route path="/auth" element={<Layout><AuthPage /></Layout>} />
+          <Route path="/:categorySlug" element={<Layout><CategoryPage /></Layout>} />
+          <Route path="/:categorySlug/:articleSlug" element={<Layout><ArticlePage /></Layout>} />
+          <Route path="*" element={<Layout><NotFound /></Layout>} />
+        </Routes>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
