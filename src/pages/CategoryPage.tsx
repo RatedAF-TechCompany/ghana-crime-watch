@@ -1,34 +1,40 @@
+import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { HeroArticle } from "@/components/HeroArticle";
 import { ArticleCard } from "@/components/ArticleCard";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { getCategoryLabel } from "@/lib/categories";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const ARTICLES_PER_PAGE = 10;
 
-export default function Index() {
+export default function CategoryPage() {
+  const { categorySlug } = useParams<{ categorySlug: string }>();
   const [page, setPage] = useState(0);
 
   const { data: articles, isLoading } = useQuery({
-    queryKey: ["articles", page],
+    queryKey: ["articles", categorySlug, page],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("articles")
         .select("id, title, summary, category_slug, article_slug, published_at, hero_image")
         .eq("is_published", true)
+        .eq("category_slug", categorySlug!)
         .order("published_at", { ascending: false })
         .range(page * ARTICLES_PER_PAGE, (page + 1) * ARTICLES_PER_PAGE);
 
       if (error) throw error;
       return data;
     },
+    enabled: !!categorySlug,
   });
 
   if (isLoading) {
     return (
       <div className="space-y-6">
+        <Skeleton className="h-10 w-64" />
         <div className="space-y-4">
           <Skeleton className="aspect-[16/9] w-full" />
           <Skeleton className="h-8 w-3/4" />
@@ -48,8 +54,8 @@ export default function Index() {
   if (!articles || articles.length === 0) {
     return (
       <div className="py-12 text-center">
-        <h2 className="mb-2 text-2xl font-bold">No Articles Yet</h2>
-        <p className="text-muted-foreground">Check back soon for crime news updates.</p>
+        <h2 className="mb-2 text-2xl font-bold">No Articles in {getCategoryLabel(categorySlug!)}</h2>
+        <p className="text-muted-foreground">Check back soon for updates.</p>
       </div>
     );
   }
@@ -58,6 +64,8 @@ export default function Index() {
 
   return (
     <div>
+      <h1 className="mb-6 text-3xl font-bold">{getCategoryLabel(categorySlug!)}</h1>
+      
       {heroArticle && <HeroArticle article={heroArticle} />}
       
       <div className="space-y-0">
