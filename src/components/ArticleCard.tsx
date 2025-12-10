@@ -23,25 +23,24 @@ export function ArticleCard({ article, showImage = false }: ArticleCardProps) {
     <article className="group border-b border-border py-4">
       <Link
         to={`/${article.category_slug}/${article.article_slug}`}
-        className="flex gap-4"
+        className="flex items-start gap-4"
       >
-        <div className="flex-1">
-          <h3 className="mb-1 text-lg font-bold leading-tight transition-colors group-hover:text-primary">
+        <div className="min-w-0 flex-1">
+          <h3 className="font-serif text-base font-bold leading-snug text-foreground transition-colors group-hover:text-primary sm:text-lg">
             {article.title}
           </h3>
-          <p className="mb-2 text-xs text-foreground">
-            {categoryLabel} • {relativeTime}
-          </p>
-          <p className="text-sm leading-snug text-muted-foreground line-clamp-2">
-            {article.summary}
-          </p>
+          <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="font-medium uppercase tracking-wide text-primary">{categoryLabel}</span>
+            <span>•</span>
+            <span>{relativeTime}</span>
+          </div>
         </div>
         {showImage && article.hero_image && (
-          <div className="h-20 w-28 flex-shrink-0 overflow-hidden rounded">
+          <div className="h-16 w-24 flex-shrink-0 overflow-hidden sm:h-20 sm:w-28">
             <img
               src={article.hero_image}
               alt={article.title}
-              className="h-full w-full object-cover transition-transform group-hover:scale-105"
+              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
             />
           </div>
         )}
