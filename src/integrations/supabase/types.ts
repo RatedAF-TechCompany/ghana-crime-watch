@@ -277,9 +277,58 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_comments: {
+        Row: {
+          article_id: string | null
+          comment_text: string | null
+          commenter_name: string | null
+          created_at: string | null
+          id: string | null
+          is_approved: boolean | null
+          is_verified: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          article_id?: string | null
+          comment_text?: string | null
+          commenter_name?: string | null
+          created_at?: string | null
+          id?: string | null
+          is_approved?: boolean | null
+          is_verified?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          article_id?: string | null
+          comment_text?: string | null
+          commenter_name?: string | null
+          created_at?: string | null
+          id?: string | null
+          is_approved?: boolean | null
+          is_verified?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comments_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      create_audit_log: {
+        Args: {
+          _action: string
+          _details?: Json
+          _resource_id?: string
+          _resource_type: string
+        }
+        Returns: string
+      }
       generate_article_slug: { Args: { title: string }; Returns: string }
       has_role: {
         Args: {
