@@ -43,10 +43,7 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
         </Button>
 
         <Link to="/" className="flex items-center">
-          <div className="flex h-8 w-8 items-center justify-center rounded-sm bg-primary">
-            <span className="text-sm font-bold text-primary-foreground">GC</span>
-          </div>
-          <span className="ml-2 text-lg font-bold tracking-tight">GhanaCrimes</span>
+          <span className="text-xl font-bold tracking-tight text-primary">GhanaCrimes</span>
         </Link>
 
         <div className="flex items-center gap-2">
