@@ -1,6 +1,6 @@
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { CATEGORIES } from "@/lib/categories";
 import { Link } from "react-router-dom";
 
@@ -12,27 +12,25 @@ interface NavigationDrawerProps {
 export function NavigationDrawer({ open, onClose }: NavigationDrawerProps) {
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent side="left" className="w-[300px] sm:w-[400px]">
-        <SheetHeader>
-          <SheetTitle className="flex items-center justify-between">
-            <span>Categories</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onClose}
-              className="hover:bg-transparent"
-            >
-              <X className="h-5 w-5" />
-            </Button>
-          </SheetTitle>
-        </SheetHeader>
-        <nav className="mt-6 flex flex-col space-y-1">
+      <SheetContent side="left" className="w-[280px] border-r border-border bg-background p-0">
+        <div className="flex h-14 items-center justify-between border-b border-border px-4">
+          <span className="text-base font-bold text-primary">Menu</span>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="h-8 w-8 hover:bg-transparent"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+        <nav className="flex flex-col py-2">
           {CATEGORIES.map((category) => (
             <Link
               key={category.slug}
               to={`/${category.slug}`}
               onClick={onClose}
-              className="rounded px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
+              className="border-b border-border/50 px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted/50 hover:text-primary"
             >
               {category.label}
             </Link>
