@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getCategoryLabel } from "@/lib/categories";
@@ -26,12 +26,30 @@ export default function ArticlePage() {
         .eq("category_slug", categorySlug!)
         .eq("article_slug", articleSlug!)
         .eq("is_published", true)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       return data;
     },
     enabled: !!categorySlug && !!articleSlug,
+  });
+
+  const { data: relatedArticles } = useQuery({
+    queryKey: ["related-articles", categorySlug, article?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("articles")
+        .select("id, title, article_slug, category_slug, published_at, hero_image")
+        .eq("category_slug", categorySlug!)
+        .eq("is_published", true)
+        .neq("id", article!.id)
+        .order("published_at", { ascending: false })
+        .limit(4);
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!categorySlug && !!article?.id,
   });
 
   const handleBookmark = async () => {
@@ -175,6 +193,42 @@ export default function ArticlePage() {
             </span>
           ))}
         </div>
+      )}
+
+      {/* Read More Section */}
+      {relatedArticles && relatedArticles.length > 0 && (
+        <section className="mt-10 border-t border-border pt-8">
+          <h3 className="mb-6 font-serif text-xl font-bold text-foreground">
+            Read More in {categoryLabel}
+          </h3>
+          <div className="space-y-4">
+            {relatedArticles.map((related) => (
+              <Link
+                key={related.id}
+                to={`/${related.category_slug}/${related.article_slug}`}
+                className="group flex items-start gap-4 border-b border-border py-3 last:border-b-0"
+              >
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-serif text-base font-bold leading-snug text-foreground transition-colors group-hover:text-primary">
+                    {related.title}
+                  </h4>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {getRelativeTime(related.published_at!)}
+                  </p>
+                </div>
+                {related.hero_image && (
+                  <div className="h-16 w-24 flex-shrink-0 overflow-hidden">
+                    <img
+                      src={related.hero_image}
+                      alt={related.title}
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                    />
+                  </div>
+                )}
+              </Link>
+            ))}
+          </div>
+        </section>
       )}
     </article>
   );
