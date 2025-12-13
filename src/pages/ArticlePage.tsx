@@ -6,6 +6,7 @@ import { getRelativeTime } from "@/lib/time";
 import { Bookmark, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CommentsSection } from "@/components/CommentsSection";
 import DOMPurify from "dompurify";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -230,6 +231,9 @@ export default function ArticlePage() {
           </div>
         </section>
       )}
+
+      {/* Comments Section */}
+      <CommentsSection articleId={article.id} />
     </article>
   );
 }
