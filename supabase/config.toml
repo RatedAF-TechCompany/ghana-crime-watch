@@ -1,1 +1,7 @@
 project_id = "zninjnjujptjxdikehun"
+
+[functions.send-comment-verification]
+verify_jwt = false
+
+[functions.verify-comment]
+verify_jwt = false
