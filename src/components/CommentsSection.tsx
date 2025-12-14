@@ -256,6 +256,19 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
                   Enter your name and email to receive a verification code.
                 </DialogDescription>
               </DialogHeader>
+              <div className="mb-4 rounded-md bg-muted p-3">
+                <p className="text-xs text-muted-foreground mb-1">Your comment:</p>
+                <p className="text-sm text-foreground line-clamp-3">{formData.comment}</p>
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="h-auto p-0 text-xs"
+                  onClick={handleCloseDialog}
+                >
+                  Edit comment
+                </Button>
+              </div>
               <form onSubmit={handleSubmitDetails} className="space-y-4">
                 <Input
                   placeholder="Your name"
