@@ -5,18 +5,25 @@ import { getRelativeTime } from "@/lib/time";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { MessageSquare, Send, Loader2 } from "lucide-react";
+import { MessageSquare, Send, Loader2, X } from "lucide-react";
 
 interface CommentsSectionProps {
   articleId: string;
 }
 
-type CommentStep = "form" | "verification" | "success";
+type CommentStep = "idle" | "writing" | "details" | "verification" | "success";
 
 export function CommentsSection({ articleId }: CommentsSectionProps) {
   const queryClient = useQueryClient();
-  const [step, setStep] = useState<CommentStep>("form");
+  const [step, setStep] = useState<CommentStep>("idle");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -41,15 +48,22 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
     },
   });
 
-  const handleSubmitComment = async (e: React.FormEvent) => {
+  const handlePostComment = () => {
+    if (!formData.comment.trim()) {
+      toast.error("Please write a comment first");
+      return;
+    }
+    setStep("details");
+  };
+
+  const handleSubmitDetails = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name.trim() || !formData.email.trim() || !formData.comment.trim()) {
+    if (!formData.name.trim() || !formData.email.trim()) {
       toast.error("Please fill in all fields");
       return;
     }
 
-    // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
       toast.error("Please enter a valid email address");
@@ -117,8 +131,7 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
       setVerificationCode("");
       queryClient.invalidateQueries({ queryKey: ["comments", articleId] });
       
-      // Reset to form after 3 seconds
-      setTimeout(() => setStep("form"), 3000);
+      setTimeout(() => setStep("idle"), 3000);
     } catch (error: any) {
       console.error("Error verifying code:", error);
       toast.error("Failed to verify code. Please try again.");
@@ -127,6 +140,20 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
     }
   };
 
+  const handleCloseDialog = () => {
+    if (!isSubmitting) {
+      setStep("writing");
+    }
+  };
+
+  const resetForm = () => {
+    setStep("idle");
+    setFormData({ name: "", email: "", comment: "" });
+    setVerificationCode("");
+  };
+
+  const isDialogOpen = step === "details" || step === "verification" || step === "success";
+
   return (
     <section className="mt-10 border-t border-border pt-8">
       <h3 className="mb-6 flex items-center gap-2 font-serif text-xl font-bold text-foreground">
@@ -134,104 +161,150 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
         Comments
       </h3>
 
-      {/* Comment Form */}
-      <div className="mb-8 rounded-lg bg-muted/50 p-4">
-        {step === "form" && (
-          <form onSubmit={handleSubmitComment} className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input
-                placeholder="Your name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                maxLength={100}
-                disabled={isSubmitting}
-              />
-              <Input
-                type="email"
-                placeholder="Your email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                maxLength={255}
-                disabled={isSubmitting}
-              />
-            </div>
+      {/* Comment Area */}
+      <div className="mb-8">
+        {step === "idle" && (
+          <Button
+            variant="outline"
+            className="w-full justify-start text-muted-foreground"
+            onClick={() => setStep("writing")}
+          >
+            <MessageSquare className="mr-2 h-4 w-4" />
+            Leave a comment...
+          </Button>
+        )}
+
+        {step === "writing" && (
+          <div className="space-y-4 rounded-lg bg-muted/50 p-4">
             <Textarea
               placeholder="Write your comment..."
               value={formData.comment}
               onChange={(e) => setFormData({ ...formData, comment: e.target.value })}
               rows={4}
               maxLength={1000}
-              disabled={isSubmitting}
+              autoFocus
             />
-            <div className="flex justify-end">
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <Send className="mr-2 h-4 w-4" />
-                    Submit Comment
-                  </>
-                )}
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              A verification code will be sent to your email.
-            </p>
-          </form>
-        )}
-
-        {step === "verification" && (
-          <form onSubmit={handleVerifyCode} className="space-y-4">
-            <p className="text-sm text-foreground">
-              We've sent a 6-digit verification code to <strong>{formData.email}</strong>. 
-              Enter it below to publish your comment.
-            </p>
-            <Input
-              type="text"
-              placeholder="Enter 6-digit code"
-              value={verificationCode}
-              onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              className="text-center text-lg tracking-widest"
-              maxLength={6}
-              disabled={isSubmitting}
-            />
-            <div className="flex gap-2">
+            <div className="flex justify-between">
               <Button
                 type="button"
-                variant="outline"
-                onClick={() => setStep("form")}
-                disabled={isSubmitting}
+                variant="ghost"
+                size="sm"
+                onClick={resetForm}
               >
-                Back
+                Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting || verificationCode.length !== 6}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Verifying...
-                  </>
-                ) : (
-                  "Verify & Publish"
-                )}
+              <Button onClick={handlePostComment}>
+                <Send className="mr-2 h-4 w-4" />
+                Post Comment
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              The code expires in 20 minutes.
-            </p>
-          </form>
-        )}
-
-        {step === "success" && (
-          <div className="py-4 text-center">
-            <p className="text-lg font-medium text-primary">Comment published!</p>
-            <p className="text-sm text-muted-foreground">Thank you for your contribution.</p>
           </div>
         )}
       </div>
+
+      {/* Details & Verification Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
+        <DialogContent className="sm:max-w-md">
+          {step === "details" && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Verify your identity</DialogTitle>
+                <DialogDescription>
+                  Enter your name and email to receive a verification code.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmitDetails} className="space-y-4">
+                <Input
+                  placeholder="Your name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  maxLength={100}
+                  disabled={isSubmitting}
+                  autoFocus
+                />
+                <Input
+                  type="email"
+                  placeholder="Your email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  maxLength={255}
+                  disabled={isSubmitting}
+                />
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleCloseDialog}
+                    disabled={isSubmitting}
+                  >
+                    Back
+                  </Button>
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      "Send Code"
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </>
+          )}
+
+          {step === "verification" && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Enter verification code</DialogTitle>
+                <DialogDescription>
+                  We've sent a 6-digit code to <strong>{formData.email}</strong>. The code expires in 20 minutes.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleVerifyCode} className="space-y-4">
+                <Input
+                  type="text"
+                  placeholder="Enter 6-digit code"
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  className="text-center text-lg tracking-widest"
+                  maxLength={6}
+                  disabled={isSubmitting}
+                  autoFocus
+                />
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setStep("details")}
+                    disabled={isSubmitting}
+                  >
+                    Back
+                  </Button>
+                  <Button type="submit" disabled={isSubmitting || verificationCode.length !== 6}>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Verifying...
+                      </>
+                    ) : (
+                      "Verify & Publish"
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </>
+          )}
+
+          {step === "success" && (
+            <div className="py-6 text-center">
+              <p className="text-lg font-medium text-primary">Comment published!</p>
+              <p className="text-sm text-muted-foreground">Thank you for your contribution.</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Comments List */}
       {isLoading ? (
