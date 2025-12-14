@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getRelativeTime } from "@/lib/time";
@@ -13,7 +13,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { MessageSquare, Send, Loader2, X } from "lucide-react";
+import { MessageSquare, Send, Loader2, RefreshCw } from "lucide-react";
 
 interface CommentsSectionProps {
   articleId: string;
@@ -31,6 +31,15 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
     comment: "",
   });
   const [verificationCode, setVerificationCode] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [isResending, setIsResending] = useState(false);
+
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
 
   const { data: comments, isLoading } = useQuery({
     queryKey: ["comments", articleId],
@@ -91,11 +100,45 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
 
       toast.success("Verification code sent to your email");
       setStep("verification");
+      setResendCooldown(60);
     } catch (error: any) {
       console.error("Error sending verification:", error);
       toast.error("Failed to send verification code. Please try again.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (resendCooldown > 0 || isResending) return;
+
+    setIsResending(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("send-comment-verification", {
+        body: {
+          articleId,
+          commenterName: formData.name.trim(),
+          commenterEmail: formData.email.trim(),
+          commentText: formData.comment.trim(),
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        toast.error(data.error);
+        return;
+      }
+
+      toast.success("New verification code sent");
+      setResendCooldown(60);
+      setVerificationCode("");
+    } catch (error: any) {
+      console.error("Error resending verification:", error);
+      toast.error("Failed to resend code. Please try again.");
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -273,25 +316,49 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
                   disabled={isSubmitting}
                   autoFocus
                 />
-                <div className="flex justify-end gap-2">
+                <div className="flex items-center justify-between">
                   <Button
                     type="button"
-                    variant="outline"
-                    onClick={() => setStep("details")}
-                    disabled={isSubmitting}
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleResendCode}
+                    disabled={resendCooldown > 0 || isResending}
+                    className="text-xs"
                   >
-                    Back
-                  </Button>
-                  <Button type="submit" disabled={isSubmitting || verificationCode.length !== 6}>
-                    {isSubmitting ? (
+                    {isResending ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Verifying...
+                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                        Sending...
                       </>
+                    ) : resendCooldown > 0 ? (
+                      `Resend in ${resendCooldown}s`
                     ) : (
-                      "Verify & Publish"
+                      <>
+                        <RefreshCw className="mr-1 h-3 w-3" />
+                        Resend code
+                      </>
                     )}
                   </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setStep("details")}
+                      disabled={isSubmitting}
+                    >
+                      Back
+                    </Button>
+                    <Button type="submit" disabled={isSubmitting || verificationCode.length !== 6}>
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Verifying...
+                        </>
+                      ) : (
+                        "Verify & Publish"
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </form>
             </>
