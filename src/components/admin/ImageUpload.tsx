@@ -6,11 +6,59 @@ import { Label } from '@/components/ui/label';
 import { Upload, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+const MAX_WIDTH = 1920;
+const MAX_HEIGHT = 1080;
+const QUALITY = 0.85;
+
 interface ImageUploadProps {
   value?: string;
   onChange: (url: string) => void;
   label?: string;
 }
+
+const optimizeImage = (file: File): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    img.onload = () => {
+      let { width, height } = img;
+
+      // Calculate new dimensions maintaining aspect ratio
+      if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+        const ratio = Math.min(MAX_WIDTH / width, MAX_HEIGHT / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+
+      if (!ctx) {
+        reject(new Error('Could not get canvas context'));
+        return;
+      }
+
+      // Draw and compress
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Failed to create blob'));
+          }
+        },
+        'image/webp',
+        QUALITY
+      );
+    };
+
+    img.onerror = () => reject(new Error('Failed to load image'));
+    img.src = URL.createObjectURL(file);
+  });
+};
 
 export const ImageUpload = ({ value, onChange, label = 'Hero Image' }: ImageUploadProps) => {
   const [uploading, setUploading] = useState(false);
@@ -31,24 +79,26 @@ export const ImageUpload = ({ value, onChange, label = 'Hero Image' }: ImageUplo
 
     setUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      // Optimize image before upload
+      const optimizedBlob = await optimizeImage(file);
+      const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.webp`;
 
-      const { error: uploadError, data } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('article-images')
-        .upload(filePath, file);
+        .upload(fileName, optimizedBlob, {
+          contentType: 'image/webp',
+        });
 
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage
         .from('article-images')
-        .getPublicUrl(filePath);
+        .getPublicUrl(fileName);
 
       onChange(publicUrl);
       toast({
         title: 'Image uploaded',
-        description: 'Your image has been uploaded successfully',
+        description: 'Image optimized and uploaded successfully',
       });
     } catch (error: any) {
       toast({
