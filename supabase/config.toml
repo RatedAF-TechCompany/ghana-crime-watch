@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.verify-comment]
 verify_jwt = false
+
+[functions.generate-article-fields]
+verify_jwt = true

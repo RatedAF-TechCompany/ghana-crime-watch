@@ -11,8 +11,10 @@ import { TiptapEditor } from '@/components/admin/TiptapEditor';
 import { ImageUpload } from '@/components/admin/ImageUpload';
 import { useToast } from '@/hooks/use-toast';
 import { CATEGORIES } from '@/lib/categories';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Sparkles } from 'lucide-react';
 import type { TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+
+const DEFAULT_AUTHOR = 'GhanaCrimes team';
 
 type ArticleInsert = TablesInsert<'articles'>;
 
@@ -22,6 +24,7 @@ export default function ArticleEditor() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
   
   const [formData, setFormData] = useState<Partial<ArticleInsert>>({
     title: '',
@@ -100,6 +103,50 @@ export default function ArticleEditor() {
       .trim();
   };
 
+  const generateArticleFields = async () => {
+    if (!formData.title || !formData.body) {
+      toast({
+        title: 'Missing content',
+        description: 'Please enter a title and article body first',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-article-fields', {
+        body: { title: formData.title, body: formData.body },
+      });
+
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      const { fields } = data;
+      setFormData(prev => ({
+        ...prev,
+        subtitle: fields.subtitle || prev.subtitle,
+        summary: fields.summary || prev.summary,
+        tags: fields.tags || prev.tags,
+        seo_title: fields.seo_title || prev.seo_title,
+        seo_description: fields.seo_description || prev.seo_description,
+      }));
+
+      toast({
+        title: 'Fields generated',
+        description: 'Article metadata has been generated from your content',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Generation failed',
+        description: error.message || 'Failed to generate article fields',
+        variant: 'destructive',
+      });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -113,6 +160,8 @@ export default function ArticleEditor() {
         ...formData,
         article_slug: slug,
         author_id: user.id,
+        // Use custom author name if provided, otherwise use default
+        author_name: formData.author_name?.trim() || DEFAULT_AUTHOR,
         published_at: formData.is_published ? new Date().toISOString() : null,
       };
 
@@ -231,8 +280,22 @@ export default function ArticleEditor() {
                 id="author"
                 value={formData.author_name || ''}
                 onChange={(e) => setFormData({ ...formData, author_name: e.target.value })}
+                placeholder={DEFAULT_AUTHOR}
               />
+              <p className="text-xs text-muted-foreground">Leave empty to use default: {DEFAULT_AUTHOR}</p>
             </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={generateArticleFields}
+              disabled={generating || !formData.title || !formData.body}
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              {generating ? 'Generating...' : 'Generate Fields from Content'}
+            </Button>
           </div>
 
           <div className="space-y-2">
