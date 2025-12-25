@@ -125,6 +125,9 @@ export default function ArticleEditor() {
       const { fields } = data;
       setFormData(prev => ({
         ...prev,
+        title: fields.title || prev.title,
+        subtitle: fields.subtitle || prev.subtitle,
+        summary: fields.summary || prev.summary,
         article_slug: fields.slug || prev.article_slug,
         author_name: fields.author || prev.author_name,
         tags: fields.tags || prev.tags,
@@ -133,7 +136,7 @@ export default function ArticleEditor() {
 
       toast({
         title: 'Fields generated',
-        description: 'Slug, author, tags, and SEO description generated from content',
+        description: 'Title, subtitle, summary, slug, author, tags, and SEO description generated',
       });
     } catch (error: any) {
       toast({

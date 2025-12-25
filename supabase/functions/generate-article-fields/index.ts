@@ -35,6 +35,15 @@ Article Body as a single text block pasted by the editor.
 
 On Generate, you must automatically fill these fields from the Article Body.
 
+Title
+Extract or generate a compelling news headline from the article. Keep it concise and factual.
+
+Subtitle
+Generate a brief secondary headline that adds context to the title. Optional but recommended.
+
+Summary
+Write a 2-3 sentence summary of the article capturing the key facts. Keep it under 300 characters.
+
 Slug
 Create a short SEO friendly slug in lowercase with hyphens only. No dates unless essential. No stop words where possible.
 
@@ -56,6 +65,9 @@ Write one plain English sentence under 160 characters summarising the Article Bo
 Output requirements
 Return a single JSON object with exactly these keys.
 
+title
+subtitle
+summary
 slug
 author
 section
@@ -69,6 +81,9 @@ Do not output anything outside the JSON.
 
 Example output
 {
+"title": "Police Investigate Attempted Palace Takeover in Boadua",
+"subtitle": "Incident linked to ongoing chieftaincy dispute in Eastern Region",
+"summary": "Ghana Police Service is investigating an attempted takeover of a palace in Boadua. The incident is connected to a chieftaincy dispute in the Eastern Region.",
 "slug": "police-investigate-palace-incident-boadua",
 "author": "GhanaCrimes Desk",
 "section": "Crime And Investigation",
