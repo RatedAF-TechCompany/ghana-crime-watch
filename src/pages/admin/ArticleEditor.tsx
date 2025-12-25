@@ -285,12 +285,12 @@ export default function ArticleEditor() {
             </div>
           </div>
 
-          <div className="flex justify-end">
+        <div className="flex justify-end">
             <Button
               type="button"
               variant="outline"
               onClick={generateArticleFields}
-              disabled={generating || !formData.body}
+              disabled={generating || !formData.body?.replace(/<[^>]*>/g, '').trim()}
             >
               <Sparkles className="h-4 w-4 mr-2" />
               {generating ? 'Generating...' : 'Generate Fields'}
