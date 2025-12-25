@@ -31,6 +31,12 @@ export const TiptapEditor = ({ content, onChange, placeholder = 'Start writing..
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
     },
+    onCreate: ({ editor }) => {
+      // Sync initial content on mount to ensure formData is updated
+      if (editor.getHTML() !== '<p></p>') {
+        onChange(editor.getHTML());
+      }
+    },
   });
 
   if (!editor) return null;
