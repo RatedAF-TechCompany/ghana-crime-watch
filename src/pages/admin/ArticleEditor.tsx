@@ -38,7 +38,7 @@ export default function ArticleEditor() {
     tags: [],
     seo_title: '',
     seo_description: '',
-    is_published: false,
+    is_published: true,
   });
 
   useEffect(() => {
