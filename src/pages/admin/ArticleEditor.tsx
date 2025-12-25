@@ -14,7 +14,7 @@ import { CATEGORIES } from '@/lib/categories';
 import { ArrowLeft, Save, Sparkles } from 'lucide-react';
 import type { TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
-const DEFAULT_AUTHOR = 'GhanaCrimes team';
+const DEFAULT_AUTHOR = 'GhanaCrimes Desk';
 
 type ArticleInsert = TablesInsert<'articles'>;
 
@@ -104,10 +104,10 @@ export default function ArticleEditor() {
   };
 
   const generateArticleFields = async () => {
-    if (!formData.title || !formData.body) {
+    if (!formData.body) {
       toast({
         title: 'Missing content',
-        description: 'Please enter a title and article body first',
+        description: 'Please enter article body first',
         variant: 'destructive',
       });
       return;
@@ -116,7 +116,7 @@ export default function ArticleEditor() {
     setGenerating(true);
     try {
       const { data, error } = await supabase.functions.invoke('generate-article-fields', {
-        body: { title: formData.title, body: formData.body },
+        body: { body: formData.body },
       });
 
       if (error) throw error;
@@ -125,16 +125,15 @@ export default function ArticleEditor() {
       const { fields } = data;
       setFormData(prev => ({
         ...prev,
-        subtitle: fields.subtitle || prev.subtitle,
-        summary: fields.summary || prev.summary,
+        article_slug: fields.slug || prev.article_slug,
+        author_name: fields.author || prev.author_name,
         tags: fields.tags || prev.tags,
-        seo_title: fields.seo_title || prev.seo_title,
         seo_description: fields.seo_description || prev.seo_description,
       }));
 
       toast({
         title: 'Fields generated',
-        description: 'Article metadata has been generated from your content',
+        description: 'Slug, author, tags, and SEO description generated from content',
       });
     } catch (error: any) {
       toast({
@@ -291,10 +290,10 @@ export default function ArticleEditor() {
               type="button"
               variant="outline"
               onClick={generateArticleFields}
-              disabled={generating || !formData.title || !formData.body}
+              disabled={generating || !formData.body}
             >
               <Sparkles className="h-4 w-4 mr-2" />
-              {generating ? 'Generating...' : 'Generate Fields from Content'}
+              {generating ? 'Generating...' : 'Generate Fields'}
             </Button>
           </div>
 

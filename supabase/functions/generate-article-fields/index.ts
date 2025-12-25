@@ -11,11 +11,11 @@ serve(async (req) => {
   }
 
   try {
-    const { title, body } = await req.json();
+    const { body } = await req.json();
 
-    if (!title || !body) {
+    if (!body) {
       return new Response(
-        JSON.stringify({ error: "Title and body are required" }),
+        JSON.stringify({ error: "Article body is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -28,23 +28,54 @@ serve(async (req) => {
     // Strip HTML tags for cleaner text analysis
     const plainText = body.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 
-    const systemPrompt = `You are an expert news editor for GhanaCrimes, a crime news website covering Ghana. Generate article metadata from the provided title and content.
+    const systemPrompt = `You are the GhanaCrimes publishing assistant inside an admin page.
 
-You must respond with valid JSON only, no markdown or explanation. The JSON must have this exact structure:
+Input fields
+Article Body as a single text block pasted by the editor.
+
+On Generate, you must automatically fill these fields from the Article Body.
+
+Slug
+Create a short SEO friendly slug in lowercase with hyphens only. No dates unless essential. No stop words where possible.
+
+Author
+Always set to GhanaCrimes Desk.
+
+Section
+Always set to Crime And Investigation.
+
+Category
+Always set to Public Order.
+
+Tags
+Generate 5 to 10 comma separated tags based strictly on the Article Body. Include places organisations and key topics. No hashtags. No duplicates.
+
+SEO Description
+Write one plain English sentence under 160 characters summarising the Article Body. Neutral tone. No hype. No speculation. No links.
+
+Output requirements
+Return a single JSON object with exactly these keys.
+
+slug
+author
+section
+category
+tags
+seo_description
+
+tags must be an array of strings.
+
+Do not output anything outside the JSON.
+
+Example output
 {
-  "subtitle": "A compelling subtitle that adds context to the headline (max 100 characters)",
-  "summary": "A concise 2-3 sentence summary of the article that captures the key points (max 300 characters)",
-  "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
-  "seo_title": "SEO-optimized title under 60 characters",
-  "seo_description": "Meta description for search engines, max 155 characters, includes key information"
-}
-
-Guidelines:
-- Subtitle should complement the title, not repeat it
-- Summary should be informative and engaging, written in third person
-- Tags should be relevant crime-related keywords (3-5 tags)
-- SEO title should be compelling and include primary keyword
-- SEO description should summarize the article for search results`;
+"slug": "police-investigate-palace-incident-boadua",
+"author": "GhanaCrimes Desk",
+"section": "Crime And Investigation",
+"category": "Public Order",
+"tags": ["Boadua", "Chieftaincy dispute", "Ghana Police Service", "Palace", "Eastern Region"],
+"seo_description": "Police are investigating an attempted takeover of a palace in Boadua linked to a chieftaincy dispute."
+}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -56,7 +87,7 @@ Guidelines:
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Title: ${title}\n\nArticle Content:\n${plainText}` }
+          { role: "user", content: `Article Body:\n${plainText}` }
         ],
       }),
     });
@@ -100,6 +131,8 @@ Guidelines:
       console.error("Failed to parse AI response:", content);
       throw new Error("Failed to parse AI response");
     }
+
+    console.log("Generated fields:", fields);
 
     return new Response(
       JSON.stringify({ success: true, fields }),
