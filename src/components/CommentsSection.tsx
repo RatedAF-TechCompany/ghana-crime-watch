@@ -27,14 +27,16 @@ interface CommentWithReplies extends Comment {
   replies: Comment[];
 }
 
+type CommentStep = "idle" | "writing" | "name";
+type ReplyStep = "writing" | "name";
+
 export function CommentsSection({ articleId }: CommentsSectionProps) {
   const queryClient = useQueryClient();
-  const [isWriting, setIsWriting] = useState(false);
+  const [step, setStep] = useState<CommentStep>("idle");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<{ id: string; step: ReplyStep } | null>(null);
   const [formData, setFormData] = useState({ name: "", comment: "" });
   const [replyData, setReplyData] = useState({ name: "", comment: "" });
-
   // Honeypot field for spam prevention
   const [honeypot, setHoneypot] = useState("");
 
@@ -66,6 +68,26 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
     }));
   };
 
+  const handleProceedToName = (parentId: string | null) => {
+    const data = parentId ? replyData : formData;
+    
+    if (!data.comment.trim()) {
+      toast.error("Please write a comment");
+      return;
+    }
+
+    if (data.comment.trim().length > 1000) {
+      toast.error("Comment must be 1,000 characters or less");
+      return;
+    }
+
+    if (parentId) {
+      setReplyingTo({ id: parentId, step: "name" });
+    } else {
+      setStep("name");
+    }
+  };
+
   const handleSubmitComment = async (e: React.FormEvent, parentId: string | null = null) => {
     e.preventDefault();
 
@@ -85,16 +107,6 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
 
     if (data.name.trim().length > 40) {
       toast.error("Name must be 40 characters or less");
-      return;
-    }
-
-    if (!data.comment.trim()) {
-      toast.error("Please write a comment");
-      return;
-    }
-
-    if (data.comment.trim().length > 1000) {
-      toast.error("Comment must be 1,000 characters or less");
       return;
     }
 
@@ -129,7 +141,7 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
       setReplyingTo(null);
     } else {
       setFormData({ name: "", comment: "" });
-      setIsWriting(false);
+      setStep("idle");
     }
   };
 
@@ -149,7 +161,7 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
           variant="ghost"
           size="sm"
           className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
-          onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+          onClick={() => setReplyingTo(replyingTo?.id === comment.id ? null : { id: comment.id, step: "writing" })}
         >
           <Reply className="mr-1 h-3 w-3" />
           Reply
@@ -167,17 +179,19 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
 
       {/* New Comment Area */}
       <div className="mb-8">
-        {!isWriting ? (
+        {step === "idle" && (
           <Button
             variant="outline"
             className="w-full justify-start text-muted-foreground"
-            onClick={() => setIsWriting(true)}
+            onClick={() => setStep("writing")}
           >
             <MessageSquare className="mr-2 h-4 w-4" />
             Leave a comment...
           </Button>
-        ) : (
-          <form onSubmit={(e) => handleSubmitComment(e, null)} className="space-y-4 rounded-lg bg-muted/50 p-4">
+        )}
+
+        {step === "writing" && (
+          <div className="space-y-4 rounded-lg bg-muted/50 p-4">
             <Textarea
               placeholder="Write your comment..."
               value={formData.comment}
@@ -185,13 +199,6 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
               rows={4}
               maxLength={1000}
               autoFocus
-              disabled={isSubmitting}
-            />
-            <Input
-              placeholder="Your name (required)"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              maxLength={40}
               disabled={isSubmitting}
             />
             {/* Honeypot field - hidden from users */}
@@ -218,20 +225,49 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Publishing...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="mr-2 h-4 w-4" />
-                      Publish
-                    </>
-                  )}
+                <Button onClick={() => handleProceedToName(null)}>
+                  <Send className="mr-2 h-4 w-4" />
+                  Submit
                 </Button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {step === "name" && (
+          <form onSubmit={(e) => handleSubmitComment(e, null)} className="space-y-4 rounded-lg bg-muted/50 p-4">
+            <div className="rounded-md bg-background p-3 border">
+              <p className="text-xs text-muted-foreground mb-1">Your comment:</p>
+              <p className="text-sm text-foreground">{formData.comment}</p>
+            </div>
+            <Input
+              placeholder="Your name (required)"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              maxLength={40}
+              autoFocus
+              disabled={isSubmitting}
+            />
+            <div className="flex justify-between items-center">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setStep("writing")}
+                disabled={isSubmitting}
+              >
+                Back
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Publishing...
+                  </>
+                ) : (
+                  "Publish"
+                )}
+              </Button>
             </div>
           </form>
         )}
@@ -263,11 +299,8 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
               )}
 
               {/* Reply Form */}
-              {replyingTo === comment.id && (
-                <form
-                  onSubmit={(e) => handleSubmitComment(e, comment.id)}
-                  className="mt-4 ml-6 space-y-3 rounded-lg bg-muted/30 p-3"
-                >
+              {replyingTo?.id === comment.id && replyingTo.step === "writing" && (
+                <div className="mt-4 ml-6 space-y-3 rounded-lg bg-muted/30 p-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-muted-foreground">
                       Replying to {comment.commenter_name}
@@ -291,13 +324,6 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
                     autoFocus
                     disabled={isSubmitting}
                   />
-                  <Input
-                    placeholder="Your name (required)"
-                    value={replyData.name}
-                    onChange={(e) => setReplyData({ ...replyData, name: e.target.value })}
-                    maxLength={40}
-                    disabled={isSubmitting}
-                  />
                   <div className="flex justify-end gap-2">
                     <Button
                       type="button"
@@ -308,11 +334,58 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
                     >
                       Cancel
                     </Button>
+                    <Button size="sm" onClick={() => handleProceedToName(comment.id)}>
+                      Submit
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {replyingTo?.id === comment.id && replyingTo.step === "name" && (
+                <form
+                  onSubmit={(e) => handleSubmitComment(e, comment.id)}
+                  className="mt-4 ml-6 space-y-3 rounded-lg bg-muted/30 p-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">
+                      Replying to {comment.commenter_name}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => setReplyingTo(null)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  <div className="rounded-md bg-background p-2 border text-sm">
+                    {replyData.comment}
+                  </div>
+                  <Input
+                    placeholder="Your name (required)"
+                    value={replyData.name}
+                    onChange={(e) => setReplyData({ ...replyData, name: e.target.value })}
+                    maxLength={40}
+                    autoFocus
+                    disabled={isSubmitting}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setReplyingTo({ id: comment.id, step: "writing" })}
+                      disabled={isSubmitting}
+                    >
+                      Back
+                    </Button>
                     <Button type="submit" size="sm" disabled={isSubmitting}>
                       {isSubmitting ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        "Reply"
+                        "Publish"
                       )}
                     </Button>
                   </div>
