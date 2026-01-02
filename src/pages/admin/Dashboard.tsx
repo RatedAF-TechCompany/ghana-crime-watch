@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Edit, Trash2, ArrowLeft, Users, FileText, MessageSquare } from 'lucide-react';
+import { Plus, Edit, Trash2, ArrowLeft, Users, FileText, MessageSquare, BarChart3 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getRelativeTime } from '@/lib/time';
 import type { Tables, Database } from '@/integrations/supabase/types';
@@ -237,6 +237,13 @@ export default function Dashboard() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-lg font-bold text-primary">Admin Dashboard</h1>
+          <div className="flex-1" />
+          {userRole === 'admin' && (
+            <Button variant="outline" size="sm" onClick={() => navigate('/admin/analytics')}>
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Analytics
+            </Button>
+          )}
         </div>
       </header>
 
