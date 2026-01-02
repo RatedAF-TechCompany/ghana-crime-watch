@@ -140,34 +140,37 @@ export type Database = {
         Row: {
           article_id: string
           comment_text: string
-          commenter_email: string
+          commenter_email: string | null
           commenter_name: string
           created_at: string
           id: string
           is_approved: boolean
           is_verified: boolean
+          parent_id: string | null
           updated_at: string
         }
         Insert: {
           article_id: string
           comment_text: string
-          commenter_email: string
+          commenter_email?: string | null
           commenter_name: string
           created_at?: string
           id?: string
           is_approved?: boolean
           is_verified?: boolean
+          parent_id?: string | null
           updated_at?: string
         }
         Update: {
           article_id?: string
           comment_text?: string
-          commenter_email?: string
+          commenter_email?: string | null
           commenter_name?: string
           created_at?: string
           id?: string
           is_approved?: boolean
           is_verified?: boolean
+          parent_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -176,6 +179,20 @@ export type Database = {
             columns: ["article_id"]
             isOneToOne: false
             referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "public_comments"
             referencedColumns: ["id"]
           },
         ]
@@ -286,6 +303,7 @@ export type Database = {
           id: string | null
           is_approved: boolean | null
           is_verified: boolean | null
+          parent_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -296,6 +314,7 @@ export type Database = {
           id?: string | null
           is_approved?: boolean | null
           is_verified?: boolean | null
+          parent_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -306,6 +325,7 @@ export type Database = {
           id?: string | null
           is_approved?: boolean | null
           is_verified?: boolean | null
+          parent_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -314,6 +334,20 @@ export type Database = {
             columns: ["article_id"]
             isOneToOne: false
             referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "public_comments"
             referencedColumns: ["id"]
           },
         ]
