@@ -1,224 +1,183 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getRelativeTime } from "@/lib/time";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { MessageSquare, Send, Loader2, RefreshCw } from "lucide-react";
+import { MessageSquare, Send, Loader2, Reply, X } from "lucide-react";
 
 interface CommentsSectionProps {
   articleId: string;
 }
 
-type CommentStep = "idle" | "writing" | "details" | "verification" | "success";
+interface Comment {
+  id: string;
+  article_id: string;
+  parent_id: string | null;
+  commenter_name: string;
+  comment_text: string;
+  created_at: string;
+  is_approved: boolean;
+  is_verified: boolean;
+}
+
+interface CommentWithReplies extends Comment {
+  replies: Comment[];
+}
 
 export function CommentsSection({ articleId }: CommentsSectionProps) {
   const queryClient = useQueryClient();
-  const [step, setStep] = useState<CommentStep>("idle");
+  const [isWriting, setIsWriting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    comment: "",
-  });
-  const [verificationCode, setVerificationCode] = useState("");
-  const [resendCooldown, setResendCooldown] = useState(0);
-  const [isResending, setIsResending] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [formData, setFormData] = useState({ name: "", comment: "" });
+  const [replyData, setReplyData] = useState({ name: "", comment: "" });
 
-  useEffect(() => {
-    if (resendCooldown > 0) {
-      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [resendCooldown]);
+  // Honeypot field for spam prevention
+  const [honeypot, setHoneypot] = useState("");
 
   const { data: comments, isLoading } = useQuery({
     queryKey: ["comments", articleId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("public_comments")
-        .select("*")
+        .from("comments")
+        .select("id, article_id, parent_id, commenter_name, comment_text, created_at, is_approved, is_verified")
         .eq("article_id", articleId)
         .eq("is_approved", true)
-        .eq("is_verified", true)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data;
+      return data as Comment[];
     },
   });
 
-  const handlePostComment = () => {
-    if (!formData.comment.trim()) {
-      toast.error("Please write a comment first");
-      return;
-    }
-    setStep("details");
+  // Build threaded comment structure
+  const buildCommentTree = (comments: Comment[]): CommentWithReplies[] => {
+    const topLevel = comments.filter((c) => !c.parent_id);
+    const replies = comments.filter((c) => c.parent_id);
+
+    return topLevel.map((comment) => ({
+      ...comment,
+      replies: replies
+        .filter((r) => r.parent_id === comment.id)
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+    }));
   };
 
-  const handleSubmitDetails = async (e: React.FormEvent) => {
+  const handleSubmitComment = async (e: React.FormEvent, parentId: string | null = null) => {
     e.preventDefault();
-    
-    if (!formData.name.trim() || !formData.email.trim()) {
-      toast.error("Please fill in all fields");
+
+    const data = parentId ? replyData : formData;
+
+    // Honeypot check
+    if (honeypot) {
+      toast.success("Comment published!");
+      resetForm(parentId);
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      toast.error("Please enter a valid email address");
+    if (!data.name.trim()) {
+      toast.error("Please enter your name");
+      return;
+    }
+
+    if (data.name.trim().length > 40) {
+      toast.error("Name must be 40 characters or less");
+      return;
+    }
+
+    if (!data.comment.trim()) {
+      toast.error("Please write a comment");
+      return;
+    }
+
+    if (data.comment.trim().length > 1000) {
+      toast.error("Comment must be 1,000 characters or less");
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("send-comment-verification", {
-        body: {
-          articleId,
-          commenterName: formData.name.trim(),
-          commenterEmail: formData.email.trim(),
-          commentText: formData.comment.trim(),
-        },
+      const { error } = await supabase.from("comments").insert({
+        article_id: articleId,
+        parent_id: parentId,
+        commenter_name: data.name.trim(),
+        comment_text: data.comment.trim(),
+        is_verified: true,
+        is_approved: true,
       });
 
       if (error) throw error;
 
-      if (data.error) {
-        toast.error(data.error);
-        return;
-      }
-
-      toast.success("Verification code sent to your email");
-      setStep("verification");
-      setResendCooldown(60);
-    } catch (error: any) {
-      console.error("Error sending verification:", error);
-      toast.error("Failed to send verification code. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleResendCode = async () => {
-    if (resendCooldown > 0 || isResending) return;
-
-    setIsResending(true);
-
-    try {
-      const { data, error } = await supabase.functions.invoke("send-comment-verification", {
-        body: {
-          articleId,
-          commenterName: formData.name.trim(),
-          commenterEmail: formData.email.trim(),
-          commentText: formData.comment.trim(),
-        },
-      });
-
-      if (error) throw error;
-
-      if (data.error) {
-        toast.error(data.error);
-        return;
-      }
-
-      toast.success("New verification code sent");
-      setResendCooldown(60);
-      setVerificationCode("");
-    } catch (error: any) {
-      console.error("Error resending verification:", error);
-      toast.error("Failed to resend code. Please try again.");
-    } finally {
-      setIsResending(false);
-    }
-  };
-
-  const handleVerifyCode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (verificationCode.length !== 6) {
-      toast.error("Please enter the 6-digit code");
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const { data, error } = await supabase.functions.invoke("verify-comment", {
-        body: {
-          email: formData.email.trim(),
-          code: verificationCode,
-          articleId,
-        },
-      });
-
-      if (error) throw error;
-
-      if (data.error) {
-        toast.error(data.error);
-        return;
-      }
-
-      toast.success("Comment published successfully!");
-      setStep("success");
-      setFormData({ name: "", email: "", comment: "" });
-      setVerificationCode("");
+      toast.success("Comment published!");
+      resetForm(parentId);
       queryClient.invalidateQueries({ queryKey: ["comments", articleId] });
-      
-      setTimeout(() => setStep("idle"), 3000);
     } catch (error: any) {
-      console.error("Error verifying code:", error);
-      toast.error("Failed to verify code. Please try again.");
+      console.error("Error posting comment:", error);
+      toast.error("Failed to post comment. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleCloseDialog = () => {
-    if (!isSubmitting) {
-      setStep("writing");
+  const resetForm = (parentId: string | null) => {
+    if (parentId) {
+      setReplyData({ name: "", comment: "" });
+      setReplyingTo(null);
+    } else {
+      setFormData({ name: "", comment: "" });
+      setIsWriting(false);
     }
   };
 
-  const resetForm = () => {
-    setStep("idle");
-    setFormData({ name: "", email: "", comment: "" });
-    setVerificationCode("");
-  };
+  const commentTree = comments ? buildCommentTree(comments) : [];
 
-  const isDialogOpen = step === "details" || step === "verification" || step === "success";
+  const CommentItem = ({ comment, isReply = false }: { comment: Comment; isReply?: boolean }) => (
+    <div className={`${isReply ? "ml-6 border-l-2 border-muted pl-4" : ""}`}>
+      <div className="mb-2 flex items-center gap-2">
+        <span className="font-medium text-foreground">{comment.commenter_name}</span>
+        <span className="text-xs text-muted-foreground">
+          {getRelativeTime(comment.created_at)}
+        </span>
+      </div>
+      <p className="text-sm leading-relaxed text-foreground mb-2">{comment.comment_text}</p>
+      {!isReply && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+          onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+        >
+          <Reply className="mr-1 h-3 w-3" />
+          Reply
+        </Button>
+      )}
+    </div>
+  );
 
   return (
     <section className="mt-10 border-t border-border pt-8">
       <h3 className="mb-6 flex items-center gap-2 font-serif text-xl font-bold text-foreground">
         <MessageSquare className="h-5 w-5" />
-        Comments
+        Comments {comments && comments.length > 0 && `(${commentTree.length})`}
       </h3>
 
-      {/* Comment Area */}
+      {/* New Comment Area */}
       <div className="mb-8">
-        {step === "idle" && (
+        {!isWriting ? (
           <Button
             variant="outline"
             className="w-full justify-start text-muted-foreground"
-            onClick={() => setStep("writing")}
+            onClick={() => setIsWriting(true)}
           >
             <MessageSquare className="mr-2 h-4 w-4" />
             Leave a comment...
           </Button>
-        )}
-
-        {step === "writing" && (
-          <div className="space-y-4 rounded-lg bg-muted/50 p-4">
+        ) : (
+          <form onSubmit={(e) => handleSubmitComment(e, null)} className="space-y-4 rounded-lg bg-muted/50 p-4">
             <Textarea
               placeholder="Write your comment..."
               value={formData.comment}
@@ -226,165 +185,57 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
               rows={4}
               maxLength={1000}
               autoFocus
+              disabled={isSubmitting}
             />
-            <div className="flex justify-between">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={resetForm}
-              >
-                Cancel
-              </Button>
-              <Button onClick={handlePostComment}>
-                <Send className="mr-2 h-4 w-4" />
-                Post Comment
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Details & Verification Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
-        <DialogContent className="sm:max-w-md">
-          {step === "details" && (
-            <>
-              <DialogHeader>
-                <DialogTitle>Verify your identity</DialogTitle>
-                <DialogDescription>
-                  Enter your name and email to receive a verification code.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="mb-4 rounded-md bg-muted p-3">
-                <p className="text-xs text-muted-foreground mb-1">Your comment:</p>
-                <p className="text-sm text-foreground line-clamp-3">{formData.comment}</p>
+            <Input
+              placeholder="Your name (required)"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              maxLength={40}
+              disabled={isSubmitting}
+            />
+            {/* Honeypot field - hidden from users */}
+            <input
+              type="text"
+              name="website"
+              value={honeypot}
+              onChange={(e) => setHoneypot(e.target.value)}
+              style={{ position: "absolute", left: "-9999px" }}
+              tabIndex={-1}
+              autoComplete="off"
+            />
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-muted-foreground">
+                {formData.comment.length}/1000
+              </span>
+              <div className="flex gap-2">
                 <Button
                   type="button"
-                  variant="link"
+                  variant="ghost"
                   size="sm"
-                  className="h-auto p-0 text-xs"
-                  onClick={handleCloseDialog}
+                  onClick={() => resetForm(null)}
+                  disabled={isSubmitting}
                 >
-                  Edit comment
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Publishing...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="mr-2 h-4 w-4" />
+                      Publish
+                    </>
+                  )}
                 </Button>
               </div>
-              <form onSubmit={handleSubmitDetails} className="space-y-4">
-                <Input
-                  placeholder="Your name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  maxLength={100}
-                  disabled={isSubmitting}
-                  autoFocus
-                />
-                <Input
-                  type="email"
-                  placeholder="Your email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  maxLength={255}
-                  disabled={isSubmitting}
-                />
-                <div className="flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleCloseDialog}
-                    disabled={isSubmitting}
-                  >
-                    Back
-                  </Button>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Sending...
-                      </>
-                    ) : (
-                      "Send Code"
-                    )}
-                  </Button>
-                </div>
-              </form>
-            </>
-          )}
-
-          {step === "verification" && (
-            <>
-              <DialogHeader>
-                <DialogTitle>Enter verification code</DialogTitle>
-                <DialogDescription>
-                  We've sent a 6-digit code to <strong>{formData.email}</strong>. The code expires in 20 minutes.
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleVerifyCode} className="space-y-4">
-                <Input
-                  type="text"
-                  placeholder="Enter 6-digit code"
-                  value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  className="text-center text-lg tracking-widest"
-                  maxLength={6}
-                  disabled={isSubmitting}
-                  autoFocus
-                />
-                <div className="flex items-center justify-between">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleResendCode}
-                    disabled={resendCooldown > 0 || isResending}
-                    className="text-xs"
-                  >
-                    {isResending ? (
-                      <>
-                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                        Sending...
-                      </>
-                    ) : resendCooldown > 0 ? (
-                      `Resend in ${resendCooldown}s`
-                    ) : (
-                      <>
-                        <RefreshCw className="mr-1 h-3 w-3" />
-                        Resend code
-                      </>
-                    )}
-                  </Button>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setStep("details")}
-                      disabled={isSubmitting}
-                    >
-                      Back
-                    </Button>
-                    <Button type="submit" disabled={isSubmitting || verificationCode.length !== 6}>
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Verifying...
-                        </>
-                      ) : (
-                        "Verify & Publish"
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </form>
-            </>
-          )}
-
-          {step === "success" && (
-            <div className="py-6 text-center">
-              <p className="text-lg font-medium text-primary">Comment published!</p>
-              <p className="text-sm text-muted-foreground">Thank you for your contribution.</p>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+          </form>
+        )}
+      </div>
 
       {/* Comments List */}
       {isLoading ? (
@@ -396,17 +247,77 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
             </div>
           ))}
         </div>
-      ) : comments && comments.length > 0 ? (
+      ) : commentTree.length > 0 ? (
         <div className="space-y-6">
-          {comments.map((comment) => (
+          {commentTree.map((comment) => (
             <div key={comment.id} className="border-b border-border pb-4 last:border-b-0">
-              <div className="mb-2 flex items-center gap-2">
-                <span className="font-medium text-foreground">{comment.commenter_name}</span>
-                <span className="text-xs text-muted-foreground">
-                  {getRelativeTime(comment.created_at!)}
-                </span>
-              </div>
-              <p className="text-sm leading-relaxed text-foreground">{comment.comment_text}</p>
+              <CommentItem comment={comment} />
+              
+              {/* Replies */}
+              {comment.replies.length > 0 && (
+                <div className="mt-4 space-y-4">
+                  {comment.replies.map((reply) => (
+                    <CommentItem key={reply.id} comment={reply} isReply />
+                  ))}
+                </div>
+              )}
+
+              {/* Reply Form */}
+              {replyingTo === comment.id && (
+                <form
+                  onSubmit={(e) => handleSubmitComment(e, comment.id)}
+                  className="mt-4 ml-6 space-y-3 rounded-lg bg-muted/30 p-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">
+                      Replying to {comment.commenter_name}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => setReplyingTo(null)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  <Textarea
+                    placeholder="Write your reply..."
+                    value={replyData.comment}
+                    onChange={(e) => setReplyData({ ...replyData, comment: e.target.value })}
+                    rows={3}
+                    maxLength={1000}
+                    autoFocus
+                    disabled={isSubmitting}
+                  />
+                  <Input
+                    placeholder="Your name (required)"
+                    value={replyData.name}
+                    onChange={(e) => setReplyData({ ...replyData, name: e.target.value })}
+                    maxLength={40}
+                    disabled={isSubmitting}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setReplyingTo(null)}
+                      disabled={isSubmitting}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" size="sm" disabled={isSubmitting}>
+                      {isSubmitting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Reply"
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              )}
             </div>
           ))}
         </div>
