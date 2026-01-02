@@ -43,19 +43,32 @@ export default function Analytics() {
   }, []);
 
   const checkAuth = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('Auth error:', authError);
       navigate('/auth');
       return;
     }
 
-    const { data: roles } = await supabase
+    const { data: roles, error: rolesError } = await supabase
       .from('user_roles')
       .select('role')
-      .eq('user_id', user.id);
+      .eq('user_id', user.id)
+      .maybeSingle();
 
-    const role = roles?.[0]?.role;
-    if (role !== 'admin') {
+    if (rolesError) {
+      console.error('Roles fetch error:', rolesError);
+      toast({
+        title: 'Error checking permissions',
+        description: 'Could not verify admin access',
+        variant: 'destructive',
+      });
+      navigate('/');
+      return;
+    }
+
+    if (roles?.role !== 'admin') {
       toast({
         title: 'Access denied',
         description: 'Only administrators can access analytics',
