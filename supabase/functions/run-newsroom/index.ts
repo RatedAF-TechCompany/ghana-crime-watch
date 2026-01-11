@@ -30,6 +30,24 @@ const CATEGORIES = [
   { slug: 'organised-crime', label: 'Organised Crime', keywords: ['gang', 'syndicate', 'cartel', 'organised', 'criminal network'] },
 ];
 
+const IMAGE_STYLES = [
+  'investigative-collage',
+  'ink-watercolour',
+  'newspaper-ink',
+  'noir-illustration'
+] as const;
+
+const IMAGE_STYLE_PROMPTS: Record<string, string> = {
+  'investigative-collage': 'Gritty split-frame investigative editorial collage, newspaper clippings aesthetic, Ghana Africa theme, no text no words, 16:9 aspect ratio, serious tone',
+  'ink-watercolour': 'Minimalist hand-drawn ink and watercolor illustration, editorial art, muted earth tones, no text no words, 16:9 aspect ratio',
+  'newspaper-ink': 'Classic newspaper editorial ink illustration, detailed crosshatching, vintage press aesthetic, no text no words, 16:9 aspect ratio',
+  'noir-illustration': 'Dark moody crime noir illustration style, dramatic shadows, investigative journalism aesthetic, no text no words, 16:9 aspect ratio'
+};
+
+function getRandomImageStyle(): string {
+  return IMAGE_STYLES[Math.floor(Math.random() * IMAGE_STYLES.length)];
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -277,6 +295,73 @@ Write in a professional journalistic style. Be factual and objective. Do not fab
           .replace(/(^-|-$)/g, "")
           .substring(0, 80);
 
+        const articleSlug = `${slug}-${Date.now()}`;
+
+        // Generate editorial image
+        const imageStyle = getRandomImageStyle();
+        const stylePrompt = IMAGE_STYLE_PROMPTS[imageStyle];
+        const imagePrompt = `${stylePrompt}. Topic: ${articleJson.title}. Crime news editorial illustration for Ghana news website.`;
+
+        console.log(`Generating image with style: ${imageStyle}`);
+
+        let heroImageUrl: string | null = null;
+
+        try {
+          const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${lovableApiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "google/gemini-2.5-flash-image-preview",
+              messages: [
+                { role: "user", content: imagePrompt }
+              ],
+              modalities: ["image", "text"]
+            }),
+          });
+
+          if (imageResponse.ok) {
+            const imageData = await imageResponse.json();
+            const base64Image = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+
+            if (base64Image && base64Image.startsWith("data:image")) {
+              // Extract base64 data
+              const base64Data = base64Image.split(",")[1];
+              const imageBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+
+              // Upload to Supabase Storage
+              const imagePath = `newsroom/${articleSlug}.png`;
+              const { error: uploadError } = await supabase.storage
+                .from("article-images")
+                .upload(imagePath, imageBuffer, {
+                  contentType: "image/png",
+                  upsert: true
+                });
+
+              if (!uploadError) {
+                const { data: publicUrl } = supabase.storage
+                  .from("article-images")
+                  .getPublicUrl(imagePath);
+                heroImageUrl = publicUrl.publicUrl;
+                console.log(`Uploaded image: ${heroImageUrl}`);
+              } else {
+                console.error("Image upload failed:", uploadError);
+              }
+            }
+          } else {
+            console.error("Image generation failed:", imageResponse.status);
+          }
+        } catch (imgError) {
+          console.error("Image generation error:", imgError);
+        }
+
+        // Update newsroom article with image style
+        await supabase.from("newsroom_articles").update({
+          image_style: imageStyle,
+        }).eq("id", newsItem.id);
+
         // Insert the article
         const { data: newArticle, error: articleError } = await supabase
           .from("articles")
@@ -285,12 +370,13 @@ Write in a professional journalistic style. Be factual and objective. Do not fab
             subtitle: articleJson.subtitle,
             summary: articleJson.summary,
             body: articleJson.body,
-            slug: `${slug}-${Date.now()}`,
+            slug: articleSlug,
             category_slug: articleJson.category_slug || "police-reports",
             author: "GhanaCrimes Newsroom",
             tags: articleJson.tags || [],
             seo_title: articleJson.title,
             seo_description: articleJson.seo_description,
+            hero_image_url: heroImageUrl,
             is_published: false, // Save as draft
           })
           .select()
