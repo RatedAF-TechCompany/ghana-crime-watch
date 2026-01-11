@@ -12,6 +12,7 @@ import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/admin/Dashboard";
 import ArticleEditor from "./pages/admin/ArticleEditor";
 import Analytics from "./pages/admin/Analytics";
+import Newsroom from "./pages/admin/Newsroom";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
         <Routes>
           <Route path="/admin" element={<Dashboard />} />
           <Route path="/admin/analytics" element={<Analytics />} />
+          <Route path="/admin/newsroom" element={<Newsroom />} />
           <Route path="/admin/articles/:id" element={<ArticleEditor />} />
           <Route path="/" element={<Layout><Index /></Layout>} />
           <Route path="/auth" element={<Layout><AuthPage /></Layout>} />
