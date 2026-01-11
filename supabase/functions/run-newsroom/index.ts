@@ -6,13 +6,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const GHANA_NEWS_SOURCES = [
-  "Ghana Web crime news",
-  "MyJoyOnline crime Ghana",
-  "Graphic Online Ghana crime",
-  "Citinewsroom Ghana crime",
-  "GhanaWeb police",
-  "Ghana crime reports today",
+const NEWS_SOURCES = [
+  { name: "Ghana Police Service", domain: "police.gov.gh" },
+  { name: "Graphic Online", domain: "graphic.com.gh" },
+  { name: "Citi Newsroom", domain: "citinewsroom.com" },
+  { name: "GhanaWeb", domain: "ghanaweb.com" },
+  { name: "Modern Ghana", domain: "modernghana.com" },
+  { name: "MyJoyOnline", domain: "myjoyonline.com" },
+  { name: "Starr FM", domain: "starrfm.com.gh" },
+  { name: "Peace FM", domain: "peacefmonline.com" },
 ];
 
 const CATEGORIES = [
@@ -77,15 +79,16 @@ serve(async (req) => {
     console.log(`Started newsroom run: ${run.id}`);
 
     // Step 1: Use AI to search for Ghana crime news
+    const sourcesList = NEWS_SOURCES.map(s => `${s.name} (${s.domain})`).join(", ");
     const searchPrompt = `You are a news aggregator assistant. Search for recent crime news from Ghana.
     
-Look for news from these types of sources: ${GHANA_NEWS_SOURCES.join(", ")}.
+Look for news from these trusted Ghana news sources: ${sourcesList}.
 
 Return a JSON array of 5-10 recent crime news items from Ghana. Each item should have:
-- source_name: The news outlet name
+- source_name: The news outlet name (must be one of: ${NEWS_SOURCES.map(s => s.name).join(", ")})
 - original_headline: The headline
 - original_summary: A brief 1-2 sentence summary
-- source_url: A plausible URL (or null if unknown)
+- source_url: A plausible URL from the source's domain (or null if unknown)
 - category_hint: One of these categories that best fits: ${CATEGORIES.map(c => c.slug).join(", ")}
 
 Focus on REAL crime news topics like: murders, robberies, fraud cases, court proceedings, police operations, arrests, etc.
