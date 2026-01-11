@@ -17,17 +17,10 @@ const NEWS_SOURCES = [
   { name: "Peace FM", domain: "peacefmonline.com" },
 ];
 
-const CATEGORIES = [
-  { slug: 'violent-crime', label: 'Violent Crime', keywords: ['murder', 'assault', 'robbery', 'attack', 'stabbing', 'shooting'] },
-  { slug: 'property-crime', label: 'Property Crime', keywords: ['theft', 'burglary', 'stolen', 'break-in', 'vandalism'] },
-  { slug: 'cybercrime', label: 'Cybercrime', keywords: ['cyber', 'online fraud', 'hacking', 'internet', 'digital'] },
-  { slug: 'fraud-scams', label: 'Fraud & Scams', keywords: ['fraud', 'scam', 'ponzi', 'embezzlement', 'forgery'] },
-  { slug: 'drug-offences', label: 'Drug Offences', keywords: ['drug', 'cannabis', 'cocaine', 'trafficking', 'narcotics'] },
-  { slug: 'domestic-violence', label: 'Domestic Violence', keywords: ['domestic', 'spouse', 'wife', 'husband', 'family violence'] },
-  { slug: 'traffic-offences', label: 'Traffic & Road Safety', keywords: ['traffic', 'accident', 'road', 'driving', 'vehicle'] },
-  { slug: 'court-cases', label: 'Court Cases & Judgments', keywords: ['court', 'trial', 'judge', 'verdict', 'sentenced', 'acquitted'] },
-  { slug: 'police-reports', label: 'Police Reports', keywords: ['police', 'arrest', 'detained', 'custody', 'investigation'] },
-  { slug: 'organised-crime', label: 'Organised Crime', keywords: ['gang', 'syndicate', 'cartel', 'organised', 'criminal network'] },
+const VALID_CATEGORIES = [
+  "breaking-news", "investigations", "court-cases", "police-reports",
+  "fraud-scams", "cybercrime", "violent-crime", "theft-robbery",
+  "drug-offenses", "corruption", "public-safety", "community-watch"
 ];
 
 const IMAGE_STYLES = [
@@ -107,7 +100,7 @@ Return a JSON array of 5-10 recent crime news items from Ghana. Each item should
 - original_headline: The headline
 - original_summary: A brief 1-2 sentence summary
 - source_url: A plausible URL from the source's domain (or null if unknown)
-- category_hint: One of these categories that best fits: ${CATEGORIES.map(c => c.slug).join(", ")}
+- category_hint: One of these categories that best fits: ${VALID_CATEGORIES.join(", ")}
 
 Focus on REAL crime news topics like: murders, robberies, fraud cases, court proceedings, police operations, arrests, etc.
 
@@ -243,7 +236,7 @@ Write the article with:
 4. Full article body in HTML format (3-5 paragraphs, well-researched tone)
 5. 3-5 relevant tags
 6. SEO meta description (under 160 characters)
-7. Suggested category from: ${CATEGORIES.map(c => c.slug).join(", ")}
+7. Suggested category from: ${VALID_CATEGORIES.join(", ")}
 
 Return as JSON with these exact keys:
 {
