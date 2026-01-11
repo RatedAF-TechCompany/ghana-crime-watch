@@ -221,35 +221,44 @@ Return ONLY valid JSON array, no other text.`;
         }
 
         // Generate full article using AI
-        const articlePrompt = `You are a professional crime journalist for GhanaCrimes, a news website covering crime in Ghana.
+        const articlePrompt = `You are the GhanaCrimes automated newsroom. Generate a complete crime news article.
 
-Based on this news item, write an original, detailed news article:
-
+ORIGINAL NEWS ITEM:
 Headline: ${newsItem.original_headline}
 Summary: ${newsItem.original_summary}
 Source: ${newsItem.source_name}
 
-Write the article with:
-1. A compelling, SEO-friendly title (different from the original)
-2. A subtitle (one sentence)
-3. A summary (2-3 sentences for the article preview)
-4. Full article body in HTML format (3-5 paragraphs, well-researched tone)
-5. 3-5 relevant tags
-6. SEO meta description (under 160 characters)
-7. Suggested category from: ${VALID_CATEGORIES.join(", ")}
+WRITING RULES:
+- Do NOT use colons or long dashes
+- Do NOT use bullet points, emojis, or hashtags
+- Do NOT add links or URLs
+- Write factually, neutrally, and professionally
+- Respect presumption of innocence (use "alleged", "suspected" appropriately)
+- If details are unconfirmed, state so clearly
 
-Return as JSON with these exact keys:
+FIELDS TO GENERATE:
+1. headline: Short, factual, max 80 characters
+2. subtitle: Expands headline in one sentence
+3. summary: Plain English, max 400 characters
+4. body: 4-8 HTML paragraphs using <p> tags
+5. seo_description: Max 155 characters
+6. slug: Lowercase words with hyphens
+7. section: Choose from: ${VALID_CATEGORIES.join(", ")}
+8. tags: Keywords including locations, crime types, agencies
+9. image_prompt: Visual metaphor for the story, max 50 words
+
+Return ONLY valid JSON with these exact keys:
 {
-  "title": "...",
+  "headline": "...",
   "subtitle": "...",
   "summary": "...",
   "body": "<p>...</p>",
-  "tags": ["tag1", "tag2"],
   "seo_description": "...",
-  "category_slug": "..."
-}
-
-Write in a professional journalistic style. Be factual and objective. Do not fabricate specific names, dates, or locations not mentioned in the original.`;
+  "slug": "...",
+  "section": "...",
+  "tags": ["tag1", "tag2"],
+  "image_prompt": "..."
+}`;
 
         const articleResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
@@ -260,7 +269,7 @@ Write in a professional journalistic style. Be factual and objective. Do not fab
           body: JSON.stringify({
             model: "google/gemini-3-flash-preview",
             messages: [
-              { role: "system", content: "You are a professional journalist. Return only valid JSON." },
+              { role: "system", content: "You are a professional crime journalist. Return only valid JSON. Never use colons, dashes, bullet points, or emojis in your writing." },
               { role: "user", content: articlePrompt }
             ],
           }),
@@ -281,19 +290,20 @@ Write in a professional journalistic style. Be factual and objective. Do not fab
           throw new Error("Failed to parse article JSON");
         }
 
-        // Generate slug
-        const slug = articleJson.title
+        // Use AI-generated slug or create from headline
+        const slugBase = (articleJson.slug || articleJson.headline || "article")
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, "-")
           .replace(/(^-|-$)/g, "")
           .substring(0, 80);
 
-        const articleSlug = `${slug}-${Date.now()}`;
+        const articleSlug = `${slugBase}-${Date.now()}`;
 
-        // Generate editorial image
+        // Generate editorial image using AI-generated prompt combined with style
         const imageStyle = getRandomImageStyle();
         const stylePrompt = IMAGE_STYLE_PROMPTS[imageStyle];
-        const imagePrompt = `${stylePrompt}. Topic: ${articleJson.title}. Crime news editorial illustration for Ghana news website.`;
+        const aiImagePrompt = articleJson.image_prompt || `Crime news about ${articleJson.headline}`;
+        const imagePrompt = `${stylePrompt}. ${aiImagePrompt}. Ghana Africa setting.`;
 
         console.log(`Generating image with style: ${imageStyle}`);
 
@@ -355,21 +365,21 @@ Write in a professional journalistic style. Be factual and objective. Do not fab
           image_style: imageStyle,
         }).eq("id", newsItem.id);
 
-        // Insert the article
+        // Insert the article using new field names
         const { data: newArticle, error: articleError } = await supabase
           .from("articles")
           .insert({
-            title: articleJson.title,
+            title: articleJson.headline,
             subtitle: articleJson.subtitle,
             summary: articleJson.summary,
             body: articleJson.body,
-            slug: articleSlug,
-            category_slug: articleJson.category_slug || "police-reports",
-            author: "GhanaCrimes Newsroom",
+            article_slug: articleSlug,
+            category_slug: articleJson.section || "police-reports",
+            author_name: "GhanaCrimes Newsroom",
             tags: articleJson.tags || [],
-            seo_title: articleJson.title,
+            seo_title: articleJson.headline,
             seo_description: articleJson.seo_description,
-            hero_image_url: heroImageUrl,
+            hero_image: heroImageUrl,
             is_published: false, // Save as draft
           })
           .select()
