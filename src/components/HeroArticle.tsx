@@ -27,11 +27,11 @@ export function HeroArticle({ article }: HeroArticleProps) {
     >
       <article>
         {article.hero_image && (
-          <div className="-mx-4 mb-4 aspect-[16/9] w-[calc(100%+2rem)] overflow-hidden bg-black sm:-mx-0 sm:w-full">
+          <div className="mb-4 aspect-[16/9] w-full overflow-hidden">
             <img
               src={article.hero_image}
               alt={article.title}
-              className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.02]"
+              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
             />
           </div>
         )}
