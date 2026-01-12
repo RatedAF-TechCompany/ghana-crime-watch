@@ -365,7 +365,7 @@ Return ONLY valid JSON with these exact keys:
           image_style: imageStyle,
         }).eq("id", newsItem.id);
 
-        // Insert the article using new field names
+        // Insert the article and auto-publish
         const { data: newArticle, error: articleError } = await supabase
           .from("articles")
           .insert({
@@ -380,7 +380,8 @@ Return ONLY valid JSON with these exact keys:
             seo_title: articleJson.headline,
             seo_description: articleJson.seo_description,
             hero_image: heroImageUrl,
-            is_published: false, // Save as draft
+            is_published: true,
+            published_at: new Date().toISOString(),
           })
           .select()
           .single();
