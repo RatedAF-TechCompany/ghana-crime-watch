@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getCategoryLabel } from "@/lib/categories";
 import { getRelativeTime } from "@/lib/time";
-import { Bookmark, Share2 } from "lucide-react";
+import { Bookmark, Share2, Volume2, Pause, Square } from "lucide-react";
+import { useTextToSpeech } from "@/hooks/use-text-to-speech";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CommentsSection } from "@/components/CommentsSection";
@@ -17,6 +18,21 @@ export default function ArticlePage() {
     articleSlug: string;
   }>();
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const { isPlaying, isPaused, isSupported, speak, stop, togglePlayPause } = useTextToSpeech();
+
+  const handleListen = () => {
+    if (isPlaying) {
+      stop();
+    } else {
+      // Combine title, subtitle, and body for reading
+      const textToRead = [
+        article?.title,
+        article?.subtitle,
+        article?.body
+      ].filter(Boolean).join('. ');
+      speak(textToRead);
+    }
+  };
 
   const { data: article, isLoading } = useQuery({
     queryKey: ["article", categorySlug, articleSlug],
@@ -145,6 +161,45 @@ export default function ArticlePage() {
           {categoryLabel} • {relativeTime}
         </p>
         <div className="flex gap-2">
+          {isSupported && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={isPlaying ? togglePlayPause : handleListen}
+              className="gap-2 text-muted-foreground hover:text-primary"
+              aria-label={isPlaying ? (isPaused ? "Resume" : "Pause") : "Listen to article"}
+            >
+              {isPlaying ? (
+                isPaused ? (
+                  <>
+                    <Volume2 className="h-4 w-4" />
+                    <span className="text-xs font-medium">Resume</span>
+                  </>
+                ) : (
+                  <>
+                    <Pause className="h-4 w-4" />
+                    <span className="text-xs font-medium">Pause</span>
+                  </>
+                )
+              ) : (
+                <>
+                  <Volume2 className="h-4 w-4" />
+                  <span className="text-xs font-medium">Listen</span>
+                </>
+              )}
+            </Button>
+          )}
+          {isPlaying && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={stop}
+              className="text-muted-foreground hover:text-primary"
+              aria-label="Stop"
+            >
+              <Square className="h-4 w-4" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
