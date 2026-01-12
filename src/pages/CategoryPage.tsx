@@ -19,7 +19,7 @@ export default function CategoryPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("articles")
-        .select("id, title, summary, category_slug, article_slug, published_at, hero_image")
+        .select("id, title, summary, body, category_slug, article_slug, published_at, hero_image")
         .eq("is_published", true)
         .eq("category_slug", categorySlug!)
         .order("published_at", { ascending: false })

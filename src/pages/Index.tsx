@@ -16,7 +16,7 @@ export default function Index() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("articles")
-        .select("id, title, summary, category_slug, article_slug, published_at, hero_image")
+        .select("id, title, summary, body, category_slug, article_slug, published_at, hero_image")
         .eq("is_published", true)
         .order("published_at", { ascending: false })
         .range(page * ARTICLES_PER_PAGE, (page + 1) * ARTICLES_PER_PAGE);

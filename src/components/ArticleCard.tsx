@@ -1,12 +1,13 @@
 import { Link } from "react-router-dom";
 import { getCategoryLabel } from "@/lib/categories";
-import { getRelativeTime } from "@/lib/time";
+import { getRelativeTime, getReadingTime } from "@/lib/time";
 
 interface ArticleCardProps {
   article: {
     id: string;
     title: string;
     summary: string;
+    body?: string;
     category_slug: string;
     article_slug: string;
     published_at: string;
@@ -18,6 +19,7 @@ interface ArticleCardProps {
 export function ArticleCard({ article, showImage = false }: ArticleCardProps) {
   const categoryLabel = getCategoryLabel(article.category_slug);
   const relativeTime = getRelativeTime(article.published_at);
+  const readingTime = article.body ? getReadingTime(article.body) : null;
 
   return (
     <article className="group border-b border-border py-4">
@@ -33,6 +35,12 @@ export function ArticleCard({ article, showImage = false }: ArticleCardProps) {
             <span className="font-medium uppercase tracking-wide text-primary">{categoryLabel}</span>
             <span>•</span>
             <span>{relativeTime}</span>
+            {readingTime && (
+              <>
+                <span>•</span>
+                <span>{readingTime}</span>
+              </>
+            )}
           </div>
         </div>
         {showImage && article.hero_image && (
