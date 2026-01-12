@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ThemeProvider } from "next-themes";
 import { Layout } from "./components/Layout";
 import { GoogleAnalytics } from "./components/GoogleAnalytics";
 import Index from "./pages/Index";
@@ -19,24 +20,26 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <GoogleAnalytics />
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/admin" element={<Dashboard />} />
-          <Route path="/admin/analytics" element={<Analytics />} />
-          <Route path="/admin/newsroom" element={<Newsroom />} />
-          <Route path="/admin/articles/:id" element={<ArticleEditor />} />
-          <Route path="/" element={<Layout><Index /></Layout>} />
-          <Route path="/auth" element={<Layout><AuthPage /></Layout>} />
-          <Route path="/:categorySlug" element={<Layout><CategoryPage /></Layout>} />
-          <Route path="/:categorySlug/:articleSlug" element={<Layout><ArticlePage /></Layout>} />
-          <Route path="*" element={<Layout><NotFound /></Layout>} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+      <TooltipProvider>
+        <GoogleAnalytics />
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/admin" element={<Dashboard />} />
+            <Route path="/admin/analytics" element={<Analytics />} />
+            <Route path="/admin/newsroom" element={<Newsroom />} />
+            <Route path="/admin/articles/:id" element={<ArticleEditor />} />
+            <Route path="/" element={<Layout><Index /></Layout>} />
+            <Route path="/auth" element={<Layout><AuthPage /></Layout>} />
+            <Route path="/:categorySlug" element={<Layout><CategoryPage /></Layout>} />
+            <Route path="/:categorySlug/:articleSlug" element={<Layout><ArticlePage /></Layout>} />
+            <Route path="*" element={<Layout><NotFound /></Layout>} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 
