@@ -2,7 +2,7 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getCategoryLabel } from "@/lib/categories";
-import { getRelativeTime } from "@/lib/time";
+import { getRelativeTime, getReadingTime } from "@/lib/time";
 import { Bookmark, Share2, Volume2, Pause, Square } from "lucide-react";
 import { useTextToSpeech } from "@/hooks/use-text-to-speech";
 import { Button } from "@/components/ui/button";
@@ -133,6 +133,7 @@ export default function ArticlePage() {
 
   const categoryLabel = getCategoryLabel(article.category_slug);
   const relativeTime = getRelativeTime(article.published_at!);
+  const readingTime = getReadingTime(article.body);
 
   // Add mark tags to numbers for highlight effect
   const processBodyText = (body: string) => {
@@ -158,7 +159,7 @@ export default function ArticlePage() {
 
       <div className="mb-4 flex items-center justify-between">
         <p className="text-sm font-medium text-primary">
-          {categoryLabel} • {relativeTime}
+          {categoryLabel} • {relativeTime} • {readingTime}
         </p>
         <div className="flex gap-2">
           {isSupported && (
