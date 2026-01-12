@@ -180,14 +180,13 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
       {/* New Comment Area */}
       <div className="mb-8">
         {step === "idle" && (
-          <Button
-            variant="outline"
-            className="w-full justify-start text-muted-foreground"
+          <button
             onClick={() => setStep("writing")}
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
           >
-            <MessageSquare className="mr-2 h-4 w-4" />
-            Leave a comment...
-          </Button>
+            <MessageSquare className="h-4 w-4" />
+            <span>Leave a comment</span>
+          </button>
         )}
 
         {step === "writing" && (
