@@ -221,7 +221,13 @@ Return ONLY valid JSON array, no other text.`;
         }
 
         // Generate full article using AI
-        const articlePrompt = `You are the GhanaCrimes automated newsroom. Generate a complete crime news article.
+        const articlePrompt = `You are the GhanaCrimes automated newsroom editor.
+
+You will be given an ORIGINAL NEWS ITEM with three fields: original_headline, original_summary, and source_name.
+
+Before writing, you must do a live verification scan across the web using the original_headline and key names and places from the original_summary. Use multiple reputable sources such as the original outlet plus at least two other credible outlets or official statements where available. Prefer primary sources like police statements, court records, official releases, and direct quotes. If you cannot independently verify a detail, you must say it is unconfirmed and attribute it to the original source.
+
+You must be specific with names, dates, locations, agencies, charges, court names, bail terms, and seized items when verified. If sources disagree, reflect the disagreement and attribute each version to its source. Do not speculate.
 
 ORIGINAL NEWS ITEM:
 Headline: ${newsItem.original_headline}
@@ -229,23 +235,25 @@ Summary: ${newsItem.original_summary}
 Source: ${newsItem.source_name}
 
 WRITING RULES:
-- Do NOT use colons or long dashes
-- Do NOT use bullet points, emojis, or hashtags
-- Do NOT add links or URLs
-- Write factually, neutrally, and professionally
-- Respect presumption of innocence (use "alleged", "suspected" appropriately)
-- If details are unconfirmed, state so clearly
+- Do NOT use colons or long dashes.
+- Do NOT use bullet points, emojis, or hashtags.
+- Do NOT add links or URLs.
+- Write factually, neutrally, and professionally.
+- Respect presumption of innocence and use "alleged" or "suspected" appropriately.
+- If details are unconfirmed, state so clearly.
+- Do not invent names, figures, dates, or quotes.
+- When referencing sources, name them plainly in text such as "Ghana Police Service statement", "High Court filing", "GhanaWeb report", "Citi Newsroom report", "Reuters report". Do not include URLs.
 
 FIELDS TO GENERATE:
-1. headline: Short, factual, max 80 characters
-2. subtitle: Expands headline in one sentence
-3. summary: Plain English, max 400 characters
-4. body: 4-8 HTML paragraphs using <p> tags
-5. seo_description: Max 155 characters
-6. slug: Lowercase words with hyphens
-7. section: Choose from: ${VALID_CATEGORIES.join(", ")}
-8. tags: Keywords including locations, crime types, agencies
-9. image_prompt: Visual metaphor for the story, max 50 words
+1. headline: Short, factual, max 80 characters.
+2. subtitle: Expands headline in one sentence.
+3. summary: Plain English, max 400 characters.
+4. body: 4 to 8 HTML paragraphs using <p> tags. Include source attribution inside the paragraphs by naming outlets or official bodies. No links.
+5. seo_description: Max 155 characters.
+6. slug: Lowercase with hyphens.
+7. section: Choose from: ${VALID_CATEGORIES.join(", ")}.
+8. tags: Array of keywords including locations, crime types, agencies, key names.
+9. image_prompt: Visual metaphor for the story, max 50 words. No text overlays. No logos. No identifiable private persons.
 
 Return ONLY valid JSON with these exact keys:
 {
@@ -269,7 +277,7 @@ Return ONLY valid JSON with these exact keys:
           body: JSON.stringify({
             model: "google/gemini-3-flash-preview",
             messages: [
-              { role: "system", content: "You are a professional crime journalist. Return only valid JSON. Never use colons, dashes, bullet points, or emojis in your writing." },
+              { role: "system", content: "You are a professional crime journalist and fact-checker. You verify information across multiple sources before writing. Return only valid JSON. Never use colons, dashes, bullet points, or emojis in your writing. Always attribute claims to their sources." },
               { role: "user", content: articlePrompt }
             ],
           }),
