@@ -172,8 +172,88 @@ Return ONLY valid JSON array, no other text.`;
       });
     }
 
-    // Insert news items as pending
-    const newsRecords = newsItems.map(item => ({
+    // Step 2: Check for duplicates BEFORE inserting (saves AI calls)
+    // Get recent articles to check against (last 7 days)
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: recentArticles } = await supabase
+      .from("articles")
+      .select("id, title, article_slug")
+      .gte("created_at", sevenDaysAgo);
+
+    // Also check recent newsroom articles to avoid processing same headline twice
+    const { data: recentNewsroomArticles } = await supabase
+      .from("newsroom_articles")
+      .select("original_headline")
+      .gte("created_at", sevenDaysAgo)
+      .neq("processing_status", "failed");
+
+    // Build sets for fast lookup
+    const existingHeadlines = new Set<string>();
+    const existingSlugs = new Set<string>();
+    
+    for (const article of recentArticles || []) {
+      // Normalize title for comparison (lowercase, remove special chars)
+      const normalizedTitle = article.title.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+      existingHeadlines.add(normalizedTitle);
+      
+      // Also add key phrases (first 5-6 words)
+      const keyPhrase = normalizedTitle.split(' ').slice(0, 6).join(' ');
+      if (keyPhrase.length > 20) {
+        existingHeadlines.add(keyPhrase);
+      }
+      
+      // Track slugs
+      if (article.article_slug) {
+        existingSlugs.add(article.article_slug.toLowerCase());
+      }
+    }
+
+    // Add newsroom headlines already processed
+    for (const nrArticle of recentNewsroomArticles || []) {
+      const normalizedHeadline = nrArticle.original_headline.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+      existingHeadlines.add(normalizedHeadline);
+    }
+
+    // Helper function to check if headline is duplicate
+    const isDuplicateHeadline = (headline: string): boolean => {
+      const normalized = headline.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+      
+      // Exact match
+      if (existingHeadlines.has(normalized)) return true;
+      
+      // Key phrase match (first 6 words)
+      const keyPhrase = normalized.split(' ').slice(0, 6).join(' ');
+      if (keyPhrase.length > 20 && existingHeadlines.has(keyPhrase)) return true;
+      
+      // Fuzzy match - check if >70% of words overlap with any existing headline
+      const words = new Set(normalized.split(' ').filter(w => w.length > 3));
+      for (const existing of existingHeadlines) {
+        const existingWords = new Set(existing.split(' ').filter(w => w.length > 3));
+        if (existingWords.size < 4) continue;
+        
+        let matches = 0;
+        for (const word of words) {
+          if (existingWords.has(word)) matches++;
+        }
+        
+        const overlapRatio = matches / Math.max(words.size, existingWords.size);
+        if (overlapRatio > 0.7) return true;
+      }
+      
+      return false;
+    };
+
+    // Filter out duplicates BEFORE making AI calls
+    const uniqueNewsItems = newsItems.filter(item => {
+      const headline = item.original_headline || item.headline || "";
+      return !isDuplicateHeadline(headline);
+    });
+
+    const skippedDuplicates = newsItems.length - uniqueNewsItems.length;
+    console.log(`Duplicate check: ${skippedDuplicates} duplicates skipped, ${uniqueNewsItems.length} unique items to process`);
+
+    // Insert only unique news items as pending
+    const newsRecords = uniqueNewsItems.map(item => ({
       run_id: run.id,
       source_name: item.source_name || "Unknown",
       original_headline: item.original_headline || item.headline || "Untitled",
@@ -182,9 +262,22 @@ Return ONLY valid JSON array, no other text.`;
       processing_status: "pending",
     }));
 
+    // Also insert skipped duplicates with status
+    const duplicateRecords = newsItems
+      .filter(item => isDuplicateHeadline(item.original_headline || item.headline || ""))
+      .map(item => ({
+        run_id: run.id,
+        source_name: item.source_name || "Unknown",
+        original_headline: item.original_headline || item.headline || "Untitled",
+        original_summary: item.original_summary || item.summary || "",
+        source_url: item.source_url || null,
+        processing_status: "duplicate",
+      }));
+
+    // Insert all records
     const { data: insertedNews, error: insertError } = await supabase
       .from("newsroom_articles")
-      .insert(newsRecords)
+      .insert([...newsRecords, ...duplicateRecords])
       .select();
 
     if (insertError) {
@@ -196,29 +289,16 @@ Return ONLY valid JSON array, no other text.`;
       articles_found: newsItems.length,
     }).eq("id", run.id);
 
-    // Step 2: Check for duplicates and process each item
+    // Step 3: Process only unique (non-duplicate) items
     let articlesCreated = 0;
+    const pendingItems = (insertedNews || []).filter(item => item.processing_status === "pending");
 
-    for (const newsItem of insertedNews || []) {
+    for (const newsItem of pendingItems) {
       try {
         // Update status to processing
         await supabase.from("newsroom_articles").update({
           processing_status: "processing",
         }).eq("id", newsItem.id);
-
-        // Check for duplicate headlines
-        const { data: existingArticle } = await supabase
-          .from("articles")
-          .select("id")
-          .ilike("title", `%${newsItem.original_headline.substring(0, 50)}%`)
-          .limit(1);
-
-        if (existingArticle && existingArticle.length > 0) {
-          await supabase.from("newsroom_articles").update({
-            processing_status: "duplicate",
-          }).eq("id", newsItem.id);
-          continue;
-        }
 
         // Generate full article using AI
         const articlePrompt = `You are the GhanaCrimes automated newsroom editor.
