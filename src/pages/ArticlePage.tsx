@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CommentsSection } from "@/components/CommentsSection";
 import DOMPurify from "dompurify";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 export default function ArticlePage() {
@@ -50,6 +50,26 @@ export default function ArticlePage() {
     },
     enabled: !!categorySlug && !!articleSlug,
   });
+
+  // Track article view (only once per session per article)
+  const viewTrackedRef = useRef<string | null>(null);
+  
+  useEffect(() => {
+    const trackView = async () => {
+      if (!article?.id || viewTrackedRef.current === article.id) return;
+      
+      // Mark as tracked to prevent duplicate counts in this session
+      viewTrackedRef.current = article.id;
+      
+      // Increment view count using raw SQL call since RPC isn't in types yet
+      await supabase
+        .from('articles')
+        .update({ view_count: (article.view_count || 0) + 1 })
+        .eq('id', article.id);
+    };
+    
+    trackView();
+  }, [article?.id, article?.view_count]);
 
   const { data: relatedArticles } = useQuery({
     queryKey: ["related-articles", categorySlug, article?.id],
