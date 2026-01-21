@@ -75,6 +75,270 @@ function getRandomImageStyle(): string {
   return IMAGE_STYLES[Math.floor(Math.random() * IMAGE_STYLES.length)];
 }
 
+// Image sourcing strategy types
+type ImageStrategy = 'real_person' | 'real_place' | 'ai_enhanced' | 'ai_generated';
+
+interface ImageAnalysis {
+  strategy: ImageStrategy;
+  subject_name?: string;
+  subject_type?: 'politician' | 'celebrity' | 'public_figure' | 'location' | 'building' | 'event';
+  search_query?: string;
+  enhancement_prompt?: string;
+}
+
+// Analyze article to determine best image sourcing strategy
+async function analyzeImageStrategy(
+  headline: string,
+  summary: string,
+  body: string,
+  lovableApiKey: string
+): Promise<ImageAnalysis> {
+  const analysisPrompt = `Analyze this news article and determine the best image sourcing strategy.
+
+HEADLINE: ${headline}
+SUMMARY: ${summary}
+
+RULES:
+1. If the article is primarily about a FAMOUS PERSON (politician, celebrity, public figure, business leader, sports star), return strategy "real_person" with their full name
+2. If the article is about a SPECIFIC PLACE (landmark, government building, institution, city area), return strategy "real_place" with the location name
+3. If the article references a generic scene that could use a stock-style photo enhanced by AI, return strategy "ai_enhanced"
+4. Otherwise, return strategy "ai_generated" for full AI illustration
+
+Famous Ghanaian figures include: politicians (current/former presidents, ministers, MPs), traditional rulers, celebrities, athletes, business leaders, etc.
+
+Return ONLY valid JSON:
+{
+  "strategy": "real_person" | "real_place" | "ai_enhanced" | "ai_generated",
+  "subject_name": "Full Name or Place Name if applicable",
+  "subject_type": "politician" | "celebrity" | "public_figure" | "location" | "building" | "event" | null,
+  "search_query": "Optimized search query to find image",
+  "reasoning": "Brief explanation"
+}`;
+
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${lovableApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: "You are an image editor deciding how to source images for news articles. Return only valid JSON." },
+          { role: "user", content: analysisPrompt }
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      console.log("Image strategy analysis failed, defaulting to AI generated");
+      return { strategy: 'ai_generated' };
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || "{}";
+    
+    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, content];
+    const analysis = JSON.parse(jsonMatch[1] || content);
+    
+    console.log(`Image strategy: ${analysis.strategy} for "${analysis.subject_name || 'N/A'}"`);
+    return analysis;
+  } catch (e) {
+    console.error("Image strategy analysis error:", e);
+    return { strategy: 'ai_generated' };
+  }
+}
+
+// Search for real image using web search
+async function searchForRealImage(
+  searchQuery: string,
+  subjectType: string | undefined,
+  lovableApiKey: string
+): Promise<string | null> {
+  try {
+    // Use AI to find image URLs from the web
+    const searchPrompt = `Find a high-quality, recent, publicly available image of: ${searchQuery}
+
+Requirements:
+- Must be a real photograph (not illustration or AI-generated)
+- Should be from a reputable news source, official website, or verified social media
+- Image should be clear, professional quality
+- For public figures: official portraits, press photos, or professional event photos preferred
+- For places: clear daytime photos showing the location well
+
+Return ONLY a JSON object with:
+{
+  "image_url": "direct URL to the image file (must end in .jpg, .png, .webp or be a direct image link)",
+  "source": "where the image is from",
+  "description": "brief description of the image",
+  "found": true/false
+}
+
+If you cannot find a suitable real image, return: {"found": false}`;
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${lovableApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: "You are a photo researcher finding real images for news articles. Return only valid JSON." },
+          { role: "user", content: searchPrompt }
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      console.log("Image search failed");
+      return null;
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || "{}";
+    
+    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, content];
+    const result = JSON.parse(jsonMatch[1] || content);
+    
+    if (result.found && result.image_url) {
+      console.log(`Found real image: ${result.image_url} from ${result.source}`);
+      return result.image_url;
+    }
+    
+    return null;
+  } catch (e) {
+    console.error("Image search error:", e);
+    return null;
+  }
+}
+
+// Download and upload external image to Supabase storage
+async function downloadAndUploadImage(
+  imageUrl: string,
+  articleSlug: string,
+  supabase: any
+): Promise<string | null> {
+  try {
+    console.log(`Downloading image from: ${imageUrl}`);
+    
+    const response = await fetch(imageUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; GhanaCrimes/1.0)',
+        'Accept': 'image/*'
+      }
+    });
+    
+    if (!response.ok) {
+      console.log(`Failed to download image: ${response.status}`);
+      return null;
+    }
+    
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    const buffer = await response.arrayBuffer();
+    const imageBuffer = new Uint8Array(buffer);
+    
+    // Determine file extension
+    let ext = 'jpg';
+    if (contentType.includes('png')) ext = 'png';
+    else if (contentType.includes('webp')) ext = 'webp';
+    
+    const imagePath = `newsroom/${articleSlug}.${ext}`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from("article-images")
+      .upload(imagePath, imageBuffer, {
+        contentType: contentType,
+        upsert: true
+      });
+    
+    if (uploadError) {
+      console.error("Image upload failed:", uploadError);
+      return null;
+    }
+    
+    const { data: publicUrl } = supabase.storage
+      .from("article-images")
+      .getPublicUrl(imagePath);
+    
+    console.log(`Uploaded real image: ${publicUrl.publicUrl}`);
+    return publicUrl.publicUrl;
+  } catch (e) {
+    console.error("Download/upload error:", e);
+    return null;
+  }
+}
+
+// Enhance an existing image using AI
+async function enhanceImageWithAI(
+  imageUrl: string,
+  enhancementPrompt: string,
+  articleSlug: string,
+  supabase: any,
+  lovableApiKey: string
+): Promise<string | null> {
+  try {
+    console.log(`Enhancing image with AI: ${enhancementPrompt}`);
+    
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${lovableApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-image-preview",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: `Enhance this news photo: ${enhancementPrompt}. Improve lighting, clarity, and make it more impactful for editorial use. Keep it photorealistic.` },
+              { type: "image_url", image_url: { url: imageUrl } }
+            ]
+          }
+        ],
+        modalities: ["image", "text"]
+      }),
+    });
+    
+    if (!response.ok) {
+      console.log("Image enhancement failed");
+      return null;
+    }
+    
+    const data = await response.json();
+    const base64Image = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    
+    if (base64Image && base64Image.startsWith("data:image")) {
+      const base64Data = base64Image.split(",")[1];
+      const imageBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+      
+      const imagePath = `newsroom/${articleSlug}-enhanced.png`;
+      const { error: uploadError } = await supabase.storage
+        .from("article-images")
+        .upload(imagePath, imageBuffer, {
+          contentType: "image/png",
+          upsert: true
+        });
+      
+      if (!uploadError) {
+        const { data: publicUrl } = supabase.storage
+          .from("article-images")
+          .getPublicUrl(imagePath);
+        console.log(`Uploaded enhanced image: ${publicUrl.publicUrl}`);
+        return publicUrl.publicUrl;
+      }
+    }
+    
+    return null;
+  } catch (e) {
+    console.error("Image enhancement error:", e);
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -421,70 +685,119 @@ Return ONLY valid JSON with these exact keys:
 
         const articleSlug = `${slugBase}-${Date.now()}`;
 
-        // Generate editorial image using AI-generated prompt combined with style
-        const imageStyle = getRandomImageStyle();
-        const stylePrompt = IMAGE_STYLE_PROMPTS[imageStyle];
-        const aiImagePrompt = articleJson.image_prompt || `Crime news about ${articleJson.headline}`;
-        const imagePrompt = `${stylePrompt}. ${aiImagePrompt}. Ghana Africa setting.`;
-
-        console.log(`Generating image with style: ${imageStyle}`);
-
+        // Smart image sourcing - prioritize real images for famous people and places
         let heroImageUrl: string | null = null;
-
+        let imageSourceType: string = 'ai_generated';
+        
         try {
-          const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${lovableApiKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "google/gemini-2.5-flash-image-preview",
-              messages: [
-                { role: "user", content: imagePrompt }
-              ],
-              modalities: ["image", "text"]
-            }),
-          });
-
-          if (imageResponse.ok) {
-            const imageData = await imageResponse.json();
-            const base64Image = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-
-            if (base64Image && base64Image.startsWith("data:image")) {
-              // Extract base64 data
-              const base64Data = base64Image.split(",")[1];
-              const imageBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-
-              // Upload to Supabase Storage
-              const imagePath = `newsroom/${articleSlug}.png`;
-              const { error: uploadError } = await supabase.storage
-                .from("article-images")
-                .upload(imagePath, imageBuffer, {
-                  contentType: "image/png",
-                  upsert: true
-                });
-
-              if (!uploadError) {
-                const { data: publicUrl } = supabase.storage
-                  .from("article-images")
-                  .getPublicUrl(imagePath);
-                heroImageUrl = publicUrl.publicUrl;
-                console.log(`Uploaded image: ${heroImageUrl}`);
-              } else {
-                console.error("Image upload failed:", uploadError);
+          // Analyze what image strategy to use
+          const imageAnalysis = await analyzeImageStrategy(
+            articleJson.headline,
+            articleJson.summary || newsItem.original_summary,
+            articleJson.body,
+            lovableApiKey
+          );
+          
+          imageSourceType = imageAnalysis.strategy;
+          
+          if (imageAnalysis.strategy === 'real_person' || imageAnalysis.strategy === 'real_place') {
+            // Try to find and download a real image
+            console.log(`Searching for real image: ${imageAnalysis.search_query}`);
+            const realImageUrl = await searchForRealImage(
+              imageAnalysis.search_query || imageAnalysis.subject_name || articleJson.headline,
+              imageAnalysis.subject_type,
+              lovableApiKey
+            );
+            
+            if (realImageUrl) {
+              heroImageUrl = await downloadAndUploadImage(realImageUrl, articleSlug, supabase);
+              if (heroImageUrl) {
+                console.log(`Successfully sourced real image for: ${imageAnalysis.subject_name}`);
               }
             }
-          } else {
-            console.error("Image generation failed:", imageResponse.status);
+          } else if (imageAnalysis.strategy === 'ai_enhanced') {
+            // Find a base image and enhance it
+            const baseImageUrl = await searchForRealImage(
+              imageAnalysis.search_query || articleJson.headline,
+              imageAnalysis.subject_type,
+              lovableApiKey
+            );
+            
+            if (baseImageUrl) {
+              heroImageUrl = await enhanceImageWithAI(
+                baseImageUrl,
+                imageAnalysis.enhancement_prompt || `News photo about ${articleJson.headline}`,
+                articleSlug,
+                supabase,
+                lovableApiKey
+              );
+            }
+          }
+          
+          // Fallback to AI-generated illustration if no real image found
+          if (!heroImageUrl) {
+            console.log("Falling back to AI-generated image");
+            imageSourceType = 'ai_generated';
+            
+            const imageStyle = getRandomImageStyle();
+            const stylePrompt = IMAGE_STYLE_PROMPTS[imageStyle];
+            const aiImagePrompt = articleJson.image_prompt || `Crime news about ${articleJson.headline}`;
+            const imagePrompt = `${stylePrompt}. ${aiImagePrompt}. Ghana Africa setting.`;
+            
+            console.log(`Generating AI image with style: ${imageStyle}`);
+            
+            const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${lovableApiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "google/gemini-2.5-flash-image-preview",
+                messages: [
+                  { role: "user", content: imagePrompt }
+                ],
+                modalities: ["image", "text"]
+              }),
+            });
+
+            if (imageResponse.ok) {
+              const imageData = await imageResponse.json();
+              const base64Image = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+
+              if (base64Image && base64Image.startsWith("data:image")) {
+                const base64Data = base64Image.split(",")[1];
+                const imageBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+
+                const imagePath = `newsroom/${articleSlug}.png`;
+                const { error: uploadError } = await supabase.storage
+                  .from("article-images")
+                  .upload(imagePath, imageBuffer, {
+                    contentType: "image/png",
+                    upsert: true
+                  });
+
+                if (!uploadError) {
+                  const { data: publicUrl } = supabase.storage
+                    .from("article-images")
+                    .getPublicUrl(imagePath);
+                  heroImageUrl = publicUrl.publicUrl;
+                  console.log(`Uploaded AI image: ${heroImageUrl}`);
+                } else {
+                  console.error("Image upload failed:", uploadError);
+                }
+              }
+            } else {
+              console.error("AI image generation failed:", imageResponse.status);
+            }
           }
         } catch (imgError) {
-          console.error("Image generation error:", imgError);
+          console.error("Image sourcing error:", imgError);
         }
 
-        // Update newsroom article with image style
+        // Update newsroom article with image source type
         await supabase.from("newsroom_articles").update({
-          image_style: imageStyle,
+          image_style: imageSourceType,
         }).eq("id", newsItem.id);
 
         // Insert the article and auto-publish
