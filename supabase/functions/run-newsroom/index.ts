@@ -17,11 +17,45 @@ const NEWS_SOURCES = [
   { name: "Peace FM", domain: "peacefmonline.com" },
 ];
 
+// Valid categories that match the database CHECK constraint
 const VALID_CATEGORIES = [
-  "breaking-news", "investigations", "court-cases", "police-reports",
-  "fraud-scams", "cybercrime", "violent-crime", "theft-robbery",
-  "drug-offenses", "corruption", "public-safety", "community-watch"
+  "top-stories", "violent-crime", "property-crime", "cybercrime",
+  "fraud-scams", "drug-offences", "domestic-violence", "traffic-offences",
+  "youth-crime", "organised-crime", "white-collar-crime", "police-reports",
+  "court-cases", "prison-news", "crime-prevention", "crime-statistics",
+  "investigations", "most-wanted"
 ];
+
+// Map AI-generated categories to valid ones
+const CATEGORY_MAPPING: Record<string, string> = {
+  "breaking-news": "top-stories",
+  "theft-robbery": "property-crime",
+  "drug-offenses": "drug-offences",
+  "corruption": "white-collar-crime",
+  "public-safety": "crime-prevention",
+  "community-watch": "police-reports",
+  "robbery": "property-crime",
+  "murder": "violent-crime",
+  "assault": "violent-crime",
+  "fraud": "fraud-scams",
+  "scams": "fraud-scams",
+  "drugs": "drug-offences",
+  "courts": "court-cases",
+  "police": "police-reports",
+};
+
+// Helper to normalize category to valid one
+function normalizeCategory(category: string): string {
+  const normalized = category?.toLowerCase().trim() || "";
+  if (VALID_CATEGORIES.includes(normalized)) {
+    return normalized;
+  }
+  if (CATEGORY_MAPPING[normalized]) {
+    return CATEGORY_MAPPING[normalized];
+  }
+  // Default fallback
+  return "top-stories";
+}
 
 const IMAGE_STYLES = [
   'investigative-collage',
@@ -462,7 +496,7 @@ Return ONLY valid JSON with these exact keys:
             summary: articleJson.summary,
             body: articleJson.body,
             article_slug: articleSlug,
-            category_slug: articleJson.section || "police-reports",
+            category_slug: normalizeCategory(articleJson.section),
             author_name: "GhanaCrimes Newsroom",
             tags: articleJson.tags || [],
             seo_title: articleJson.headline,
