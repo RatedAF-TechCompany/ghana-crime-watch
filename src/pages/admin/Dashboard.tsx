@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Edit, Trash2, ArrowLeft, Users, FileText, MessageSquare, BarChart3, Newspaper } from 'lucide-react';
+import { Plus, Edit, Trash2, ArrowLeft, Users, FileText, MessageSquare, BarChart3, Newspaper, Zap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getRelativeTime } from '@/lib/time';
 import type { Tables, Database } from '@/integrations/supabase/types';
@@ -239,10 +239,16 @@ export default function Dashboard() {
           <h1 className="text-lg font-bold text-primary">Admin Dashboard</h1>
           <div className="flex-1" />
           {(userRole === 'admin' || userRole === 'editor') && (
-            <Button variant="outline" size="sm" onClick={() => navigate('/admin/newsroom')}>
-              <Newspaper className="h-4 w-4 mr-2" />
-              AI Newsroom
-            </Button>
+            <>
+              <Button variant="default" size="sm" onClick={() => navigate('/admin/quick-publish')}>
+                <Zap className="h-4 w-4 mr-2" />
+                Quick Publish
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => navigate('/admin/newsroom')}>
+                <Newspaper className="h-4 w-4 mr-2" />
+                AI Newsroom
+              </Button>
+            </>
           )}
           {userRole === 'admin' && (
             <Button variant="outline" size="sm" onClick={() => navigate('/admin/analytics')}>

@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.rss-feed]
 verify_jwt = false
+
+[functions.manual-article-submit]
+verify_jwt = true
