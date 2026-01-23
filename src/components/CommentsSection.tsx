@@ -171,21 +171,17 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
   );
 
   return (
-    <section className="mt-10 border-t border-border pt-8">
-      <h3 className="mb-6 flex items-center gap-2 font-serif text-xl font-bold text-foreground">
-        <MessageSquare className="h-5 w-5" />
-        Comments {comments && comments.length > 0 && `(${commentTree.length})`}
-      </h3>
-
-      {/* New Comment Area */}
-      <div className="mb-8">
+    <section className="mt-8 border-t border-border pt-6">
+      {/* Comments trigger and header - FT style */}
+      <div className="mb-6">
         {step === "idle" && (
           <button
             onClick={() => setStep("writing")}
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
+            className="text-sm font-medium text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
           >
-            <MessageSquare className="h-4 w-4" />
-            <span>Leave a comment</span>
+            {comments && comments.length > 0 
+              ? `${commentTree.length} comment${commentTree.length !== 1 ? 's' : ''}`
+              : 'Leave a comment'}
           </button>
         )}
 
@@ -224,9 +220,8 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
                 >
                   Cancel
                 </Button>
-                <Button onClick={() => handleProceedToName(null)}>
-                  <Send className="mr-2 h-4 w-4" />
-                  Submit
+                <Button size="sm" onClick={() => handleProceedToName(null)}>
+                  Continue
                 </Button>
               </div>
             </div>
@@ -240,7 +235,7 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
               <p className="text-sm text-foreground">{formData.comment}</p>
             </div>
             <Input
-              placeholder="Your name (required)"
+              placeholder="Your name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               maxLength={40}
@@ -257,14 +252,14 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
               >
                 Back
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" size="sm" disabled={isSubmitting}>
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Publishing...
+                    Posting...
                   </>
                 ) : (
-                  "Publish"
+                  "Post comment"
                 )}
               </Button>
             </div>
