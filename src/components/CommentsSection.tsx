@@ -172,12 +172,12 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
 
   return (
     <section className="mt-8 border-t border-border pt-6">
-      {/* Comments trigger and header - FT style */}
+      {/* Comments trigger - burgundy rectangular button */}
       <div className="mb-6">
         {step === "idle" && (
           <button
             onClick={() => setStep("writing")}
-            className="text-sm font-medium text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+            className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             {comments && comments.length > 0 
               ? `${commentTree.length} comment${commentTree.length !== 1 ? 's' : ''}`
