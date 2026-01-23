@@ -1,0 +1,387 @@
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+const VALID_CATEGORIES = [
+  "violent-crime",
+  "fraud-financial-crime",
+  "cybercrime",
+  "drug-related-crime",
+  "corruption-politics",
+  "road-safety",
+  "court-cases",
+  "police-reports",
+  "opinion-analysis",
+];
+
+// Peak publishing hours in GMT
+const PEAK_HOURS = [7, 9, 12, 15, 18, 20];
+
+function normalizeCategory(category: string): string {
+  const lower = category.toLowerCase().trim();
+  const categoryMap: Record<string, string> = {
+    "violent crime": "violent-crime",
+    "violence": "violent-crime",
+    "murder": "violent-crime",
+    "assault": "violent-crime",
+    "fraud": "fraud-financial-crime",
+    "financial crime": "fraud-financial-crime",
+    "cyber": "cybercrime",
+    "cyber crime": "cybercrime",
+    "internet crime": "cybercrime",
+    "drugs": "drug-related-crime",
+    "drug": "drug-related-crime",
+    "narcotics": "drug-related-crime",
+    "corruption": "corruption-politics",
+    "politics": "corruption-politics",
+    "political": "corruption-politics",
+    "road": "road-safety",
+    "traffic": "road-safety",
+    "accident": "road-safety",
+    "court": "court-cases",
+    "trial": "court-cases",
+    "verdict": "court-cases",
+    "police": "police-reports",
+    "arrest": "police-reports",
+    "opinion": "opinion-analysis",
+    "analysis": "opinion-analysis",
+  };
+
+  for (const [key, value] of Object.entries(categoryMap)) {
+    if (lower.includes(key)) {
+      return value;
+    }
+  }
+  return VALID_CATEGORIES.includes(lower.replace(/\s+/g, "-")) 
+    ? lower.replace(/\s+/g, "-") 
+    : "police-reports";
+}
+
+function generateSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .substring(0, 100);
+}
+
+function countNumbers(text: string): number {
+  const matches = text.match(/\d+(?:,\d{3})*(?:\.\d+)?%?/g);
+  return matches ? matches.length : 0;
+}
+
+async function findOptimalPublishTime(supabase: any): Promise<Date> {
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+
+  // Get articles published today
+  const { data: todayArticles } = await supabase
+    .from("articles")
+    .select("published_at")
+    .gte("published_at", today.toISOString())
+    .lt("published_at", tomorrow.toISOString())
+    .eq("is_published", true);
+
+  const usedHours = new Set<number>();
+  if (todayArticles) {
+    for (const article of todayArticles) {
+      const pubDate = new Date(article.published_at);
+      usedHours.add(pubDate.getUTCHours());
+    }
+  }
+
+  const currentHour = new Date().getUTCHours();
+  const currentMinutes = new Date().getUTCMinutes();
+
+  // Find next available peak hour
+  for (const hour of PEAK_HOURS) {
+    if (hour > currentHour || (hour === currentHour && currentMinutes < 30)) {
+      if (!usedHours.has(hour) && (todayArticles?.length || 0) < 4) {
+        const publishTime = new Date();
+        publishTime.setUTCHours(hour, 0, 0, 0);
+        return publishTime;
+      }
+    }
+  }
+
+  // If no peak hours available today, schedule for tomorrow's first peak
+  const tomorrowFirst = new Date(tomorrow);
+  tomorrowFirst.setUTCHours(PEAK_HOURS[0], 0, 0, 0);
+  return tomorrowFirst;
+}
+
+function generateTweet(title: string, summary: string, category: string): string {
+  const hashtags = {
+    "violent-crime": "#GhanaCrime #Violence",
+    "fraud-financial-crime": "#GhanaFraud #FinancialCrime",
+    "cybercrime": "#GhanaCybercrime #Tech",
+    "drug-related-crime": "#GhanaDrugs #Crime",
+    "corruption-politics": "#GhanaCorruption #Politics",
+    "road-safety": "#GhanaRoads #RoadSafety",
+    "court-cases": "#GhanaCourt #Justice",
+    "police-reports": "#GhanaPolice #Crime",
+    "opinion-analysis": "#GhanaAnalysis #Opinion",
+  };
+
+  const categoryHashtags = hashtags[category as keyof typeof hashtags] || "#GhanaCrimes";
+  const maxTitleLength = 200;
+  const truncatedTitle = title.length > maxTitleLength 
+    ? title.substring(0, maxTitleLength) + "..." 
+    : title;
+
+  return `🚨 ${truncatedTitle}\n\nRead more: [LINK]\n\n${categoryHashtags} #GhanaCrimes`;
+}
+
+serve(async (req: Request): Promise<Response> => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+    
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Verify user is admin/editor
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Check role
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!roleData || !["admin", "editor"].includes(roleData.role)) {
+      return new Response(
+        JSON.stringify({ error: "Insufficient permissions" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { content, publishMode, scheduledTime } = await req.json();
+
+    if (!content || content.trim().length < 100) {
+      return new Response(
+        JSON.stringify({ error: "Content too short (minimum 100 characters)" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!lovableApiKey) {
+      return new Response(
+        JSON.stringify({ error: "AI service not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Use AI to structure the article
+    const systemPrompt = `You are a professional news editor for GhanaCrimes.com, a Ghanaian crime news website. 
+Given raw text or a URL's content, structure it into a proper news article.
+
+Return a JSON object with these exact fields:
+{
+  "title": "Compelling headline under 100 characters",
+  "subtitle": "Brief subtitle expanding on the headline, under 150 characters",
+  "summary": "2-3 sentence summary of the key facts, under 200 characters",
+  "body": "Full article body with proper paragraphs wrapped in <p> tags. Include statistics and numbers prominently.",
+  "category": "One of: violent-crime, fraud-financial-crime, cybercrime, drug-related-crime, corruption-politics, road-safety, court-cases, police-reports, opinion-analysis",
+  "tags": ["array", "of", "relevant", "tags"],
+  "seo_description": "SEO-optimized description under 160 characters"
+}
+
+Important:
+- Maintain journalistic objectivity
+- Include specific numbers, dates, and statistics from the source
+- Use Ghana-specific context and terminology
+- Format body text with proper HTML paragraphs`;
+
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${lovableApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Transform this content into a structured news article:\n\n${content}` }
+        ],
+        temperature: 0.3,
+      }),
+    });
+
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      console.error("AI API error:", aiResponse.status, errorText);
+      
+      if (aiResponse.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (aiResponse.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "AI credits exhausted. Please add funds." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      return new Response(
+        JSON.stringify({ error: "Failed to process article with AI" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const aiData = await aiResponse.json();
+    const responseContent = aiData.choices?.[0]?.message?.content;
+
+    if (!responseContent) {
+      return new Response(
+        JSON.stringify({ error: "No response from AI" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Parse AI response
+    let articleData;
+    try {
+      const jsonMatch = responseContent.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        articleData = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error("No JSON found in response");
+      }
+    } catch (parseError) {
+      console.error("Failed to parse AI response:", responseContent);
+      return new Response(
+        JSON.stringify({ error: "Failed to parse AI response" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate article has statistics
+    const numberCount = countNumbers(articleData.body || "");
+    if (numberCount < 3) {
+      return new Response(
+        JSON.stringify({ 
+          error: "Article must contain at least 3 numbers/statistics",
+          numberCount,
+          preview: articleData
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Determine publish time
+    let publishAt: Date;
+    const isPublished = publishMode !== "schedule";
+
+    if (publishMode === "now") {
+      publishAt = new Date();
+    } else if (publishMode === "auto") {
+      publishAt = await findOptimalPublishTime(supabase);
+    } else if (publishMode === "schedule" && scheduledTime) {
+      publishAt = new Date(scheduledTime);
+    } else {
+      publishAt = new Date();
+    }
+
+    // Normalize category
+    const normalizedCategory = normalizeCategory(articleData.category || "police-reports");
+    const articleSlug = generateSlug(articleData.title);
+
+    // Check for duplicate slug
+    const { data: existing } = await supabase
+      .from("articles")
+      .select("id")
+      .eq("article_slug", articleSlug)
+      .single();
+
+    const finalSlug = existing 
+      ? `${articleSlug}-${Date.now().toString(36)}` 
+      : articleSlug;
+
+    // Insert article
+    const { data: article, error: insertError } = await supabase
+      .from("articles")
+      .insert({
+        title: articleData.title,
+        subtitle: articleData.subtitle || null,
+        summary: articleData.summary,
+        body: articleData.body,
+        category_slug: normalizedCategory,
+        article_slug: finalSlug,
+        author_name: "GhanaCrimes Desk",
+        author_id: user.id,
+        tags: articleData.tags || [],
+        seo_title: articleData.title,
+        seo_description: articleData.seo_description || articleData.summary,
+        is_published: isPublished,
+        published_at: isPublished ? publishAt.toISOString() : null,
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error("Insert error:", insertError);
+      return new Response(
+        JSON.stringify({ error: "Failed to save article" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Generate tweet
+    const suggestedTweet = generateTweet(articleData.title, articleData.summary, normalizedCategory);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        article: {
+          id: article.id,
+          title: article.title,
+          slug: finalSlug,
+          category: normalizedCategory,
+          url: `/${normalizedCategory}/${finalSlug}`,
+          publishedAt: publishAt.toISOString(),
+          isPublished,
+        },
+        suggestedTweet,
+        numberCount,
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (error: any) {
+    console.error("Error in manual-article-submit:", error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { HeroArticle } from "@/components/HeroArticle";
 import { ArticleCard } from "@/components/ArticleCard";
+import { MostReadArticles } from "@/components/MostReadArticles";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -60,6 +61,7 @@ export default function Index() {
     <div>
       {heroArticle && <HeroArticle article={heroArticle} />}
       
+      <MostReadArticles />
       <div className="space-y-0">
         {restArticles.map((article, index) => (
           <ArticleCard
