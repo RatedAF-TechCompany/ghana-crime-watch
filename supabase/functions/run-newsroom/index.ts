@@ -838,6 +838,29 @@ Return ONLY valid JSON with these exact keys:
           generated_article_id: newArticle.id,
         }).eq("id", newsItem.id);
 
+        // Extract cities from the article for the crime dashboard
+        try {
+          const extractResponse = await fetch(`${supabaseUrl}/functions/v1/extract-cities`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${supabaseKey}`,
+            },
+            body: JSON.stringify({
+              article_id: newArticle.id,
+              title: newArticle.title,
+              body: newArticle.body,
+            }),
+          });
+          
+          if (extractResponse.ok) {
+            const extractResult = await extractResponse.json();
+            console.log(`Extracted ${extractResult.cities_found} cities from article`);
+          }
+        } catch (extractError) {
+          console.error("City extraction failed:", extractError);
+        }
+
         articlesCreated++;
         console.log(`Created article: ${newArticle.title}`);
 

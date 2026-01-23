@@ -136,6 +136,36 @@ export type Database = {
           },
         ]
       }
+      city_crime_stats: {
+        Row: {
+          city_name: string
+          created_at: string
+          crime_count: number
+          id: string
+          last_incident_at: string | null
+          region: string | null
+          updated_at: string
+        }
+        Insert: {
+          city_name: string
+          created_at?: string
+          crime_count?: number
+          id?: string
+          last_incident_at?: string | null
+          region?: string | null
+          updated_at?: string
+        }
+        Update: {
+          city_name?: string
+          created_at?: string
+          crime_count?: number
+          id?: string
+          last_incident_at?: string | null
+          region?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       comments: {
         Row: {
           article_id: string
