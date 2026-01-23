@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { HeroArticle } from "@/components/HeroArticle";
 import { ArticleCard } from "@/components/ArticleCard";
 import { MostReadArticles } from "@/components/MostReadArticles";
+import { CrimeDashboard } from "@/components/CrimeDashboard";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -60,6 +61,10 @@ export default function Index() {
   return (
     <div>
       {heroArticle && <HeroArticle article={heroArticle} />}
+      
+      <div className="my-6">
+        <CrimeDashboard />
+      </div>
       
       <MostReadArticles />
       <div className="space-y-0">
