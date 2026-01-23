@@ -92,17 +92,6 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
               </Link>
             </Button>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            asChild
-            className="hover:bg-transparent"
-            aria-label="Account"
-          >
-            <Link to="/auth">
-              <User className="h-5 w-5" />
-            </Link>
-          </Button>
         </div>
       </div>
     </header>
