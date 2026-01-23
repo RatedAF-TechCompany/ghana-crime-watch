@@ -259,8 +259,11 @@ export default function ArticlePage() {
         dangerouslySetInnerHTML={{ __html: sanitizedBody }}
       />
 
+      {/* Comments Section - right after article body */}
+      <CommentsSection articleId={article.id} />
+
       {article.tags && article.tags.length > 0 && (
-        <div className="mt-6 flex flex-wrap gap-2">
+        <div className="mt-8 flex flex-wrap gap-2 border-t border-border pt-6">
           {article.tags.map((tag) => (
             <span
               key={tag}
@@ -307,9 +310,6 @@ export default function ArticlePage() {
           </div>
         </section>
       )}
-
-      {/* Comments Section */}
-      <CommentsSection articleId={article.id} />
     </article>
   );
 }
