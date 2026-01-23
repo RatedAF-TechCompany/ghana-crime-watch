@@ -58,39 +58,79 @@ export default function Index() {
 
   const [heroArticle, ...restArticles] = articles;
 
+  // Split articles for strategic placement
+  const topArticles = restArticles.slice(0, 3);
+  const remainingArticles = restArticles.slice(3);
+
   return (
     <div>
+      {/* Hero Article - Full Width */}
       {heroArticle && <HeroArticle article={heroArticle} />}
       
-      <div className="my-6">
-        <CrimeDashboard />
-      </div>
-      
-      <MostReadArticles />
-      <div className="space-y-0">
-        {restArticles.map((article, index) => (
-          <ArticleCard
-            key={article.id}
-            article={article}
-            showImage={(index + 2) % 5 === 0}
-          />
-        ))}
-      </div>
+      {/* Two-Column Layout: Articles + Sidebar */}
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12">
+        {/* Main Content - Articles */}
+        <div className="lg:col-span-8">
+          {/* Top Articles */}
+          <div className="space-y-0">
+            {topArticles.map((article, index) => (
+              <ArticleCard
+                key={article.id}
+                article={article}
+                showImage={index === 0}
+              />
+            ))}
+          </div>
 
-      {articles.length === ARTICLES_PER_PAGE + 1 && (
-        <div className="mt-8 flex justify-center gap-4">
-          {page > 0 && (
-            <Button variant="outline" onClick={() => setPage(page - 1)}>
-              Previous
-            </Button>
-          )}
+          {/* Crime Dashboard - Mobile Only (appears inline on mobile) */}
+          <div className="my-6 lg:hidden">
+            <CrimeDashboard />
+          </div>
+
+          {/* Remaining Articles */}
+          <div className="space-y-0">
+            {remainingArticles.map((article, index) => (
+              <ArticleCard
+                key={article.id}
+                article={article}
+                showImage={(index + 1) % 4 === 0}
+              />
+            ))}
+          </div>
+
+          {/* Pagination */}
           {articles.length === ARTICLES_PER_PAGE + 1 && (
-            <Button variant="outline" onClick={() => setPage(page + 1)}>
-              Next
-            </Button>
+            <div className="mt-8 flex justify-center gap-4">
+              {page > 0 && (
+                <Button variant="outline" onClick={() => setPage(page - 1)}>
+                  Previous
+                </Button>
+              )}
+              {articles.length === ARTICLES_PER_PAGE + 1 && (
+                <Button variant="outline" onClick={() => setPage(page + 1)}>
+                  Next
+                </Button>
+              )}
+            </div>
           )}
         </div>
-      )}
+
+        {/* Sidebar - Desktop */}
+        <aside className="hidden lg:col-span-4 lg:block">
+          <div className="sticky top-20 space-y-6">
+            {/* Most Read Section */}
+            <MostReadArticles />
+            
+            {/* Crime Dashboard */}
+            <CrimeDashboard />
+          </div>
+        </aside>
+      </div>
+
+      {/* Most Read - Mobile Only */}
+      <div className="mt-6 lg:hidden">
+        <MostReadArticles />
+      </div>
     </div>
   );
 }
