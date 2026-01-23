@@ -16,6 +16,7 @@ const NEWS_SOURCES = [
   { name: "Starr FM", domain: "starrfm.com.gh" },
   { name: "Peace FM", domain: "peacefmonline.com" },
   { name: "GBC Ghana Online", domain: "gbcghanaonline.com" },
+  { name: "Kessben Online", domain: "kessbenonline.com" },
 ];
 
 // Valid categories that match the database CHECK constraint
