@@ -4,6 +4,7 @@ import { HeroArticle } from "@/components/HeroArticle";
 import { ArticleCard } from "@/components/ArticleCard";
 import { MostReadArticles } from "@/components/MostReadArticles";
 import { CrimeDashboard } from "@/components/CrimeDashboard";
+import { BreakingNewsTicker } from "@/components/BreakingNewsTicker";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -64,6 +65,9 @@ export default function Index() {
 
   return (
     <div>
+      {/* Breaking News Ticker */}
+      <BreakingNewsTicker />
+
       {/* Hero Article - Full Width */}
       {heroArticle && <HeroArticle article={heroArticle} />}
       
