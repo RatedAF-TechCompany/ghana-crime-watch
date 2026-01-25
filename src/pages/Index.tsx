@@ -31,9 +31,9 @@ export default function Index() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 sm:space-y-8">
         <div className="space-y-4">
-          <Skeleton className="aspect-[16/9] w-full" />
+          <Skeleton className="aspect-[16/9] w-full rounded-lg" />
           <Skeleton className="h-8 w-3/4" />
           <Skeleton className="h-4 w-full" />
         </div>
@@ -51,7 +51,7 @@ export default function Index() {
   if (!articles || articles.length === 0) {
     return (
       <div className="py-12 text-center">
-        <h2 className="mb-2 text-2xl font-bold">No Articles Yet</h2>
+        <h2 className="mb-2 font-serif text-2xl font-bold">No Articles Yet</h2>
         <p className="text-muted-foreground">Check back soon for crime news updates.</p>
       </div>
     );
@@ -69,10 +69,12 @@ export default function Index() {
       <BreakingNewsTicker />
 
       {/* Hero Article - Full Width */}
-      {heroArticle && <HeroArticle article={heroArticle} />}
+      <div className="mt-6">
+        {heroArticle && <HeroArticle article={heroArticle} />}
+      </div>
       
       {/* Two-Column Layout: Articles + Sidebar */}
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12">
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-8">
         {/* Main Content - Articles */}
         <div className="lg:col-span-8">
           {/* Top Articles */}
@@ -106,12 +108,20 @@ export default function Index() {
           {articles.length === ARTICLES_PER_PAGE + 1 && (
             <div className="mt-8 flex justify-center gap-4">
               {page > 0 && (
-                <Button variant="outline" onClick={() => setPage(page - 1)}>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setPage(page - 1)}
+                  className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                >
                   Previous
                 </Button>
               )}
               {articles.length === ARTICLES_PER_PAGE + 1 && (
-                <Button variant="outline" onClick={() => setPage(page + 1)}>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setPage(page + 1)}
+                  className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                >
                   Next
                 </Button>
               )}

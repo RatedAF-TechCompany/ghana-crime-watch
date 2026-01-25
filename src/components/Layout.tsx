@@ -12,14 +12,14 @@ export function Layout({ children }: LayoutProps) {
   const [searchOpen, setSearchOpen] = useState(false);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background">
       <Header
         onMenuClick={() => setMenuOpen(true)}
         onSearchClick={() => setSearchOpen(true)}
       />
       <NavigationDrawer open={menuOpen} onClose={() => setMenuOpen(false)} />
       <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
-      <main className="container max-w-4xl px-4 py-6">{children}</main>
+      <main className="container mx-auto max-w-7xl px-4 py-6">{children}</main>
     </div>
   );
 }

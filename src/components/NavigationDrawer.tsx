@@ -12,14 +12,14 @@ interface NavigationDrawerProps {
 export function NavigationDrawer({ open, onClose }: NavigationDrawerProps) {
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent side="left" className="w-[280px] border-r border-border bg-background p-0">
+      <SheetContent side="left" className="w-[300px] border-r border-border bg-card p-0">
         <div className="flex h-14 items-center justify-between border-b border-border px-4">
-          <span className="text-base font-bold text-primary">Menu</span>
+          <span className="font-serif text-lg font-bold text-primary">Menu</span>
           <Button
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="h-8 w-8 hover:bg-transparent"
+            className="h-8 w-8 text-primary hover:bg-muted"
           >
             <X className="h-5 w-5" />
           </Button>
@@ -30,7 +30,7 @@ export function NavigationDrawer({ open, onClose }: NavigationDrawerProps) {
               key={category.slug}
               to={`/${category.slug}`}
               onClick={onClose}
-              className="border-b border-border/50 px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted/50 hover:text-primary"
+              className="border-b border-border/50 px-4 py-3.5 font-serif text-sm font-medium text-foreground transition-colors hover:bg-muted hover:text-primary"
             >
               {category.label}
             </Link>

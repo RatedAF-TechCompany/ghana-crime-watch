@@ -55,11 +55,11 @@ export function BreakingNewsTicker() {
   const currentArticle = breakingNews[currentIndex];
 
   return (
-    <div className="relative overflow-hidden bg-destructive text-destructive-foreground">
-      <div className="container mx-auto px-4">
+    <div className="relative overflow-hidden bg-primary text-primary-foreground">
+      <div className="container mx-auto max-w-7xl px-4">
         <div className="flex items-center gap-3 py-2">
           {/* Breaking Badge */}
-          <div className="flex shrink-0 items-center gap-1.5 rounded bg-background/20 px-2 py-0.5">
+          <div className="flex shrink-0 items-center gap-1.5 rounded bg-primary-foreground/20 px-2 py-0.5">
             <AlertTriangle className="h-3.5 w-3.5 animate-pulse" />
             <span className="text-xs font-bold uppercase tracking-wider">
               Breaking
@@ -76,7 +76,7 @@ export function BreakingNewsTicker() {
             >
               <Link
                 to={`/${currentArticle.category_slug}/${currentArticle.article_slug}`}
-                className="block truncate text-sm font-medium hover:underline"
+                className="block truncate font-serif text-sm font-medium hover:underline"
               >
                 {currentArticle.title}
               </Link>
@@ -92,8 +92,8 @@ export function BreakingNewsTicker() {
                   onClick={() => setCurrentIndex(index)}
                   className={`h-1.5 w-1.5 rounded-full transition-colors ${
                     index === currentIndex
-                      ? "bg-destructive-foreground"
-                      : "bg-destructive-foreground/40"
+                      ? "bg-primary-foreground"
+                      : "bg-primary-foreground/40"
                   }`}
                   aria-label={`Go to news ${index + 1}`}
                 />
@@ -104,9 +104,9 @@ export function BreakingNewsTicker() {
       </div>
 
       {/* Animated line at bottom */}
-      <div className="absolute bottom-0 left-0 h-0.5 w-full overflow-hidden bg-destructive-foreground/20">
+      <div className="absolute bottom-0 left-0 h-0.5 w-full overflow-hidden bg-primary-foreground/20">
         <div
-          className="h-full bg-destructive-foreground/60 transition-all duration-[5000ms] ease-linear"
+          className="h-full bg-primary-foreground/60 transition-all duration-[5000ms] ease-linear"
           style={{
             width: "100%",
             transform: `translateX(-${100 - ((currentIndex + 1) / breakingNews.length) * 100}%)`,

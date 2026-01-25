@@ -85,7 +85,7 @@ export function CrimeDashboard() {
 
   if (loading) {
     return (
-      <div className="bg-background border border-border rounded-sm p-6">
+      <div className="rounded-xl border border-border/50 bg-card p-4 sm:p-5">
         <div className="animate-pulse space-y-4">
           <div className="h-6 bg-muted rounded w-48"></div>
           <div className="space-y-3">
@@ -103,26 +103,28 @@ export function CrimeDashboard() {
   }
 
   return (
-    <div className="bg-background border border-border rounded-sm overflow-hidden">
+    <div className="overflow-hidden rounded-xl border border-border/50 bg-card transition-colors hover:border-primary/50">
       {/* Header */}
-      <div className="bg-primary px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-primary-foreground" />
-          <h2 className="text-sm font-bold text-primary-foreground tracking-wide uppercase">
-            Crime Hotspots
-          </h2>
-        </div>
-        <div className="flex items-center gap-1.5 text-primary-foreground/80">
-          <span className="text-xs font-medium">LIVE</span>
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive"></span>
-          </span>
+      <div className="border-b-2 border-primary bg-primary px-4 py-3 sm:px-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-primary-foreground" />
+            <h2 className="font-serif text-sm font-bold text-primary-foreground uppercase tracking-wide sm:text-base">
+              Crime Hotspots
+            </h2>
+          </div>
+          <div className="flex items-center gap-1.5 text-primary-foreground/80">
+            <span className="text-xs font-medium">LIVE</span>
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
+            </span>
+          </div>
         </div>
       </div>
 
       {/* Stats Summary */}
-      <div className="px-4 py-3 border-b border-border bg-muted/30">
+      <div className="px-4 py-3 border-b border-border bg-muted/30 sm:px-5">
         <div className="flex items-center justify-between text-xs">
           <span className="text-muted-foreground">Total incidents tracked</span>
           <span className="font-bold text-foreground">{totalCrimes.toLocaleString()}</span>
@@ -130,13 +132,13 @@ export function CrimeDashboard() {
       </div>
 
       {/* City Rankings */}
-      <div className="p-4 space-y-3">
+      <div className="p-4 space-y-3 sm:p-5">
         {stats.map((city, index) => (
           <div
             key={city.id}
             className={`relative transition-all duration-500 ${
               highlightedCity === city.city_name
-                ? 'bg-primary/10 -mx-2 px-2 py-1 rounded'
+                ? 'bg-primary/10 -mx-2 px-2 py-1 rounded-lg'
                 : ''
             }`}
           >
@@ -144,7 +146,7 @@ export function CrimeDashboard() {
               {/* Rank */}
               <div className="flex-shrink-0 w-5">
                 <span
-                  className={`text-sm font-bold ${
+                  className={`font-serif text-sm font-bold ${
                     index === 0
                       ? 'text-primary'
                       : index < 3
@@ -207,7 +209,7 @@ export function CrimeDashboard() {
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-2 border-t border-border bg-muted/20">
+      <div className="px-4 py-2 border-t border-border bg-muted/20 sm:px-5">
         <p className="text-[10px] text-muted-foreground text-center">
           Data sourced from published crime reports • Updates in real-time
         </p>

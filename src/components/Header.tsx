@@ -1,4 +1,4 @@
-import { Menu, Search, User, Settings, Sun, Moon } from "lucide-react";
+import { Menu, Search, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -38,28 +38,33 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-background">
-      <div className="container flex h-14 items-center justify-between px-4">
+    <header className="sticky top-0 z-50 h-14 w-full border-b border-border bg-card">
+      <div className="container flex h-full max-w-7xl items-center justify-between px-4">
+        {/* Left: Menu */}
         <Button
           variant="ghost"
           size="icon"
           onClick={onMenuClick}
-          className="hover:bg-transparent"
+          className="text-primary hover:bg-muted hover:text-primary"
           aria-label="Open menu"
         >
           <Menu className="h-5 w-5" />
         </Button>
 
-        <Link to="/" className="flex items-center">
-          <span className="text-xl font-bold tracking-tight text-primary">GhanaCrimes</span>
+        {/* Center: Logo */}
+        <Link to="/" className="absolute left-1/2 -translate-x-1/2">
+          <span className="font-serif text-xl font-bold tracking-tight text-primary sm:text-2xl">
+            GhanaCrimes
+          </span>
         </Link>
 
+        {/* Right: Actions */}
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon"
             onClick={onSearchClick}
-            className="hover:bg-transparent"
+            className="text-primary hover:bg-muted hover:text-primary"
             aria-label="Search"
           >
             <Search className="h-5 w-5" />
@@ -69,7 +74,7 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
               variant="ghost"
               size="icon"
               onClick={toggleTheme}
-              className="hover:bg-transparent"
+              className="text-primary hover:bg-muted hover:text-primary"
               aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {theme === 'dark' ? (
@@ -82,13 +87,12 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
           {isAdmin && (
             <Button
               variant="ghost"
-              size="icon"
+              size="sm"
               asChild
-              className="hover:bg-transparent"
-              aria-label="Admin Dashboard"
+              className="hidden text-primary hover:bg-muted hover:text-primary sm:inline-flex"
             >
-              <Link to="/admin">
-                <Settings className="h-5 w-5" />
+              <Link to="/admin" className="text-xs font-medium uppercase tracking-wide">
+                Admin
               </Link>
             </Button>
           )}
