@@ -23,11 +23,11 @@ export function HeroArticle({ article }: HeroArticleProps) {
   return (
     <Link
       to={`/${article.category_slug}/${article.article_slug}`}
-      className="group block border-b border-border pb-6"
+      className="group block border-b-2 border-primary pb-6"
     >
       <article>
         {article.hero_image && (
-          <div className="mb-4 aspect-[16/9] w-full overflow-hidden">
+          <div className="mb-4 aspect-[16/9] w-full overflow-hidden rounded-lg">
             <img
               src={article.hero_image}
               alt={article.title}
@@ -35,8 +35,8 @@ export function HeroArticle({ article }: HeroArticleProps) {
             />
           </div>
         )}
-        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-primary">
-          <span>{categoryLabel}</span>
+        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide">
+          <span className="text-primary">{categoryLabel}</span>
           <span className="text-muted-foreground">•</span>
           <span className="text-muted-foreground">{relativeTime}</span>
           {readingTime && (
@@ -46,10 +46,10 @@ export function HeroArticle({ article }: HeroArticleProps) {
             </>
           )}
         </div>
-        <h1 className="mt-2 font-serif text-2xl font-bold leading-tight text-foreground transition-colors group-hover:text-primary sm:text-3xl">
+        <h1 className="mt-3 font-serif text-2xl font-bold leading-tight text-foreground transition-colors group-hover:text-primary sm:text-3xl lg:text-4xl">
           {article.title}
         </h1>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">
+        <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
           {article.summary}
         </p>
       </article>

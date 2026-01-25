@@ -28,10 +28,10 @@ export function ArticleCard({ article, showImage = false }: ArticleCardProps) {
         className="flex items-start gap-4"
       >
         <div className="min-w-0 flex-1">
-          <h3 className="font-serif text-base font-bold leading-snug text-foreground transition-colors group-hover:text-primary sm:text-lg">
+          <h3 className="font-serif text-base font-semibold leading-snug text-foreground transition-colors group-hover:text-primary group-hover:underline sm:text-lg">
             {article.title}
           </h3>
-          <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="mt-1.5 flex items-center gap-2 text-xs text-muted-foreground">
             <span className="font-medium uppercase tracking-wide text-primary">{categoryLabel}</span>
             <span>•</span>
             <span>{relativeTime}</span>
@@ -44,7 +44,7 @@ export function ArticleCard({ article, showImage = false }: ArticleCardProps) {
           </div>
         </div>
         {showImage && article.hero_image && (
-          <div className="h-16 w-24 flex-shrink-0 overflow-hidden sm:h-20 sm:w-28">
+          <div className="h-16 w-24 flex-shrink-0 overflow-hidden rounded-md sm:h-20 sm:w-28">
             <img
               src={article.hero_image}
               alt={article.title}

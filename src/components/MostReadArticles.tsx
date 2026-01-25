@@ -45,14 +45,16 @@ export function MostReadArticles() {
 
   if (isLoading) {
     return (
-      <div className="border-y border-border py-6 my-8">
-        <h2 className="text-lg font-semibold mb-4 uppercase tracking-wide text-muted-foreground">
-          Most Read Today
-        </h2>
-        <div className="space-y-3">
+      <div className="rounded-xl border border-border/50 bg-card p-4 sm:p-5">
+        <div className="mb-4 border-b-2 border-primary pb-2">
+          <h2 className="font-serif text-lg font-semibold text-foreground sm:text-xl">
+            Most Read Today
+          </h2>
+        </div>
+        <div className="space-y-4">
           {[...Array(5)].map((_, i) => (
             <div key={i} className="flex items-start gap-3">
-              <Skeleton className="h-8 w-8 shrink-0" />
+              <Skeleton className="h-7 w-7 shrink-0" />
               <Skeleton className="h-5 w-full" />
             </div>
           ))}
@@ -66,19 +68,21 @@ export function MostReadArticles() {
   }
 
   return (
-    <div className="border-y border-border py-6 my-8">
-      <h2 className="text-lg font-semibold mb-4 uppercase tracking-wide text-muted-foreground">
-        Most Read Today
-      </h2>
-      <ol className="space-y-3">
+    <div className="rounded-xl border border-border/50 bg-card p-4 transition-colors hover:border-primary/50 sm:p-5">
+      <div className="mb-4 border-b-2 border-primary pb-2">
+        <h2 className="font-serif text-lg font-semibold text-foreground sm:text-xl">
+          Most Read Today
+        </h2>
+      </div>
+      <ol className="space-y-4">
         {articles.map((article, index) => (
-          <li key={article.id} className="flex items-start gap-3">
-            <span className="text-2xl font-bold text-primary shrink-0 w-8 text-center leading-tight">
+          <li key={article.id} className="flex items-start gap-3 border-b border-border pb-3 last:border-0 last:pb-0">
+            <span className="font-serif text-lg font-bold text-primary shrink-0 w-7 text-center leading-tight">
               {index + 1}
             </span>
             <Link
               to={`/${article.category_slug}/${article.article_slug}`}
-              className="text-foreground hover:text-primary transition-colors font-medium leading-snug line-clamp-2"
+              className="font-serif text-sm font-medium leading-snug text-foreground transition-colors hover:text-primary hover:underline sm:text-base"
             >
               {article.title}
             </Link>

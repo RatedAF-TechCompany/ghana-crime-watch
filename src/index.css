@@ -5,91 +5,91 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system - StatsGH inspired theme
-All colors MUST be HSL.
+/* Financial Times-inspired Editorial Design System
+   All colors MUST be HSL.
 */
 
 @layer base {
   :root {
-    /* StatsGH-inspired warm cream/beige theme */
-    --background: 36 33% 94%;    /* Warm cream #F5F0E8 */
-    --foreground: 0 0% 15%;      /* Near black for text */
+    /* FT-inspired cream/editorial theme */
+    --background: 43 47% 92%;         /* Cream #F7F1E1 */
+    --foreground: 0 0% 0%;            /* Black #000000 */
 
-    --card: 36 33% 94%;
-    --card-foreground: 0 0% 15%;
+    --card: 0 0% 100%;                /* White */
+    --card-foreground: 0 0% 0%;
 
-    --popover: 36 40% 97%;
-    --popover-foreground: 0 0% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 0%;
 
-    --primary: 350 80% 35%;      /* Deep red/maroon like StatsGH */
+    --primary: 338 100% 30%;          /* FT Maroon #9A0044 */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 350 70% 40%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 43 30% 88%;
+    --secondary-foreground: 0 0% 0%;
 
-    --muted: 36 20% 88%;
+    --muted: 43 20% 88%;
     --muted-foreground: 0 0% 45%;
 
-    --accent: 350 80% 35%;
+    --accent: 160 84% 39%;            /* Success Green #10B981 */
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 338 100% 30%;      /* Same as primary for breaking news */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 36 15% 82%;
-    --input: 36 15% 85%;
-    --ring: 350 80% 35%;
+    --border: 0 0% 90%;               /* Subtle gray #E5E5E5 */
+    --input: 0 0% 90%;
+    --ring: 338 100% 30%;
 
-    --radius: 0.25rem;
+    --radius: 0.75rem;
 
-    --sidebar-background: 36 30% 96%;
-    --sidebar-foreground: 0 0% 20%;
-    --sidebar-primary: 350 80% 35%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 0%;
+    --sidebar-primary: 338 100% 30%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 36 25% 90%;
-    --sidebar-accent-foreground: 0 0% 15%;
-    --sidebar-border: 36 15% 85%;
-    --sidebar-ring: 350 80% 35%;
+    --sidebar-accent: 43 30% 95%;
+    --sidebar-accent-foreground: 0 0% 0%;
+    --sidebar-border: 0 0% 90%;
+    --sidebar-ring: 338 100% 30%;
   }
 
   .dark {
     /* Dark mode with warm undertones */
-    --background: 30 10% 10%;
-    --foreground: 36 33% 94%;
+    --background: 30 10% 8%;
+    --foreground: 43 47% 92%;
 
     --card: 30 10% 12%;
-    --card-foreground: 36 33% 94%;
+    --card-foreground: 43 47% 92%;
 
     --popover: 30 10% 12%;
-    --popover-foreground: 36 33% 94%;
+    --popover-foreground: 43 47% 92%;
 
-    --primary: 350 75% 50%;
+    --primary: 338 85% 45%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 350 70% 45%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 30 10% 18%;
+    --secondary-foreground: 43 47% 92%;
 
     --muted: 30 10% 18%;
-    --muted-foreground: 36 20% 65%;
+    --muted-foreground: 43 20% 65%;
 
-    --accent: 350 75% 50%;
+    --accent: 160 84% 39%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 62.8% 50%;
+    --destructive: 338 85% 45%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 30 10% 22%;
     --input: 30 10% 22%;
-    --ring: 350 75% 50%;
+    --ring: 338 85% 45%;
     
     --sidebar-background: 30 10% 10%;
-    --sidebar-foreground: 36 33% 94%;
-    --sidebar-primary: 350 75% 50%;
+    --sidebar-foreground: 43 47% 92%;
+    --sidebar-primary: 338 85% 45%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 30 10% 15%;
-    --sidebar-accent-foreground: 36 33% 94%;
+    --sidebar-accent-foreground: 43 47% 92%;
     --sidebar-border: 30 10% 20%;
-    --sidebar-ring: 350 75% 50%;
+    --sidebar-ring: 338 85% 45%;
   }
 }
 
@@ -112,11 +112,11 @@ All colors MUST be HSL.
   
   /* FT-style hover effects */
   a {
-    @apply transition-opacity duration-200;
+    @apply transition-colors duration-200;
   }
   
   a:hover {
-    @apply opacity-80;
+    @apply text-primary;
   }
 
   /* Highlight effect for numbers in article bodies */
@@ -150,5 +150,12 @@ All colors MUST be HSL.
 
   .article-body li {
     margin-bottom: 0.5em;
+  }
+}
+
+/* FT-style section dividers */
+@layer utilities {
+  .section-divider {
+    @apply border-t-2 border-primary;
   }
 }
