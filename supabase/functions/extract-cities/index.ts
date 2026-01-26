@@ -151,6 +151,29 @@ const GHANAIAN_CITIES = [
   { name: "Enchi", region: "Western North", aliases: [] },
 ];
 
+// Map category slugs to crime types
+const CATEGORY_TO_CRIME_TYPE: Record<string, string> = {
+  'violent-crime': 'violent-crime',
+  'theft-robbery': 'theft-robbery',
+  'property-crime': 'property-crime',
+  'fraud-scams': 'fraud-scams',
+  'cybercrime': 'cybercrime',
+  'drug-offences': 'drug-offences',
+  'corruption': 'corruption',
+  'organised-crime': 'organised-crime',
+  'sexual-offences': 'sexual-offences',
+  'environmental-crime': 'environmental-crime',
+  // Map other categories to most relevant crime type
+  'police-reports': 'violent-crime',
+  'court-cases': 'violent-crime',
+  'top-stories': 'violent-crime',
+  'breaking-news': 'violent-crime',
+  'investigations': 'corruption',
+  'public-safety': 'violent-crime',
+  'community-watch': 'property-crime',
+  'youth-crime': 'violent-crime',
+};
+
 function extractCitiesFromText(text: string): Map<string, { name: string; region: string }> {
   const foundCities = new Map<string, { name: string; region: string }>();
   const lowerText = text.toLowerCase();
@@ -176,6 +199,10 @@ function extractCitiesFromText(text: string): Map<string, { name: string; region
   return foundCities;
 }
 
+function getCrimeTypeFromCategory(categorySlug: string): string | null {
+  return CATEGORY_TO_CRIME_TYPE[categorySlug] || null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -186,7 +213,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { article_id, title, body } = await req.json();
+    const { article_id, title, body, category_slug } = await req.json();
 
     if (!article_id || !title || !body) {
       return new Response(
@@ -195,7 +222,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Extracting cities from article: ${article_id}`);
+    console.log(`Extracting cities and crime type from article: ${article_id}`);
 
     // Combine title and body for extraction
     const fullText = `${title} ${body}`;
@@ -203,54 +230,84 @@ serve(async (req) => {
 
     console.log(`Found ${cities.size} cities:`, Array.from(cities.keys()));
 
-    if (cities.size === 0) {
-      return new Response(
-        JSON.stringify({ success: true, cities_found: 0 }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const now = new Date().toISOString();
+
+    // Update city crime stats
+    if (cities.size > 0) {
+      for (const [cityName, cityInfo] of cities) {
+        // First try to update existing city
+        const { data: existingCity } = await supabase
+          .from('city_crime_stats')
+          .select('id, crime_count')
+          .eq('city_name', cityName)
+          .single();
+
+        if (existingCity) {
+          // Update existing city
+          const { error: updateError } = await supabase
+            .from('city_crime_stats')
+            .update({
+              crime_count: existingCity.crime_count + 1,
+              last_incident_at: now,
+            })
+            .eq('id', existingCity.id);
+
+          if (updateError) {
+            console.error(`Error updating ${cityName}:`, updateError);
+          } else {
+            console.log(`Updated ${cityName}: ${existingCity.crime_count + 1} incidents`);
+          }
+        } else {
+          // Insert new city
+          const { error: insertError } = await supabase
+            .from('city_crime_stats')
+            .insert({
+              city_name: cityName,
+              region: cityInfo.region,
+              crime_count: 1,
+              last_incident_at: now,
+            });
+
+          if (insertError) {
+            console.error(`Error inserting ${cityName}:`, insertError);
+          } else {
+            console.log(`Added new city ${cityName} with 1 incident`);
+          }
+        }
+      }
     }
 
-    // Update crime counts for each city
-    const now = new Date().toISOString();
-    
-    for (const [cityName, cityInfo] of cities) {
-      // First try to update existing city
-      const { data: existingCity, error: selectError } = await supabase
-        .from('city_crime_stats')
-        .select('id, crime_count')
-        .eq('city_name', cityName)
-        .single();
+    // Update crime type stats
+    let crimeTypeUpdated = false;
+    if (category_slug) {
+      const crimeType = getCrimeTypeFromCategory(category_slug);
+      
+      if (crimeType) {
+        console.log(`Mapping category ${category_slug} to crime type: ${crimeType}`);
+        
+        const { data: existingType } = await supabase
+          .from('crime_type_stats')
+          .select('id, crime_count')
+          .eq('crime_type', crimeType)
+          .single();
 
-      if (existingCity) {
-        // Update existing city
-        const { error: updateError } = await supabase
-          .from('city_crime_stats')
-          .update({
-            crime_count: existingCity.crime_count + 1,
-            last_incident_at: now,
-          })
-          .eq('id', existingCity.id);
+        if (existingType) {
+          const { error: updateError } = await supabase
+            .from('crime_type_stats')
+            .update({
+              crime_count: existingType.crime_count + 1,
+              last_incident_at: now,
+            })
+            .eq('id', existingType.id);
 
-        if (updateError) {
-          console.error(`Error updating ${cityName}:`, updateError);
+          if (updateError) {
+            console.error(`Error updating crime type ${crimeType}:`, updateError);
+          } else {
+            console.log(`Updated ${crimeType}: ${existingType.crime_count + 1} incidents`);
+            crimeTypeUpdated = true;
+          }
         } else {
-          console.log(`Updated ${cityName}: ${existingCity.crime_count + 1} incidents`);
-        }
-      } else {
-        // Insert new city
-        const { error: insertError } = await supabase
-          .from('city_crime_stats')
-          .insert({
-            city_name: cityName,
-            region: cityInfo.region,
-            crime_count: 1,
-            last_incident_at: now,
-          });
-
-        if (insertError) {
-          console.error(`Error inserting ${cityName}:`, insertError);
-        } else {
-          console.log(`Added new city ${cityName} with 1 incident`);
+          console.log(`Crime type ${crimeType} not found in database`);
         }
       }
     }
@@ -260,6 +317,7 @@ serve(async (req) => {
         success: true,
         cities_found: cities.size,
         cities: Array.from(cities.keys()),
+        crime_type_updated: crimeTypeUpdated,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
