@@ -395,10 +395,21 @@ serve(async (req) => {
     console.log(`Started newsroom run: ${run.id}`);
 
     // Step 1: Use AI to search for Ghana crime news
+    // IMPORTANT: Define minimum news date to prevent outdated stories
+    const MIN_NEWS_DATE = "2026-01-20"; // Do not publish stories older than this date
+    const today = new Date().toISOString().split('T')[0];
+    
     const sourcesList = NEWS_SOURCES.map(s => `${s.name} (${s.domain})`).join(", ");
     const searchPrompt = `You are a news aggregator assistant. Search for recent crime news from Ghana.
     
 Look for news from these trusted Ghana news sources: ${sourcesList}.
+
+CRITICAL DATE REQUIREMENT:
+- Today's date is ${today}
+- Only return news from ${MIN_NEWS_DATE} or later
+- Do NOT include any stories about past events like Christmas, New Year, or holidays that have already passed
+- Stories must be about CURRENT or VERY RECENT events (within the last 7 days maximum)
+- If a story references dates, events, or holidays that are clearly in the past, DO NOT include it
 
 Return a JSON array of 5-10 recent crime news items from Ghana. Each item should have:
 - source_name: The news outlet name (must be one of: ${NEWS_SOURCES.map(s => s.name).join(", ")})
@@ -406,8 +417,14 @@ Return a JSON array of 5-10 recent crime news items from Ghana. Each item should
 - original_summary: A brief 1-2 sentence summary
 - source_url: A plausible URL from the source's domain (or null if unknown)
 - category_hint: One of these categories that best fits: ${VALID_CATEGORIES.join(", ")}
+- estimated_date: The approximate date of the news event (YYYY-MM-DD format, must be ${MIN_NEWS_DATE} or later)
 
 Focus on REAL crime news topics like: murders, robberies, fraud cases, court proceedings, police operations, arrests, etc.
+
+REJECT any stories about:
+- Christmas preparations, Christmas Eve events, or holiday security from December
+- New Year's Eve or New Year celebrations
+- Any event clearly dated before ${MIN_NEWS_DATE}
 
 Return ONLY valid JSON array, no other text.`;
 
@@ -462,14 +479,55 @@ Return ONLY valid JSON array, no other text.`;
 
     console.log(`Found ${newsItems.length} news items`);
 
-    if (newsItems.length === 0) {
+    // Step 1.5: Filter out outdated stories based on keywords and date hints
+    const outdatedKeywords = [
+      'christmas eve', 'christmas day', 'christmas preparation', 'christmas preparedness',
+      'holiday season preparation', 'yuletide', 'festive season', 'new year eve',
+      'december 24', 'december 25', 'december 31', 'january 1st celebration'
+    ];
+    
+    const isOutdatedStory = (item: any): boolean => {
+      const headline = (item.original_headline || item.headline || "").toLowerCase();
+      const summary = (item.original_summary || item.summary || "").toLowerCase();
+      const combined = `${headline} ${summary}`;
+      
+      // Check for outdated keywords
+      for (const keyword of outdatedKeywords) {
+        if (combined.includes(keyword)) {
+          console.log(`Filtering outdated story (keyword: ${keyword}): ${headline}`);
+          return true;
+        }
+      }
+      
+      // Check estimated_date if provided
+      if (item.estimated_date) {
+        const estimatedDate = new Date(item.estimated_date);
+        const minDate = new Date(MIN_NEWS_DATE);
+        if (estimatedDate < minDate) {
+          console.log(`Filtering outdated story (date: ${item.estimated_date}): ${headline}`);
+          return true;
+        }
+      }
+      
+      return false;
+    };
+    
+    // Filter out outdated stories
+    const currentNewsItems = newsItems.filter(item => !isOutdatedStory(item));
+    const outdatedSkipped = newsItems.length - currentNewsItems.length;
+    if (outdatedSkipped > 0) {
+      console.log(`Filtered ${outdatedSkipped} outdated stories`);
+    }
+
+    if (currentNewsItems.length === 0) {
       await supabase.from("newsroom_runs").update({
         status: "no_news",
+        error_message: newsItems.length > 0 ? `All ${newsItems.length} stories were filtered as outdated` : null,
         completed_at: new Date().toISOString(),
       }).eq("id", run.id);
 
       return new Response(JSON.stringify({ 
-        success: true, 
+        success: true,
         run_id: run.id,
         message: "No news items found" 
       }), {
@@ -548,14 +606,26 @@ Return ONLY valid JSON array, no other text.`;
       return false;
     };
 
-    // Filter out duplicates BEFORE making AI calls
-    const uniqueNewsItems = newsItems.filter(item => {
+    // Filter out duplicates BEFORE making AI calls (use currentNewsItems which already filters outdated)
+    const uniqueNewsItems = currentNewsItems.filter(item => {
       const headline = item.original_headline || item.headline || "";
       return !isDuplicateHeadline(headline);
     });
 
-    const skippedDuplicates = newsItems.length - uniqueNewsItems.length;
+    const skippedDuplicates = currentNewsItems.length - uniqueNewsItems.length;
     console.log(`Duplicate check: ${skippedDuplicates} duplicates skipped, ${uniqueNewsItems.length} unique items to process`);
+
+    // Also track outdated items for the record
+    const outdatedRecords = newsItems
+      .filter(item => isOutdatedStory(item))
+      .map(item => ({
+        run_id: run.id,
+        source_name: item.source_name || "Unknown",
+        original_headline: item.original_headline || item.headline || "Untitled",
+        original_summary: item.original_summary || item.summary || "",
+        source_url: item.source_url || null,
+        processing_status: "outdated",
+      }));
 
     // Insert only unique news items as pending
     const newsRecords = uniqueNewsItems.map(item => ({
@@ -567,8 +637,8 @@ Return ONLY valid JSON array, no other text.`;
       processing_status: "pending",
     }));
 
-    // Also insert skipped duplicates with status
-    const duplicateRecords = newsItems
+    // Also insert skipped duplicates with status (from current/non-outdated items only)
+    const duplicateRecords = currentNewsItems
       .filter(item => isDuplicateHeadline(item.original_headline || item.headline || ""))
       .map(item => ({
         run_id: run.id,
@@ -579,10 +649,10 @@ Return ONLY valid JSON array, no other text.`;
         processing_status: "duplicate",
       }));
 
-    // Insert all records
+    // Insert all records (pending, duplicate, and outdated)
     const { data: insertedNews, error: insertError } = await supabase
       .from("newsroom_articles")
-      .insert([...newsRecords, ...duplicateRecords])
+      .insert([...newsRecords, ...duplicateRecords, ...outdatedRecords])
       .select();
 
     if (insertError) {
