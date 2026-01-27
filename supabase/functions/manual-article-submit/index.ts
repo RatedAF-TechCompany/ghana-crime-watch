@@ -208,7 +208,7 @@ Return a JSON object with these exact fields:
   "title": "Compelling headline under 100 characters",
   "subtitle": "Brief subtitle expanding on the headline, under 150 characters",
   "summary": "2-3 sentence summary of the key facts, under 200 characters",
-  "body": "Full article body with proper paragraphs wrapped in <p> tags. Include statistics and numbers prominently.",
+  "body": "Full article body with proper paragraphs wrapped in <p> tags.",
   "category": "One of: violent-crime, fraud-financial-crime, cybercrime, drug-related-crime, corruption-politics, road-safety, court-cases, police-reports, opinion-analysis",
   "tags": ["array", "of", "relevant", "tags"],
   "seo_description": "SEO-optimized description under 160 characters"
@@ -216,9 +216,9 @@ Return a JSON object with these exact fields:
 
 Important:
 - Maintain journalistic objectivity
-- Include specific numbers, dates, and statistics from the source
 - Use Ghana-specific context and terminology
-- Format body text with proper HTML paragraphs`;
+- Format body text with proper HTML paragraphs
+- Respect the presumption of innocence for suspects`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
