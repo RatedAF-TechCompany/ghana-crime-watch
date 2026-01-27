@@ -286,18 +286,8 @@ Important:
       );
     }
 
-    // Validate article has statistics
+    // Count numbers for informational purposes only (no longer a requirement)
     const numberCount = countNumbers(articleData.body || "");
-    if (numberCount < 3) {
-      return new Response(
-        JSON.stringify({ 
-          error: "Article must contain at least 3 numbers/statistics",
-          numberCount,
-          preview: articleData
-        }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
 
     // Determine publish time
     let publishAt: Date;
