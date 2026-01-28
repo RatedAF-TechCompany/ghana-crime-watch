@@ -1,0 +1,35 @@
+{
+  "name": "GhanaCrimes",
+  "short_name": "GhanaCrimes",
+  "description": "Ghana Crime News & Reports - Stay informed with the latest crime news, police reports, and crime statistics from Ghana.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F7F1E1",
+  "theme_color": "#9A0044",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["news", "crime"],
+  "lang": "en-GH"
+}

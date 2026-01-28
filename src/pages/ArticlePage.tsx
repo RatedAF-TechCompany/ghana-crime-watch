@@ -3,37 +3,22 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getCategoryLabel } from "@/lib/categories";
 import { getRelativeTime, getReadingTime } from "@/lib/time";
-import { Bookmark, Volume2, Pause, Square } from "lucide-react";
+import { Volume2, Pause, Square } from "lucide-react";
 import { useTextToSpeech } from "@/hooks/use-text-to-speech";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CommentsSection } from "@/components/CommentsSection";
 import { SocialShareButtons } from "@/components/SocialShareButtons";
+import { BookmarkButton } from "@/components/BookmarkButton";
 import DOMPurify from "dompurify";
-import { useState, useEffect, useRef } from "react";
-import { toast } from "sonner";
+import { useEffect, useRef } from "react";
 
 export default function ArticlePage() {
   const { categorySlug, articleSlug } = useParams<{
     categorySlug: string;
     articleSlug: string;
   }>();
-  const [isBookmarked, setIsBookmarked] = useState(false);
   const { isPlaying, isPaused, isSupported, speak, stop, togglePlayPause } = useTextToSpeech();
-
-  const handleListen = () => {
-    if (isPlaying) {
-      stop();
-    } else {
-      // Combine title, subtitle, and body for reading
-      const textToRead = [
-        article?.title,
-        article?.subtitle,
-        article?.body
-      ].filter(Boolean).join('. ');
-      speak(textToRead);
-    }
-  };
 
   const { data: article, isLoading } = useQuery({
     queryKey: ["article", categorySlug, articleSlug],
@@ -52,6 +37,19 @@ export default function ArticlePage() {
     enabled: !!categorySlug && !!articleSlug,
   });
 
+  const handleListen = () => {
+    if (isPlaying) {
+      stop();
+    } else {
+      const textToRead = [
+        article?.title,
+        article?.subtitle,
+        article?.body
+      ].filter(Boolean).join('. ');
+      speak(textToRead);
+    }
+  };
+
   // Track article view (only once per session per article)
   const viewTrackedRef = useRef<string | null>(null);
   
@@ -59,10 +57,8 @@ export default function ArticlePage() {
     const trackView = async () => {
       if (!article?.id || viewTrackedRef.current === article.id) return;
       
-      // Mark as tracked to prevent duplicate counts in this session
       viewTrackedRef.current = article.id;
       
-      // Increment view count using raw SQL call since RPC isn't in types yet
       await supabase
         .from('articles')
         .update({ view_count: (article.view_count || 0) + 1 })
@@ -89,32 +85,6 @@ export default function ArticlePage() {
     },
     enabled: !!categorySlug && !!article?.id,
   });
-
-  const handleBookmark = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      toast.error("Please log in to bookmark articles");
-      return;
-    }
-
-    if (isBookmarked) {
-      await supabase
-        .from("bookmarks")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("article_id", article!.id);
-      setIsBookmarked(false);
-      toast.success("Bookmark removed");
-    } else {
-      await supabase
-        .from("bookmarks")
-        .insert({ user_id: user.id, article_id: article!.id });
-      setIsBookmarked(true);
-      toast.success("Article bookmarked");
-    }
-  };
-
 
   if (isLoading) {
     return (
@@ -144,7 +114,6 @@ export default function ArticlePage() {
   const relativeTime = getRelativeTime(article.published_at!);
   const readingTime = getReadingTime(article.body);
 
-  // Add mark tags to numbers for highlight effect
   const processBodyText = (body: string) => {
     return body.replace(/\b(\d+(?:,\d{3})*(?:\.\d+)?)\b/g, '<mark>$1</mark>');
   };
@@ -210,14 +179,7 @@ export default function ArticlePage() {
               <Square className="h-4 w-4" />
             </Button>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleBookmark}
-            aria-label={isBookmarked ? "Remove bookmark" : "Bookmark"}
-          >
-            <Bookmark className={`h-5 w-5 ${isBookmarked ? 'fill-current' : ''}`} />
-          </Button>
+          <BookmarkButton articleId={article.id} />
         </div>
       </div>
 
@@ -235,17 +197,15 @@ export default function ArticlePage() {
         By {article.author_name || "GhanaCrimes Staff"}
       </p>
 
-      {/* Social Share Buttons - before article body */}
       <div className="my-6 border-y border-border py-4">
         <SocialShareButtons title={article.title} summary={article.summary} />
       </div>
 
       <div
-        className="article-body prose prose-lg max-w-none py-6"
+        className="article-body prose prose-lg max-w-none py-6 dark:prose-invert"
         dangerouslySetInnerHTML={{ __html: sanitizedBody }}
       />
 
-      {/* Comments Section - right after article body */}
       <CommentsSection articleId={article.id} />
 
       {article.tags && article.tags.length > 0 && (
@@ -261,7 +221,6 @@ export default function ArticlePage() {
         </div>
       )}
 
-      {/* Read More Section */}
       {relatedArticles && relatedArticles.length > 0 && (
         <section className="mt-10 border-t border-border pt-8">
           <h3 className="mb-6 font-serif text-xl font-bold text-foreground">
