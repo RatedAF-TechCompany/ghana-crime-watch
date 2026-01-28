@@ -3,11 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getCategoryLabel } from "@/lib/categories";
 import { getRelativeTime, getReadingTime } from "@/lib/time";
-import { Bookmark, Share2, Volume2, Pause, Square } from "lucide-react";
+import { Bookmark, Volume2, Pause, Square } from "lucide-react";
 import { useTextToSpeech } from "@/hooks/use-text-to-speech";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CommentsSection } from "@/components/CommentsSection";
+import { SocialShareButtons } from "@/components/SocialShareButtons";
 import DOMPurify from "dompurify";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
@@ -114,18 +115,6 @@ export default function ArticlePage() {
     }
   };
 
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: article!.title,
-        text: article!.summary,
-        url: window.location.href,
-      });
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-      toast.success("Link copied to clipboard");
-    }
-  };
 
   if (isLoading) {
     return (
@@ -229,14 +218,6 @@ export default function ArticlePage() {
           >
             <Bookmark className={`h-5 w-5 ${isBookmarked ? 'fill-current' : ''}`} />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleShare}
-            aria-label="Share"
-          >
-            <Share2 className="h-5 w-5" />
-          </Button>
         </div>
       </div>
 
@@ -253,6 +234,11 @@ export default function ArticlePage() {
       <p className="mb-2 text-sm text-muted-foreground">
         By {article.author_name || "GhanaCrimes Staff"}
       </p>
+
+      {/* Social Share Buttons - before article body */}
+      <div className="my-6 border-y border-border py-4">
+        <SocialShareButtons title={article.title} summary={article.summary} />
+      </div>
 
       <div
         className="article-body prose prose-lg max-w-none py-6"
