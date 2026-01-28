@@ -908,7 +908,7 @@ Return ONLY valid JSON with these exact keys:
           generated_article_id: newArticle.id,
         }).eq("id", newsItem.id);
 
-        // Extract cities from the article for the crime dashboard
+        // Extract cities and update crime type stats from the article for the crime dashboard
         try {
           const extractResponse = await fetch(`${supabaseUrl}/functions/v1/extract-cities`, {
             method: "POST",
@@ -920,6 +920,7 @@ Return ONLY valid JSON with these exact keys:
               article_id: newArticle.id,
               title: newArticle.title,
               body: newArticle.body,
+              category_slug: newArticle.category_slug,
             }),
           });
           
