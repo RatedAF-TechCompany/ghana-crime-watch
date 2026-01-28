@@ -4,6 +4,7 @@ import { HeroArticle } from "@/components/HeroArticle";
 import { ArticleCard } from "@/components/ArticleCard";
 import { MostReadArticles } from "@/components/MostReadArticles";
 import { CrimeDashboard } from "@/components/CrimeDashboard";
+import { CrimeMap } from "@/components/CrimeMap";
 import { BreakingNewsTicker } from "@/components/BreakingNewsTicker";
 import { NewsletterSignup } from "@/components/NewsletterSignup";
 import { Button } from "@/components/ui/button";
@@ -141,6 +142,9 @@ export default function Index() {
             
             {/* Crime Dashboard */}
             <CrimeDashboard />
+
+            {/* Crime Map */}
+            <CrimeMap />
           </div>
         </aside>
       </div>
@@ -149,6 +153,7 @@ export default function Index() {
       <div className="mt-6 space-y-6 lg:hidden">
         <NewsletterSignup />
         <MostReadArticles />
+        <CrimeMap />
       </div>
     </div>
   );
