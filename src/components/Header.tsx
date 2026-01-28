@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTheme } from "next-themes";
+import { NotificationBell } from "./NotificationBell";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -60,6 +61,7 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
 
         {/* Right: Actions */}
         <div className="flex items-center gap-1">
+          <NotificationBell />
           <Button
             variant="ghost"
             size="icon"
