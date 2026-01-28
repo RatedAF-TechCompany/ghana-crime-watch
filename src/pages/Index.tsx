@@ -5,6 +5,7 @@ import { ArticleCard } from "@/components/ArticleCard";
 import { MostReadArticles } from "@/components/MostReadArticles";
 import { CrimeDashboard } from "@/components/CrimeDashboard";
 import { BreakingNewsTicker } from "@/components/BreakingNewsTicker";
+import { NewsletterSignup } from "@/components/NewsletterSignup";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -132,6 +133,9 @@ export default function Index() {
         {/* Sidebar - Desktop */}
         <aside className="hidden lg:col-span-4 lg:block">
           <div className="sticky top-20 space-y-6">
+            {/* Newsletter Signup */}
+            <NewsletterSignup />
+            
             {/* Most Read Section */}
             <MostReadArticles />
             
@@ -141,8 +145,9 @@ export default function Index() {
         </aside>
       </div>
 
-      {/* Most Read - Mobile Only */}
-      <div className="mt-6 lg:hidden">
+      {/* Mobile Only */}
+      <div className="mt-6 space-y-6 lg:hidden">
+        <NewsletterSignup />
         <MostReadArticles />
       </div>
     </div>
