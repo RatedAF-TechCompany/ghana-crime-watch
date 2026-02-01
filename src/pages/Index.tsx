@@ -7,6 +7,7 @@ import { CrimeDashboard } from "@/components/CrimeDashboard";
 import { CrimeMap } from "@/components/CrimeMap";
 import { BreakingNewsTicker } from "@/components/BreakingNewsTicker";
 import { NewsletterSignup } from "@/components/NewsletterSignup";
+import { WhatsAppChannelCTA } from "@/components/WhatsAppChannelCTA";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -90,6 +91,11 @@ export default function Index() {
             ))}
           </div>
 
+          {/* WhatsApp Channel CTA - Mobile Only (after first 3 articles) */}
+          <div className="my-6 flex justify-center lg:hidden">
+            <WhatsAppChannelCTA />
+          </div>
+
           {/* Crime Dashboard - Mobile Only (appears inline on mobile) */}
           <div className="my-6 lg:hidden">
             <CrimeDashboard />
@@ -134,6 +140,9 @@ export default function Index() {
         {/* Sidebar - Desktop */}
         <aside className="hidden lg:col-span-4 lg:block">
           <div className="sticky top-20 space-y-6">
+            {/* WhatsApp Channel CTA */}
+            <WhatsAppChannelCTA className="mx-auto" />
+            
             {/* Newsletter Signup */}
             <NewsletterSignup />
             

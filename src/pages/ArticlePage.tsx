@@ -10,8 +10,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CommentsSection } from "@/components/CommentsSection";
 import { SocialShareButtons } from "@/components/SocialShareButtons";
 import { BookmarkButton } from "@/components/BookmarkButton";
+import { WhatsAppChannelCTA, useShouldShowWhatsAppCTA } from "@/components/WhatsAppChannelCTA";
 import DOMPurify from "dompurify";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 
 export default function ArticlePage() {
   const { categorySlug, articleSlug } = useParams<{
@@ -19,6 +20,9 @@ export default function ArticlePage() {
     articleSlug: string;
   }>();
   const { isPlaying, isPaused, isSupported, speak, stop, togglePlayPause } = useTextToSpeech();
+  
+  // Determine if WhatsApp CTA should be shown (25% probability, memoized per article)
+  const showWhatsAppCTA = useMemo(() => useShouldShowWhatsAppCTA(), [articleSlug]);
 
   const { data: article, isLoading } = useQuery({
     queryKey: ["article", categorySlug, articleSlug],
@@ -205,6 +209,13 @@ export default function ArticlePage() {
         className="article-body prose prose-lg max-w-none py-6 dark:prose-invert"
         dangerouslySetInnerHTML={{ __html: sanitizedBody }}
       />
+
+      {/* WhatsApp Channel CTA - shown on 25% of article pages */}
+      {showWhatsAppCTA && (
+        <div className="my-8 flex justify-center border-y border-border py-6">
+          <WhatsAppChannelCTA />
+        </div>
+      )}
 
       <CommentsSection articleId={article.id} />
 
