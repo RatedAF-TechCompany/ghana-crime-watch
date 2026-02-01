@@ -92,8 +92,8 @@ export default function Index() {
           </div>
 
           {/* WhatsApp Channel CTA - Mobile Only (after first 3 articles) */}
-          <div className="my-6 flex justify-center lg:hidden">
-            <WhatsAppChannelCTA />
+          <div className="my-6 lg:hidden">
+            <WhatsAppChannelCTA variant="banner" />
           </div>
 
           {/* Crime Dashboard - Mobile Only (appears inline on mobile) */}
@@ -141,7 +141,7 @@ export default function Index() {
         <aside className="hidden lg:col-span-4 lg:block">
           <div className="sticky top-20 space-y-6">
             {/* WhatsApp Channel CTA */}
-            <WhatsAppChannelCTA className="mx-auto" />
+            <WhatsAppChannelCTA variant="banner" />
             
             {/* Newsletter Signup */}
             <NewsletterSignup />

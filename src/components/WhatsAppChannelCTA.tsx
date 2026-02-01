@@ -4,21 +4,27 @@ const WHATSAPP_CHANNEL_URL = "https://whatsapp.com/channel/0029VbC0vLjFcow2FZTEq
 
 interface WhatsAppChannelCTAProps {
   className?: string;
+  /** Use "banner" for full-width ad-style placement, "compact" for sidebar */
+  variant?: "banner" | "compact";
 }
 
-export function WhatsAppChannelCTA({ className = "" }: WhatsAppChannelCTAProps) {
+export function WhatsAppChannelCTA({ className = "", variant = "banner" }: WhatsAppChannelCTAProps) {
   return (
     <a
       href={WHATSAPP_CHANNEL_URL}
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Join GhanaCrimes WhatsApp Channel"
-      className={`block transition-opacity hover:opacity-90 ${className}`}
+      className={`block transition-opacity hover:opacity-95 ${className}`}
     >
       <img
         src={whatsappBanner}
         alt="Follow GhanaCrimes on WhatsApp"
-        className="w-full max-w-[120px] sm:max-w-[160px] h-auto"
+        className={
+          variant === "banner"
+            ? "w-full max-w-3xl h-auto mx-auto"
+            : "w-full max-w-xs h-auto"
+        }
       />
     </a>
   );
