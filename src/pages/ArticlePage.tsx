@@ -212,8 +212,8 @@ export default function ArticlePage() {
 
       {/* WhatsApp Channel CTA - shown on 25% of article pages */}
       {showWhatsAppCTA && (
-        <div className="my-8 flex justify-center border-y border-border py-6">
-          <WhatsAppChannelCTA />
+        <div className="my-8 border-y border-border py-6">
+          <WhatsAppChannelCTA variant="banner" />
         </div>
       )}
 
