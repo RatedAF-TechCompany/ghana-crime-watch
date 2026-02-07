@@ -35,6 +35,15 @@ export function NavigationDrawer({ open, onClose }: NavigationDrawerProps) {
               {category.label}
             </Link>
           ))}
+          <div className="border-t border-border mt-2 pt-2">
+            <Link
+              to="/about"
+              onClick={onClose}
+              className="px-4 py-3.5 font-serif text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-primary flex items-center"
+            >
+              About Us & Editorial Policy
+            </Link>
+          </div>
         </nav>
       </SheetContent>
     </Sheet>
