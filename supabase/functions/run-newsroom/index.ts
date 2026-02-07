@@ -64,62 +64,80 @@ function normalizeCategory(category: string): string {
   return "top-stories";
 }
 
-const IMAGE_STYLES = [
-  'investigative-collage',
-  'ink-watercolour',
-  'newspaper-ink',
-  'noir-illustration'
-] as const;
+// PHOTO-FIRST EDITORIAL IMAGE POLICY
+// Every article must be illustrated with an image that reads as a real photograph.
+// AI may only be used as a hidden fallback to generate photo-realistic stock-style imagery.
+// No illustrations, digital art, concept art, cartoons, infographics, or stylised visuals.
 
-const IMAGE_STYLE_PROMPTS: Record<string, string> = {
-  'investigative-collage': 'Gritty split-frame investigative editorial collage, newspaper clippings aesthetic, Ghana Africa theme, no text no words, 16:9 aspect ratio, serious tone',
-  'ink-watercolour': 'Minimalist hand-drawn ink and watercolor illustration, editorial art, muted earth tones, no text no words, 16:9 aspect ratio',
-  'newspaper-ink': 'Classic newspaper editorial ink illustration, detailed crosshatching, vintage press aesthetic, no text no words, 16:9 aspect ratio',
-  'noir-illustration': 'Dark moody crime noir illustration style, dramatic shadows, investigative journalism aesthetic, no text no words, 16:9 aspect ratio'
-};
+const PHOTOREALISTIC_PROMPT_PREFIX = `Ultra-realistic editorial photograph, shot on Canon EOS R5, natural lighting, low saturation, calm observational tone, no text overlay, no logos, no watermarks, no filters, no dramatic cinematic effects, 16:9 aspect ratio. The image must be indistinguishable from a real wire service photograph.`;
 
-function getRandomImageStyle(): string {
-  return IMAGE_STYLES[Math.floor(Math.random() * IMAGE_STYLES.length)];
-}
-
-// Image sourcing strategy types
-type ImageStrategy = 'real_person' | 'real_place' | 'ai_enhanced' | 'ai_generated';
+// Image sourcing strategy types - follows strict priority order
+type ImageStrategy = 'real_story_photo' | 'contextual_real_photo' | 'environmental_photo' | 'ai_photorealistic';
 
 interface ImageAnalysis {
   strategy: ImageStrategy;
   subject_name?: string;
-  subject_type?: 'politician' | 'celebrity' | 'public_figure' | 'location' | 'building' | 'event';
+  subject_type?: 'politician' | 'celebrity' | 'public_figure' | 'location' | 'building' | 'institution' | 'commodity' | 'infrastructure';
   search_query?: string;
-  enhancement_prompt?: string;
+  photo_description?: string;
 }
 
-// Analyze article to determine best image sourcing strategy
+// Analyze article to determine best image sourcing strategy following STRICT PRIORITY ORDER:
+// 1. Real photos tied directly to the story (buildings, press rooms, locations)
+// 2. Contextual real-world photos (sector-appropriate: cocoa farms, banks, ports)
+// 3. Representative environmental photography (streets, skylines, offices, objects)
+// 4. AI-generated photorealistic fallback ONLY (must look like real stock photo)
 async function analyzeImageStrategy(
   headline: string,
   summary: string,
   body: string,
   lovableApiKey: string
 ): Promise<ImageAnalysis> {
-  const analysisPrompt = `Analyze this news article and determine the best image sourcing strategy.
+  const analysisPrompt = `You are an editorial photo desk editor for a serious international news website modeled after the Financial Times.
+
+Analyze this news article and determine the best PHOTOGRAPH sourcing strategy.
 
 HEADLINE: ${headline}
 SUMMARY: ${summary}
 
-RULES:
-1. If the article is primarily about a FAMOUS PERSON (politician, celebrity, public figure, business leader, sports star), return strategy "real_person" with their full name
-2. If the article is about a SPECIFIC PLACE (landmark, government building, institution, city area), return strategy "real_place" with the location name
-3. If the article references a generic scene that could use a stock-style photo enhanced by AI, return strategy "ai_enhanced"
-4. Otherwise, return strategy "ai_generated" for full AI illustration
+STRICT IMAGE SOURCING PRIORITY (follow this exact order):
 
-Famous Ghanaian figures include: politicians (current/former presidents, ministers, MPs), traditional rulers, celebrities, athletes, business leaders, etc.
+PRIORITY 1 - "real_story_photo": Direct photographs tied to the story
+- Government buildings, offices, press rooms mentioned in the story
+- Farms, factories, ports, markets, infrastructure involved
+- Exterior shots of institutions mentioned
+- Wide shots of cities, regions, or landscapes involved
+- IMPORTANT: Do NOT search for photos of specific named individuals or identifiable people
+
+PRIORITY 2 - "contextual_real_photo": Generic but truthful sector photographs
+- Generic cocoa farms, oil storage tanks, data centres, banks, ports
+- Neutral archive photos that accurately represent the industry or activity
+- Stock-style photos of the sector without specific branding
+
+PRIORITY 3 - "environmental_photo": Representative environmental photography
+- Streets, skylines, offices, meeting rooms, workspaces
+- Objects involved (documents, commodities, machinery, produce)
+- Generic workplace or urban scenes related to the topic
+
+PRIORITY 4 - "ai_photorealistic": AI-generated ONLY as last resort
+- Output must be indistinguishable from a real photograph
+- Only generic scenes, environments, or objects
+- NEVER identifiable people, named individuals, or specific events
+- Must look like a neutral stock photo from a wire service
+
+RULES:
+- NEVER suggest searching for photos of identifiable/named people
+- NEVER suggest illustrations, digital art, or stylised imagery
+- Always prefer real photographs over AI generation
+- For sensitive topics (deaths, violence), prefer environmental/contextual shots
 
 Return ONLY valid JSON:
 {
-  "strategy": "real_person" | "real_place" | "ai_enhanced" | "ai_generated",
-  "subject_name": "Full Name or Place Name if applicable",
-  "subject_type": "politician" | "celebrity" | "public_figure" | "location" | "building" | "event" | null,
-  "search_query": "Optimized search query to find image",
-  "reasoning": "Brief explanation"
+  "strategy": "real_story_photo" | "contextual_real_photo" | "environmental_photo" | "ai_photorealistic",
+  "subject_name": "Place, institution, or sector name (NEVER a person's name)",
+  "subject_type": "location" | "building" | "institution" | "commodity" | "infrastructure" | null,
+  "search_query": "Optimized search query for finding a REAL PHOTOGRAPH (no people's names)",
+  "photo_description": "Brief description of what the ideal photograph would show"
 }`;
 
   try {
@@ -132,15 +150,15 @@ Return ONLY valid JSON:
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: "You are an image editor deciding how to source images for news articles. Return only valid JSON." },
+          { role: "system", content: "You are a photo desk editor for a Financial Times-style publication. You source real photographs only. You NEVER suggest photos of identifiable people. Return only valid JSON." },
           { role: "user", content: analysisPrompt }
         ],
       }),
     });
 
     if (!response.ok) {
-      console.log("Image strategy analysis failed, defaulting to AI generated");
-      return { strategy: 'ai_generated' };
+      console.log("Image strategy analysis failed, defaulting to AI photorealistic");
+      return { strategy: 'ai_photorealistic' };
     }
 
     const data = await response.json();
@@ -153,36 +171,38 @@ Return ONLY valid JSON:
     return analysis;
   } catch (e) {
     console.error("Image strategy analysis error:", e);
-    return { strategy: 'ai_generated' };
+    return { strategy: 'ai_photorealistic' };
   }
 }
 
-// Search for real image using web search
-async function searchForRealImage(
+// Search for real photograph using web search
+async function searchForRealPhoto(
   searchQuery: string,
   subjectType: string | undefined,
   lovableApiKey: string
 ): Promise<string | null> {
   try {
-    // Use AI to find image URLs from the web
-    const searchPrompt = `Find a high-quality, recent, publicly available image of: ${searchQuery}
+    const searchPrompt = `Find a high-quality, publicly available PHOTOGRAPH of: ${searchQuery}
 
-Requirements:
-- Must be a real photograph (not illustration or AI-generated)
-- Should be from a reputable news source, official website, or verified social media
-- Image should be clear, professional quality
-- For public figures: official portraits, press photos, or professional event photos preferred
-- For places: clear daytime photos showing the location well
+STRICT REQUIREMENTS:
+- Must be a REAL PHOTOGRAPH (absolutely no illustrations, digital art, AI-generated images, or infographics)
+- Should be from a reputable news source, government website, stock photo service, or official site
+- Image should be clear, professional quality, calm editorial tone
+- Must show places, buildings, environments, objects, or landscapes — NEVER identifiable people's faces
+- For locations: clear daytime photos, neutral framing, no dramatic effects
+- For institutions: exterior shots, official buildings, signage visible
+- For commodities/sectors: generic representative photos (farms, factories, markets)
 
 Return ONLY a JSON object with:
 {
   "image_url": "direct URL to the image file (must end in .jpg, .png, .webp or be a direct image link)",
   "source": "where the image is from",
-  "description": "brief description of the image",
+  "description": "brief description of what the photograph shows",
   "found": true/false
 }
 
-If you cannot find a suitable real image, return: {"found": false}`;
+If you cannot find a suitable real photograph, return: {"found": false}
+Do NOT return illustrations, digital art, or AI-generated imagery.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -193,14 +213,14 @@ If you cannot find a suitable real image, return: {"found": false}`;
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: "You are a photo researcher finding real images for news articles. Return only valid JSON." },
+          { role: "system", content: "You are a wire service photo researcher. You find only real photographs — never illustrations or AI art. Return only valid JSON." },
           { role: "user", content: searchPrompt }
         ],
       }),
     });
 
     if (!response.ok) {
-      console.log("Image search failed");
+      console.log("Photo search failed");
       return null;
     }
 
@@ -211,13 +231,13 @@ If you cannot find a suitable real image, return: {"found": false}`;
     const result = JSON.parse(jsonMatch[1] || content);
     
     if (result.found && result.image_url) {
-      console.log(`Found real image: ${result.image_url} from ${result.source}`);
+      console.log(`Found real photograph: ${result.image_url} from ${result.source}`);
       return result.image_url;
     }
     
     return null;
   } catch (e) {
-    console.error("Image search error:", e);
+    console.error("Photo search error:", e);
     return null;
   }
 }
@@ -278,73 +298,8 @@ async function downloadAndUploadImage(
   }
 }
 
-// Enhance an existing image using AI
-async function enhanceImageWithAI(
-  imageUrl: string,
-  enhancementPrompt: string,
-  articleSlug: string,
-  supabase: any,
-  lovableApiKey: string
-): Promise<string | null> {
-  try {
-    console.log(`Enhancing image with AI: ${enhancementPrompt}`);
-    
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${lovableApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-image-preview",
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: `Enhance this news photo: ${enhancementPrompt}. Improve lighting, clarity, and make it more impactful for editorial use. Keep it photorealistic.` },
-              { type: "image_url", image_url: { url: imageUrl } }
-            ]
-          }
-        ],
-        modalities: ["image", "text"]
-      }),
-    });
-    
-    if (!response.ok) {
-      console.log("Image enhancement failed");
-      return null;
-    }
-    
-    const data = await response.json();
-    const base64Image = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-    
-    if (base64Image && base64Image.startsWith("data:image")) {
-      const base64Data = base64Image.split(",")[1];
-      const imageBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-      
-      const imagePath = `newsroom/${articleSlug}-enhanced.png`;
-      const { error: uploadError } = await supabase.storage
-        .from("article-images")
-        .upload(imagePath, imageBuffer, {
-          contentType: "image/png",
-          upsert: true
-        });
-      
-      if (!uploadError) {
-        const { data: publicUrl } = supabase.storage
-          .from("article-images")
-          .getPublicUrl(imagePath);
-        console.log(`Uploaded enhanced image: ${publicUrl.publicUrl}`);
-        return publicUrl.publicUrl;
-      }
-    }
-    
-    return null;
-  } catch (e) {
-    console.error("Image enhancement error:", e);
-    return null;
-  }
-}
+// AI image enhancement has been removed per Photo-First Editorial Policy.
+// AI is only used as a last-resort fallback to generate photorealistic stock-style images.
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -708,7 +663,7 @@ FIELDS TO GENERATE:
 6. slug: Lowercase with hyphens.
 7. section: Choose from: ${VALID_CATEGORIES.join(", ")}.
 8. tags: Array of keywords including locations, crime types, agencies, key names.
-9. image_prompt: Visual metaphor for the story, max 50 words. No text overlays. No logos. No identifiable private persons.
+9. photo_description: Describe a REAL PHOTOGRAPH that would accompany this story. Must depict a plausible real-world scene such as a building exterior, street, office, farm, port, courtroom entrance, police station, marketplace, or generic workspace. Max 50 words. NEVER describe people's faces. NEVER describe illustrations or artwork. The description should read like a stock photo caption from a wire service.
 
 Return ONLY valid JSON with these exact keys:
 {
@@ -720,7 +675,7 @@ Return ONLY valid JSON with these exact keys:
   "slug": "...",
   "section": "...",
   "tags": ["tag1", "tag2"],
-  "image_prompt": "..."
+  "photo_description": "..."
 }`;
 
         const articleResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -762,12 +717,12 @@ Return ONLY valid JSON with these exact keys:
 
         const articleSlug = `${slugBase}-${Date.now()}`;
 
-        // Smart image sourcing - prioritize real images for famous people and places
+        // PHOTO-FIRST IMAGE SOURCING — strict editorial policy
         let heroImageUrl: string | null = null;
-        let imageSourceType: string = 'ai_generated';
+        let imageSourceType: string = 'ai_photorealistic';
         
         try {
-          // Analyze what image strategy to use
+          // Step 1: Analyze what photo strategy to use (real photo priority)
           const imageAnalysis = await analyzeImageStrategy(
             articleJson.headline,
             articleJson.summary || newsItem.original_summary,
@@ -777,51 +732,33 @@ Return ONLY valid JSON with these exact keys:
           
           imageSourceType = imageAnalysis.strategy;
           
-          if (imageAnalysis.strategy === 'real_person' || imageAnalysis.strategy === 'real_place') {
-            // Try to find and download a real image
-            console.log(`Searching for real image: ${imageAnalysis.search_query}`);
-            const realImageUrl = await searchForRealImage(
+          // For all real-photo strategies, attempt to find and download
+          if (imageAnalysis.strategy !== 'ai_photorealistic') {
+            console.log(`Photo-first: searching for real photograph — ${imageAnalysis.strategy}: ${imageAnalysis.search_query}`);
+            const realPhotoUrl = await searchForRealPhoto(
               imageAnalysis.search_query || imageAnalysis.subject_name || articleJson.headline,
               imageAnalysis.subject_type,
               lovableApiKey
             );
             
-            if (realImageUrl) {
-              heroImageUrl = await downloadAndUploadImage(realImageUrl, articleSlug, supabase);
+            if (realPhotoUrl) {
+              heroImageUrl = await downloadAndUploadImage(realPhotoUrl, articleSlug, supabase);
               if (heroImageUrl) {
-                console.log(`Successfully sourced real image for: ${imageAnalysis.subject_name}`);
+                console.log(`Photo-first: successfully sourced real photograph for "${imageAnalysis.subject_name}"`);
               }
-            }
-          } else if (imageAnalysis.strategy === 'ai_enhanced') {
-            // Find a base image and enhance it
-            const baseImageUrl = await searchForRealImage(
-              imageAnalysis.search_query || articleJson.headline,
-              imageAnalysis.subject_type,
-              lovableApiKey
-            );
-            
-            if (baseImageUrl) {
-              heroImageUrl = await enhanceImageWithAI(
-                baseImageUrl,
-                imageAnalysis.enhancement_prompt || `News photo about ${articleJson.headline}`,
-                articleSlug,
-                supabase,
-                lovableApiKey
-              );
             }
           }
           
-          // Fallback to AI-generated illustration if no real image found
+          // FALLBACK: AI-generated photorealistic image (hidden tool only)
+          // Must be indistinguishable from a real photograph
           if (!heroImageUrl) {
-            console.log("Falling back to AI-generated image");
-            imageSourceType = 'ai_generated';
+            console.log("Photo-first: no real photo found, generating photorealistic AI fallback");
+            imageSourceType = 'ai_photorealistic';
             
-            const imageStyle = getRandomImageStyle();
-            const stylePrompt = IMAGE_STYLE_PROMPTS[imageStyle];
-            const aiImagePrompt = articleJson.image_prompt || `Crime news about ${articleJson.headline}`;
-            const imagePrompt = `${stylePrompt}. ${aiImagePrompt}. Ghana Africa setting.`;
+            const photoDescription = articleJson.photo_description || articleJson.image_prompt || `Generic scene related to ${articleJson.headline}`;
+            const photoPrompt = `${PHOTOREALISTIC_PROMPT_PREFIX} ${photoDescription}. Ghana, West Africa setting. The scene must look like it was taken by a news photographer with a professional camera. No people's faces visible. No text. No signage with readable words.`;
             
-            console.log(`Generating AI image with style: ${imageStyle}`);
+            console.log(`Generating photorealistic AI image`);
             
             const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
               method: "POST",
@@ -830,9 +767,9 @@ Return ONLY valid JSON with these exact keys:
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                model: "google/gemini-2.5-flash-image-preview",
+                model: "google/gemini-2.5-flash-image",
                 messages: [
-                  { role: "user", content: imagePrompt }
+                  { role: "user", content: photoPrompt }
                 ],
                 modalities: ["image", "text"]
               }),
@@ -859,17 +796,17 @@ Return ONLY valid JSON with these exact keys:
                     .from("article-images")
                     .getPublicUrl(imagePath);
                   heroImageUrl = publicUrl.publicUrl;
-                  console.log(`Uploaded AI image: ${heroImageUrl}`);
+                  console.log(`Photo-first: uploaded AI photorealistic image: ${heroImageUrl}`);
                 } else {
                   console.error("Image upload failed:", uploadError);
                 }
               }
             } else {
-              console.error("AI image generation failed:", imageResponse.status);
+              console.error("AI photorealistic image generation failed:", imageResponse.status);
             }
           }
         } catch (imgError) {
-          console.error("Image sourcing error:", imgError);
+          console.error("Photo sourcing error:", imgError);
         }
 
         // Update newsroom article with image source type
