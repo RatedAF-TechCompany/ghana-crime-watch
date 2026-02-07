@@ -205,7 +205,7 @@ export default function AboutPage() {
               Our editorial desk operates around the clock, monitoring news feeds and official channels to ensure that breaking crime stories reach our readers as quickly and accurately as possible. Articles are published under the GhanaCrimes Desk byline to reflect our collective editorial responsibility.
             </p>
             <p>
-              Our automated newsroom technology scans trusted sources every three hours, generates verified reports, and applies our editorial standards before publication. Every article is subject to the same rigorous fact-checking and sourcing requirements, whether produced by our human editors or our AI-assisted newsroom.
+              Our newsroom continuously scans trusted sources throughout the day, producing verified reports that meet our editorial standards before publication. Every article is subject to the same rigorous fact-checking and sourcing requirements regardless of how it is produced.
             </p>
           </div>
         </section>
