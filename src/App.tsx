@@ -17,6 +17,7 @@ import Analytics from "./pages/admin/Analytics";
 import Newsroom from "./pages/admin/Newsroom";
 import QuickPublish from "./pages/admin/QuickPublish";
 import NotFound from "./pages/NotFound";
+import AboutPage from "./pages/AboutPage";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/admin/articles/:id" element={<ArticleEditor />} />
             <Route path="/" element={<Layout><Index /></Layout>} />
             <Route path="/auth" element={<Layout><AuthPage /></Layout>} />
+            <Route path="/about" element={<Layout><AboutPage /></Layout>} />
             <Route path="/:categorySlug" element={<Layout><CategoryPage /></Layout>} />
             <Route path="/:categorySlug/:articleSlug" element={<Layout><ArticlePage /></Layout>} />
             <Route path="*" element={<Layout><NotFound /></Layout>} />
