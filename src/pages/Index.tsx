@@ -18,7 +18,7 @@ const ARTICLES_PER_PAGE = 10;
 
 export default function Index() {
   const [page, setPage] = useState(0);
-  const sidebarShowAd = useShouldShowAd(2, 0.5);
+  const sidebarShowAd = useShouldShowAd(2, 0.7);
 
   const { data: articles, isLoading } = useQuery({
     queryKey: ["articles", page],
