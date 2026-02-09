@@ -8,6 +8,7 @@ import { CrimeMap } from "@/components/CrimeMap";
 import { BreakingNewsTicker } from "@/components/BreakingNewsTicker";
 import { NewsletterSignup } from "@/components/NewsletterSignup";
 import { WhatsAppChannelCTA } from "@/components/WhatsAppChannelCTA";
+import { AdBanner } from "@/components/AdBanner";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -101,6 +102,11 @@ export default function Index() {
             <CrimeDashboard />
           </div>
 
+          {/* Ad Banner - between article sections */}
+          <div className="my-6">
+            <AdBanner slotId={1} probability={0.6} />
+          </div>
+
           {/* Remaining Articles */}
           <div className="space-y-0">
             {remainingArticles.map((article, index) => (
@@ -149,6 +155,9 @@ export default function Index() {
             {/* Most Read Section */}
             <MostReadArticles />
             
+            {/* Sidebar Ad */}
+            <AdBanner slotId={2} probability={0.7} />
+
             {/* Crime Dashboard */}
             <CrimeDashboard />
 
