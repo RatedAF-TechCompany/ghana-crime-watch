@@ -6,7 +6,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Edit, Trash2, ArrowLeft, Users, FileText, MessageSquare, BarChart3, Newspaper, Zap } from 'lucide-react';
+import { Plus, Edit, Trash2, ArrowLeft, Users, FileText, MessageSquare, BarChart3, Newspaper, Zap, Megaphone } from 'lucide-react';
+import { AdSettingsPanel } from '@/components/admin/AdSettingsPanel';
 import { useToast } from '@/hooks/use-toast';
 import { getRelativeTime } from '@/lib/time';
 import type { Tables, Database } from '@/integrations/supabase/types';
@@ -278,6 +279,12 @@ export default function Dashboard() {
                 Comments
               </TabsTrigger>
             )}
+            {userRole === 'admin' && (
+              <TabsTrigger value="ads" className="gap-2">
+                <Megaphone className="h-4 w-4" />
+                Ads
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="articles" className="space-y-4">
@@ -474,6 +481,13 @@ export default function Dashboard() {
                   </TableBody>
                 </Table>
               </div>
+            </TabsContent>
+          )}
+
+          {userRole === 'admin' && (
+            <TabsContent value="ads" className="space-y-4">
+              <p className="text-muted-foreground">Toggle advertisements on or off across the entire site</p>
+              <AdSettingsPanel />
             </TabsContent>
           )}
         </Tabs>

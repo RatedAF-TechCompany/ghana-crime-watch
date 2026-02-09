@@ -1,3 +1,4 @@
+import { useAdSettings } from "@/hooks/use-ad-settings";
 import whatsappBanner from "@/assets/whatsapp-channel-banner.png";
 
 const WHATSAPP_CHANNEL_URL = "https://whatsapp.com/channel/0029VbC0vLjFcow2FZTEqy2J";
@@ -9,6 +10,10 @@ interface WhatsAppChannelCTAProps {
 }
 
 export function WhatsAppChannelCTA({ className = "", variant = "banner" }: WhatsAppChannelCTAProps) {
+  const { ad_whatsapp_cta } = useAdSettings();
+
+  if (!ad_whatsapp_cta) return null;
+
   return (
     <a
       href={WHATSAPP_CHANNEL_URL}
