@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useShouldShowAd } from "@/components/AdBanner";
 import { supabase } from "@/integrations/supabase/client";
 import { HeroArticle } from "@/components/HeroArticle";
 import { ArticleCard } from "@/components/ArticleCard";
@@ -17,6 +18,7 @@ const ARTICLES_PER_PAGE = 10;
 
 export default function Index() {
   const [page, setPage] = useState(0);
+  const sidebarShowAd = useShouldShowAd(2, 0.5);
 
   const { data: articles, isLoading } = useQuery({
     queryKey: ["articles", page],
@@ -92,7 +94,7 @@ export default function Index() {
             ))}
           </div>
 
-          {/* WhatsApp Channel CTA - Mobile Only (after first 3 articles) */}
+           {/* WhatsApp Channel CTA - Mobile Only (after first 3 articles, hidden when ad shows) */}
           <div className="my-6 lg:hidden">
             <WhatsAppChannelCTA variant="banner" />
           </div>
@@ -102,7 +104,7 @@ export default function Index() {
             <CrimeDashboard />
           </div>
 
-          {/* Ad Banner - between article sections */}
+          {/* Ad Banner - between article sections (mobile only, replaces WhatsApp CTA position) */}
           <div className="my-6">
             <AdBanner slotId={1} probability={1} />
           </div>
@@ -146,17 +148,18 @@ export default function Index() {
         {/* Sidebar - Desktop */}
         <aside className="hidden lg:col-span-4 lg:block">
           <div className="sticky top-20 space-y-6">
-            {/* WhatsApp Channel CTA */}
-            <WhatsAppChannelCTA variant="banner" />
+            {/* WhatsApp CTA or Sidebar Ad - mutually exclusive */}
+            {sidebarShowAd ? (
+              <AdBanner slotId={2} probability={1} />
+            ) : (
+              <WhatsAppChannelCTA variant="banner" />
+            )}
             
             {/* Newsletter Signup */}
             <NewsletterSignup />
             
             {/* Most Read Section */}
             <MostReadArticles />
-            
-            {/* Sidebar Ad */}
-            <AdBanner slotId={2} probability={0.7} />
 
             {/* Crime Dashboard */}
             <CrimeDashboard />
