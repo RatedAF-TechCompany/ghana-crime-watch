@@ -211,17 +211,16 @@ export default function ArticlePage() {
         dangerouslySetInnerHTML={{ __html: sanitizedBody }}
       />
 
-      {/* WhatsApp Channel CTA - shown on 25% of article pages */}
-      {showWhatsAppCTA && (
+      {/* WhatsApp CTA or Ad Banner - mutually exclusive, never both */}
+      {showWhatsAppCTA ? (
         <div className="my-8 border-y border-border py-6">
           <WhatsAppChannelCTA variant="banner" />
         </div>
+      ) : (
+        <div className="my-8">
+          <AdBanner slotId={3} probability={0.5} />
+        </div>
       )}
-
-      {/* Ad Banner - after article body */}
-      <div className="my-8">
-        <AdBanner slotId={3} probability={0.5} />
-      </div>
 
       <CommentsSection articleId={article.id} />
 
