@@ -38,5 +38,5 @@ export function useShouldShowWhatsAppCTA(): boolean {
   // Generate a random number between 1 and 100
   // Show CTA if number is 25 or below (25% probability)
   const randomValue = Math.floor(Math.random() * 100) + 1;
-  return randomValue <= 25;
+  return randomValue <= 30;
 }
