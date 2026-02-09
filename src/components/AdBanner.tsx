@@ -1,3 +1,4 @@
+import { useAdSettings } from "@/hooks/use-ad-settings";
 import calabasheBanner from "@/assets/ads/calabashe-banner.jpeg";
 
 interface Ad {
@@ -60,9 +61,10 @@ interface AdBannerProps {
 }
 
 export function AdBanner({ slotId, probability = 0.5, className = "" }: AdBannerProps) {
+  const { ad_calabashe } = useAdSettings();
   const shouldShow = useShouldShowAd(slotId, probability);
 
-  if (!shouldShow || ADS.length === 0) return null;
+  if (!ad_calabashe || !shouldShow || ADS.length === 0) return null;
 
   // Pick ad based on slot to allow rotation when multiple ads exist
   const ad = ADS[slotId % ADS.length];
