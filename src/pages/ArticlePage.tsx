@@ -11,6 +11,7 @@ import { CommentsSection } from "@/components/CommentsSection";
 import { SocialShareButtons } from "@/components/SocialShareButtons";
 import { BookmarkButton } from "@/components/BookmarkButton";
 import { WhatsAppChannelCTA, useShouldShowWhatsAppCTA } from "@/components/WhatsAppChannelCTA";
+import { AdBanner } from "@/components/AdBanner";
 import DOMPurify from "dompurify";
 import { useEffect, useRef, useMemo } from "react";
 
@@ -216,6 +217,11 @@ export default function ArticlePage() {
           <WhatsAppChannelCTA variant="banner" />
         </div>
       )}
+
+      {/* Ad Banner - after article body */}
+      <div className="my-8">
+        <AdBanner slotId={3} probability={0.5} />
+      </div>
 
       <CommentsSection articleId={article.id} />
 

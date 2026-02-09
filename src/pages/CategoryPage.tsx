@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { HeroArticle } from "@/components/HeroArticle";
 import { ArticleCard } from "@/components/ArticleCard";
 import { Button } from "@/components/ui/button";
+import { AdBanner } from "@/components/AdBanner";
 import { useState } from "react";
 import { getCategoryLabel } from "@/lib/categories";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -67,6 +68,11 @@ export default function CategoryPage() {
       <h1 className="mb-6 text-3xl font-bold">{getCategoryLabel(categorySlug!)}</h1>
       
       {heroArticle && <HeroArticle article={heroArticle} />}
+
+      {/* Ad Banner - after hero */}
+      <div className="my-6">
+        <AdBanner slotId={4} probability={0.5} />
+      </div>
       
       <div className="space-y-0">
         {restArticles.map((article, index) => (
