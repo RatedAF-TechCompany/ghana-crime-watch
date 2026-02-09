@@ -104,7 +104,7 @@ export default function Index() {
 
           {/* Ad Banner - between article sections */}
           <div className="my-6">
-            <AdBanner slotId={1} probability={0.6} />
+            <AdBanner slotId={1} probability={1} />
           </div>
 
           {/* Remaining Articles */}
