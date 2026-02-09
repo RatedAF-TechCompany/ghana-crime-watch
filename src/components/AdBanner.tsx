@@ -23,12 +23,17 @@ const ADS: Ad[] = [
  */
 function getSessionSeed(): number {
   const key = "gc_ad_seed";
-  let seed = sessionStorage.getItem(key);
-  if (!seed) {
-    seed = String(Math.random());
-    sessionStorage.setItem(key, seed);
+  try {
+    let seed = sessionStorage.getItem(key);
+    if (!seed) {
+      seed = String(Math.random());
+      sessionStorage.setItem(key, seed);
+    }
+    return parseFloat(seed);
+  } catch {
+    // sessionStorage may be unavailable in iframes
+    return Math.random();
   }
-  return parseFloat(seed);
 }
 
 function seededRandom(seed: number, slot: number): number {
