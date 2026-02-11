@@ -15,30 +15,45 @@ export function MostReadArticles() {
   const { data: articles, isLoading } = useQuery({
     queryKey: ["most-read-articles"],
     queryFn: async () => {
-      // Get top 5 articles by view count
-      const { data, error } = await supabase
+      const now = new Date();
+
+      // Try last 24 hours first
+      const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+      const { data: day, error: e1 } = await supabase
         .from("articles")
         .select("id, title, category_slug, article_slug, view_count")
         .eq("is_published", true)
+        .gte("published_at", last24h)
         .order("view_count", { ascending: false })
         .limit(5);
-
-      if (error) throw error;
-      
-      // If no articles with views, fall back to most recent
-      if (!data || data.length === 0 || data.every(a => (a.view_count || 0) === 0)) {
-        const { data: recentData, error: recentError } = await supabase
-          .from("articles")
-          .select("id, title, category_slug, article_slug, view_count")
-          .eq("is_published", true)
-          .order("published_at", { ascending: false })
-          .limit(5);
-        
-        if (recentError) throw recentError;
-        return recentData as Article[];
+      if (e1) throw e1;
+      if (day && day.length >= 3 && day.some(a => (a.view_count || 0) > 0)) {
+        return day as Article[];
       }
-      
-      return data as Article[];
+
+      // Fall back to last 72 hours
+      const last72h = new Date(now.getTime() - 72 * 60 * 60 * 1000).toISOString();
+      const { data: week, error: e2 } = await supabase
+        .from("articles")
+        .select("id, title, category_slug, article_slug, view_count")
+        .eq("is_published", true)
+        .gte("published_at", last72h)
+        .order("view_count", { ascending: false })
+        .limit(5);
+      if (e2) throw e2;
+      if (week && week.length >= 3 && week.some(a => (a.view_count || 0) > 0)) {
+        return week as Article[];
+      }
+
+      // Final fallback: most recent articles
+      const { data: recent, error: e3 } = await supabase
+        .from("articles")
+        .select("id, title, category_slug, article_slug, view_count")
+        .eq("is_published", true)
+        .order("published_at", { ascending: false })
+        .limit(5);
+      if (e3) throw e3;
+      return (recent || []) as Article[];
     },
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
