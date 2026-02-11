@@ -104,7 +104,7 @@ export default function Index() {
             <CrimeDashboard />
           </div>
 
-          {/* Ad Banner - between article sections (mobile only, replaces WhatsApp CTA position) */}
+          {/* Ad Banner - between article sections */}
           <div className="my-6">
             <AdBanner slotId={1} probability={1} />
           </div>
