@@ -1,5 +1,5 @@
 import { useAdSettings } from "@/hooks/use-ad-settings";
-import calabasheBanner from "@/assets/ads/calabashe-banner.jpeg";
+import calabasheReviewBanner from "@/assets/ads/calabashe-review-banner.png";
 
 interface Ad {
   id: string;
@@ -11,16 +11,14 @@ interface Ad {
 const ADS: Ad[] = [
   {
     id: "calabashe-doctor-review",
-    image: calabasheBanner,
+    image: calabasheReviewBanner,
     url: "https://calabashe.com",
     alt: "Calabashe – Review your Ghanaian doctor to help others",
   },
-  // Future ads can be added here
 ];
 
 /**
  * Determines which ad slots to show based on a session-stable random seed.
- * Each slot has an independent probability of showing, creating variety across viewers.
  */
 function getSessionSeed(): number {
   const key = "gc_ad_seed";
@@ -32,7 +30,6 @@ function getSessionSeed(): number {
     }
     return parseFloat(seed);
   } catch {
-    // sessionStorage may be unavailable in iframes
     return Math.random();
   }
 }
@@ -42,13 +39,6 @@ function seededRandom(seed: number, slot: number): number {
   return x - Math.floor(x);
 }
 
-/**
- * Hook to determine if an ad should show in a given slot.
- * Uses a session-stable seed so the same viewer sees consistent placement
- * within a session, but different viewers see ads in different spots.
- * @param slotId - Unique numeric identifier for the placement slot
- * @param probability - Chance of showing (0-1), default 0.5
- */
 export function useShouldShowAd(slotId: number, probability = 0.5): boolean {
   const seed = getSessionSeed();
   return seededRandom(seed, slotId) < probability;
@@ -66,23 +56,27 @@ export function AdBanner({ slotId, probability = 0.5, className = "" }: AdBanner
 
   if (!ad_calabashe || !shouldShow || ADS.length === 0) return null;
 
-  // Pick ad based on slot to allow rotation when multiple ads exist
   const ad = ADS[slotId % ADS.length];
 
   return (
-    <a
-      href={ad.url}
-      target="_blank"
-      rel="noopener noreferrer sponsored"
-      aria-label={ad.alt}
-      className={`block overflow-hidden rounded-lg transition-opacity hover:opacity-95 ${className}`}
-    >
-      <img
-        src={ad.image}
-        alt={ad.alt}
-        className="w-full h-auto"
-        loading="lazy"
-      />
-    </a>
+    <div className={`overflow-hidden rounded-lg ${className}`}>
+      <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+        Advertisement
+      </p>
+      <a
+        href={ad.url}
+        target="_blank"
+        rel="noopener noreferrer sponsored"
+        aria-label={ad.alt}
+        className="block overflow-hidden rounded-lg transition-opacity hover:opacity-95"
+      >
+        <img
+          src={ad.image}
+          alt={ad.alt}
+          className="w-full h-auto"
+          loading="lazy"
+        />
+      </a>
+    </div>
   );
 }

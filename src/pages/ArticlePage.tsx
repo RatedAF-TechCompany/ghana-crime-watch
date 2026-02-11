@@ -211,14 +211,15 @@ export default function ArticlePage() {
         dangerouslySetInnerHTML={{ __html: sanitizedBody }}
       />
 
-      {/* WhatsApp CTA or Ad Banner - mutually exclusive, never both */}
-      {showWhatsAppCTA ? (
+      {/* Calabashe Ad - always shown if enabled */}
+      <div className="my-8">
+        <AdBanner slotId={3} probability={1} />
+      </div>
+
+      {/* WhatsApp CTA - shown based on probability */}
+      {showWhatsAppCTA && (
         <div className="my-8 border-y border-border py-6">
           <WhatsAppChannelCTA variant="banner" />
-        </div>
-      ) : (
-        <div className="my-8">
-          <AdBanner slotId={3} probability={0.5} />
         </div>
       )}
 
