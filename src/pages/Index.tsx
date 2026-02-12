@@ -74,6 +74,11 @@ export default function Index() {
       {/* Breaking News Ticker */}
       <BreakingNewsTicker />
 
+      {/* Top Ad Banner */}
+      <div className="mt-6">
+        <AdBanner slotId={0} probability={1} />
+      </div>
+
       {/* Hero Article - Full Width */}
       <div className="mt-6">
         {heroArticle && <HeroArticle article={heroArticle} />}
