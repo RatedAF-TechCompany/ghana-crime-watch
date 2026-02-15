@@ -330,6 +330,14 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const triggerType = body.trigger_type || "manual";
 
+    // Clean up stale "running" runs (older than 10 minutes) - they are timed-out ghosts
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    await supabase.from("newsroom_runs").update({
+      status: "failed",
+      error_message: "Timed out — run did not complete within expected window",
+      completed_at: new Date().toISOString(),
+    }).eq("status", "running").lt("started_at", tenMinutesAgo);
+
     // Create a new run
     const { data: run, error: runError } = await supabase
       .from("newsroom_runs")
@@ -390,7 +398,7 @@ Return ONLY valid JSON array, no other text.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: "You are a helpful assistant that returns only valid JSON." },
           { role: "user", content: searchPrompt }
@@ -685,7 +693,7 @@ Return ONLY valid JSON with these exact keys:
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash",
             messages: [
               { role: "system", content: "You are a professional crime journalist and fact-checker. You verify information across multiple sources before writing. Return only valid JSON. Never use colons, dashes, bullet points, or emojis in your writing. Always attribute claims to their sources." },
               { role: "user", content: articlePrompt }
@@ -870,7 +878,11 @@ Return ONLY valid JSON with these exact keys:
         }
 
         articlesCreated++;
-        console.log(`Created article: ${newArticle.title}`);
+        // Update counter incrementally so it persists even if function times out
+        await supabase.from("newsroom_runs").update({
+          articles_created: articlesCreated,
+        }).eq("id", run.id);
+        console.log(`Created article ${articlesCreated}: ${newArticle.title}`);
 
       } catch (error) {
         console.error(`Error processing news item ${newsItem.id}:`, error);
