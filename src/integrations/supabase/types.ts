@@ -32,6 +32,7 @@ export type Database = {
           summary: string
           tags: string[] | null
           title: string
+          twitter_post: string | null
           updated_at: string
           view_count: number
         }
@@ -52,6 +53,7 @@ export type Database = {
           summary: string
           tags?: string[] | null
           title: string
+          twitter_post?: string | null
           updated_at?: string
           view_count?: number
         }
@@ -72,6 +74,7 @@ export type Database = {
           summary?: string
           tags?: string[] | null
           title?: string
+          twitter_post?: string | null
           updated_at?: string
           view_count?: number
         }
