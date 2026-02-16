@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Edit, Trash2, ArrowLeft, Users, FileText, MessageSquare, BarChart3, Newspaper, Zap, Megaphone } from 'lucide-react';
+import { Plus, Edit, Trash2, ArrowLeft, Users, FileText, MessageSquare, BarChart3, Newspaper, Zap, Megaphone, Twitter } from 'lucide-react';
 import { AdSettingsPanel } from '@/components/admin/AdSettingsPanel';
 import { useToast } from '@/hooks/use-toast';
 import { getRelativeTime } from '@/lib/time';
@@ -226,6 +226,36 @@ export default function Dashboard() {
     }
   };
 
+  const [tweetingId, setTweetingId] = useState<string | null>(null);
+
+  const handleTweetArticle = async (article: Article) => {
+    if (article.twitter_post?.startsWith('POSTED:')) {
+      toast({ title: 'Already tweeted', description: 'This article has already been posted to X.' });
+      return;
+    }
+    if (!confirm('Post this article to X/Twitter?')) return;
+    setTweetingId(article.id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/auto-tweet`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ article_id: article.id }),
+      });
+      const result = await resp.json();
+      if (!resp.ok) throw new Error(result.error || 'Tweet failed');
+      toast({ title: 'Tweeted!', description: `Posted to X: ${result.tweet_url}` });
+      fetchArticles();
+    } catch (err: any) {
+      toast({ title: 'Tweet failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setTweetingId(null);
+    }
+  };
+
   if (loading) {
     return <div className="container py-8">Loading...</div>;
   }
@@ -339,6 +369,17 @@ export default function Dashboard() {
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
+                          {(userRole === 'admin' || userRole === 'editor') && article.is_published && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={tweetingId === article.id || article.twitter_post?.startsWith('POSTED:')}
+                              onClick={() => handleTweetArticle(article)}
+                              title={article.twitter_post?.startsWith('POSTED:') ? 'Already tweeted' : 'Tweet this article'}
+                            >
+                              <Twitter className={`h-4 w-4 ${article.twitter_post?.startsWith('POSTED:') ? 'text-blue-500' : ''}`} />
+                            </Button>
+                          )}
                           {(userRole === 'admin' || userRole === 'editor') && (
                             <Button
                               size="sm"

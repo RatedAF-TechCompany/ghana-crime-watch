@@ -671,7 +671,8 @@ FIELDS TO GENERATE:
 6. slug: Lowercase with hyphens.
 7. section: Choose from: ${VALID_CATEGORIES.join(", ")}.
 8. tags: Array of keywords including locations, crime types, agencies, key names.
-9. photo_description: Describe a REAL PHOTOGRAPH that would accompany this story. Must depict a plausible real-world scene such as a building exterior, street, office, farm, port, courtroom entrance, police station, marketplace, or generic workspace. Max 50 words. NEVER describe people's faces. NEVER describe illustrations or artwork. The description should read like a stock photo caption from a wire service.
+9. twitter_post: A tweet for X/Twitter. Max 140 characters. No emojis. No hashtags. Factual and engaging. Do not include any URL.
+10. photo_description: Describe a REAL PHOTOGRAPH that would accompany this story. Must depict a plausible real-world scene such as a building exterior, street, office, farm, port, courtroom entrance, police station, marketplace, or generic workspace. Max 50 words. NEVER describe people's faces. NEVER describe illustrations or artwork. The description should read like a stock photo caption from a wire service.
 
 Return ONLY valid JSON with these exact keys:
 {
@@ -683,6 +684,7 @@ Return ONLY valid JSON with these exact keys:
   "slug": "...",
   "section": "...",
   "tags": ["tag1", "tag2"],
+  "twitter_post": "...",
   "photo_description": "..."
 }`;
 
@@ -837,6 +839,7 @@ Return ONLY valid JSON with these exact keys:
             seo_title: articleJson.headline,
             seo_description: articleJson.seo_description,
             hero_image: heroImageUrl,
+            twitter_post: articleJson.twitter_post || null,
             is_published: true,
             published_at: new Date().toISOString(),
           })
@@ -875,6 +878,28 @@ Return ONLY valid JSON with these exact keys:
           }
         } catch (extractError) {
           console.error("City extraction failed:", extractError);
+        }
+
+        // Auto-tweet the newly published article
+        try {
+          const tweetResponse = await fetch(`${supabaseUrl}/functions/v1/auto-tweet`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${supabaseKey}`,
+            },
+            body: JSON.stringify({ article_id: newArticle.id }),
+          });
+          
+          if (tweetResponse.ok) {
+            const tweetResult = await tweetResponse.json();
+            console.log(`Auto-tweeted article: ${tweetResult.tweet_id || 'success'}`);
+          } else {
+            const tweetErr = await tweetResponse.text();
+            console.error("Auto-tweet failed:", tweetErr);
+          }
+        } catch (tweetError) {
+          console.error("Auto-tweet error:", tweetError);
         }
 
         articlesCreated++;
