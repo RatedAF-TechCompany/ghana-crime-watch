@@ -638,51 +638,146 @@ Return ONLY valid JSON array, no other text.`;
           processing_status: "processing",
         }).eq("id", newsItem.id);
 
-        // Generate full article using AI
-        const articlePrompt = `You are the GhanaCrimes automated newsroom editor.
+        // Build list of recently published slugs for duplicate suppression by AI
+        const recentSlugsList = Array.from(existingSlugs).slice(0, 50).join(", ");
 
-TODAY'S DATE IS: ${today}
+        // Generate full article using AI — comprehensive newsroom master prompt
+        const articlePrompt = `You are running an automated newsroom cycle.
 
-You will be given an ORIGINAL NEWS ITEM with three fields: original_headline, original_summary, and source_name.
+TODAY'S DATE IS ${today}
 
-Before writing, you must do a live verification scan across the web using the original_headline and key names and places from the original_summary. Use multiple reputable sources such as the original outlet plus at least two other credible outlets or official statements where available. Prefer primary sources like police statements, court records, official releases, and direct quotes. If you cannot independently verify a detail, you must say it is unconfirmed and attribute it to the original source.
+The system has already scanned approved crime news sources and collected raw items.
 
-CRITICAL DATE RULES:
-- Today's date is ${today}. All articles you write must be about events happening in ${today.substring(0, 4)} or very recently.
-- If your verification scan finds that the actual event occurred in a previous year (e.g. 2024, 2023), you MUST still write the article using the CORRECT date you found. Do NOT fabricate recent dates.
-- If the story is clearly outdated (more than 30 days old), return the JSON with headline set to "OUTDATED_SKIP" and all other fields empty.
-- NEVER guess or hallucinate dates. Use only dates you can verify from sources.
+You will receive ONE scanned item to process.
 
-You must be specific with names, dates, locations, agencies, charges, court names, bail terms, and seized items when verified. If sources disagree, reflect the disagreement and attribute each version to its source. Do not speculate.
+SCANNED ITEM:
+headline: ${newsItem.original_headline}
+summary: ${newsItem.original_summary}
+source: ${newsItem.source_name}
+url: ${newsItem.source_url || "unknown"}
 
-ORIGINAL NEWS ITEM:
-Headline: ${newsItem.original_headline}
-Summary: ${newsItem.original_summary}
-Source: ${newsItem.source_name}
+PREVIOUSLY PUBLISHED SLUGS (last 7 days):
+${recentSlugsList || "none"}
 
-WRITING RULES:
-- Do NOT use colons or long dashes.
-- Do NOT use bullet points, emojis, or hashtags.
-- Do NOT add links or URLs.
-- Write factually, neutrally, and professionally.
-- Respect presumption of innocence and use "alleged" or "suspected" appropriately.
-- If details are unconfirmed, state so clearly.
-- Do not invent names, figures, dates, or quotes.
-- When referencing sources, name them plainly in text such as "Ghana Police Service statement", "High Court filing", "GhanaWeb report", "Citi Newsroom report", "Reuters report". Do not include URLs.
+---
 
-FIELDS TO GENERATE:
-1. headline: Short, factual, max 80 characters.
-2. subtitle: Expands headline in one sentence.
-3. summary: Plain English, max 400 characters.
-4. body: 4 to 8 HTML paragraphs using <p> tags. Include source attribution inside the paragraphs by naming outlets or official bodies. No links.
-5. seo_description: Max 155 characters.
-6. slug: Lowercase with hyphens.
-7. section: Choose from: ${VALID_CATEGORIES.join(", ")}.
-8. tags: Array of keywords including locations, crime types, agencies, key names.
-9. twitter_post: A tweet for X/Twitter. Max 140 characters. No emojis. No hashtags. Factual and engaging. Do not include any URL.
-10. photo_description: Describe a REAL PHOTOGRAPH that would accompany this story. Must depict a plausible real-world scene such as a building exterior, street, office, farm, port, courtroom entrance, police station, marketplace, or generic workspace. Max 50 words. NEVER describe people's faces. NEVER describe illustrations or artwork. The description should read like a stock photo caption from a wire service.
+STEP 1 DUPLICATE SUPPRESSION
 
-Return ONLY valid JSON with these exact keys:
+The system stores previously published slugs listed above.
+If this event matches a previously published slug or is clearly the same incident already covered within the last 48 hours, return:
+
+headline = DUPLICATE_SKIP
+All other fields empty.
+
+---
+
+STEP 2 FRESHNESS RULE
+
+If the event is more than 30 days old based on verified publication dates, return:
+
+headline = OUTDATED_SKIP
+All other fields empty.
+
+Never update old stories to appear recent.
+
+---
+
+STEP 3 VERIFICATION CHECK
+
+Before writing:
+
+Confirm key facts across at least two credible sources where possible.
+
+Prefer
+Police statements
+Court filings
+Official agency releases
+Named spokesperson quotes
+
+If a detail appears in only one source, clearly attribute it.
+If details conflict, report both versions and attribute each.
+Never invent names, numbers, dates, or quotes.
+
+If you cannot verify key facts at all, return:
+
+headline = INSUFFICIENT_VERIFICATION
+All other fields empty.
+
+---
+
+STEP 4 WRITING STYLE ENFORCEMENT
+
+The article must:
+
+Use short sentences.
+Use simple everyday words.
+Avoid legal jargon unless explained simply.
+Avoid dramatic language.
+Remain neutral.
+Respect presumption of innocence.
+
+The tone must be serious, investigative, and fact based.
+The reading level must be understandable by a 10 year old.
+
+---
+
+STEP 5 ARTICLE STRUCTURE
+
+Generate the following JSON fields.
+
+headline
+Short and factual. Max 80 characters.
+
+subtitle
+One clear sentence expanding the headline.
+
+summary
+Plain English. Max 500 characters.
+
+body
+6 to 10 HTML paragraphs using <p> tags.
+Each paragraph 2 to 4 short sentences.
+Must include source attribution inside paragraphs.
+Explain clearly
+What happened
+Where
+When
+Who was involved
+What authorities said
+What legal action follows
+Why it matters
+
+seo_description
+Max 155 characters.
+
+slug
+Lowercase with hyphens.
+
+section
+Choose from: ${VALID_CATEGORIES.join(", ")}.
+
+tags
+Array including location, agency, crime type, key individuals.
+
+twitter_post
+Maximum 140 characters.
+No emojis.
+No hashtags.
+No links.
+If it exceeds 140 characters, rewrite until it fits.
+
+photo_description
+Describe a real world photograph.
+Maximum 50 words.
+No faces described.
+No illustrations.
+
+---
+
+OUTPUT RULE
+
+Return ONLY valid JSON with exactly these keys:
+
 {
   "headline": "...",
   "subtitle": "...",
@@ -705,7 +800,7 @@ Return ONLY valid JSON with these exact keys:
           body: JSON.stringify({
         model: "google/gemini-2.5-flash",
             messages: [
-              { role: "system", content: "You are a professional crime journalist and fact-checker. You verify information across multiple sources before writing. Return only valid JSON. Never use colons, dashes, bullet points, or emojis in your writing. Always attribute claims to their sources." },
+              { role: "system", content: "You are the GhanaCrimes Automated Newsroom Engine. You operate as a professional investigative crime journalist, fact checker, and editor. You must write in very clear, simple English that a 10 year old can understand, while maintaining the accuracy and discipline of a top investigative newsroom. Return only valid JSON. Never use colons, long dashes, bullet points, emojis, hashtags, or URLs. Always attribute claims to named sources inside the text." },
               { role: "user", content: articlePrompt }
             ],
           }),
@@ -726,12 +821,23 @@ Return ONLY valid JSON with these exact keys:
           throw new Error("Failed to parse article JSON");
         }
 
-        // Skip if AI flagged article as outdated after verification
-        if (articleJson.headline === "OUTDATED_SKIP") {
-          console.log(`AI verification found story is outdated, skipping: ${newsItem.original_headline}`);
+        // Skip flags from AI verification
+        const skipFlag = articleJson.headline;
+        if (skipFlag === "OUTDATED_SKIP" || skipFlag === "DUPLICATE_SKIP" || skipFlag === "INSUFFICIENT_VERIFICATION") {
+          const statusMap: Record<string, string> = {
+            "OUTDATED_SKIP": "outdated",
+            "DUPLICATE_SKIP": "duplicate",
+            "INSUFFICIENT_VERIFICATION": "unverified",
+          };
+          const reasonMap: Record<string, string> = {
+            "OUTDATED_SKIP": "AI verification determined this story is outdated",
+            "DUPLICATE_SKIP": "AI verification determined this is a duplicate of a recently published story",
+            "INSUFFICIENT_VERIFICATION": "AI could not verify key facts across multiple sources",
+          };
+          console.log(`AI flagged story as ${skipFlag}, skipping: ${newsItem.original_headline}`);
           await supabase.from("newsroom_articles").update({
-            processing_status: "outdated",
-            error_message: "AI verification determined this story is outdated",
+            processing_status: statusMap[skipFlag],
+            error_message: reasonMap[skipFlag],
           }).eq("id", newsItem.id);
           continue;
         }
