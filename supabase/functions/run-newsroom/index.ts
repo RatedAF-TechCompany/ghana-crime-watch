@@ -641,9 +641,17 @@ Return ONLY valid JSON array, no other text.`;
         // Generate full article using AI
         const articlePrompt = `You are the GhanaCrimes automated newsroom editor.
 
+TODAY'S DATE IS: ${today}
+
 You will be given an ORIGINAL NEWS ITEM with three fields: original_headline, original_summary, and source_name.
 
 Before writing, you must do a live verification scan across the web using the original_headline and key names and places from the original_summary. Use multiple reputable sources such as the original outlet plus at least two other credible outlets or official statements where available. Prefer primary sources like police statements, court records, official releases, and direct quotes. If you cannot independently verify a detail, you must say it is unconfirmed and attribute it to the original source.
+
+CRITICAL DATE RULES:
+- Today's date is ${today}. All articles you write must be about events happening in ${today.substring(0, 4)} or very recently.
+- If your verification scan finds that the actual event occurred in a previous year (e.g. 2024, 2023), you MUST still write the article using the CORRECT date you found. Do NOT fabricate recent dates.
+- If the story is clearly outdated (more than 30 days old), return the JSON with headline set to "OUTDATED_SKIP" and all other fields empty.
+- NEVER guess or hallucinate dates. Use only dates you can verify from sources.
 
 You must be specific with names, dates, locations, agencies, charges, court names, bail terms, and seized items when verified. If sources disagree, reflect the disagreement and attribute each version to its source. Do not speculate.
 
@@ -716,6 +724,16 @@ Return ONLY valid JSON with these exact keys:
           articleJson = JSON.parse(jsonMatch[1] || articleContent);
         } catch (e) {
           throw new Error("Failed to parse article JSON");
+        }
+
+        // Skip if AI flagged article as outdated after verification
+        if (articleJson.headline === "OUTDATED_SKIP") {
+          console.log(`AI verification found story is outdated, skipping: ${newsItem.original_headline}`);
+          await supabase.from("newsroom_articles").update({
+            processing_status: "outdated",
+            error_message: "AI verification determined this story is outdated",
+          }).eq("id", newsItem.id);
+          continue;
         }
 
         // Use AI-generated slug or create from headline
