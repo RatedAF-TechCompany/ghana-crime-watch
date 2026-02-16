@@ -357,39 +357,30 @@ serve(async (req) => {
 
     console.log(`Started newsroom run: ${run.id}`);
 
-    // Step 1: Use AI to search for Ghana crime news
-    // IMPORTANT: Define minimum news date to prevent outdated stories
+    // Step 1: Use Gemini with SEARCH GROUNDING to find real Ghana crime news
+    // This enables Gemini to actually search the web for current news items
     const MIN_NEWS_DATE = "2026-01-20"; // Do not publish stories older than this date
     const today = new Date().toISOString().split('T')[0];
     
     const sourcesList = NEWS_SOURCES.map(s => `${s.name} (${s.domain})`).join(", ");
-    const searchPrompt = `You are a news aggregator assistant. Search for recent crime news from Ghana.
-    
-Look for news from these trusted Ghana news sources: ${sourcesList}.
+    const searchPrompt = `Search the web for the latest crime news from Ghana published in the last 48 hours.
 
-CRITICAL DATE REQUIREMENT:
-- Today's date is ${today}
-- Only return news from ${MIN_NEWS_DATE} or later
-- Do NOT include any stories about past events like Christmas, New Year, or holidays that have already passed
-- Stories must be about CURRENT or VERY RECENT events (within the last 7 days maximum)
-- If a story references dates, events, or holidays that are clearly in the past, DO NOT include it
+Preferred sources: ${sourcesList}.
 
-Return a JSON array of 5-10 recent crime news items from Ghana. Each item should have:
-- source_name: The news outlet name (must be one of: ${NEWS_SOURCES.map(s => s.name).join(", ")})
-- original_headline: The headline
-- original_summary: A brief 1-2 sentence summary
-- source_url: A plausible URL from the source's domain (or null if unknown)
-- category_hint: One of these categories that best fits: ${VALID_CATEGORIES.join(", ")}
-- estimated_date: The approximate date of the news event (YYYY-MM-DD format, must be ${MIN_NEWS_DATE} or later)
+Today's date is ${today}. Only return news from ${MIN_NEWS_DATE} or later.
+Only return CURRENT news — no stories about past holidays, Christmas, New Year, or events older than 7 days.
 
-Focus on REAL crime news topics like: murders, robberies, fraud cases, court proceedings, police operations, arrests, etc.
+Return a JSON array of 5-10 real crime news items. Each item must have:
+- source_name: The news outlet name
+- original_headline: The exact headline from the source
+- original_summary: A brief 1-2 sentence summary of the story
+- source_url: The actual URL where this story was published (must be a real URL you found)
+- category_hint: One of: ${VALID_CATEGORIES.join(", ")}
+- estimated_date: Publication date in YYYY-MM-DD format
 
-REJECT any stories about:
-- Christmas preparations, Christmas Eve events, or holiday security from December
-- New Year's Eve or New Year celebrations
-- Any event clearly dated before ${MIN_NEWS_DATE}
+Focus on: murders, robberies, fraud, court proceedings, police operations, arrests, drug busts, cybercrime, domestic violence cases.
 
-Return ONLY valid JSON array, no other text.`;
+Return ONLY a valid JSON array, no other text.`;
 
     const searchResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -400,9 +391,10 @@ Return ONLY valid JSON array, no other text.`;
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: "You are a helpful assistant that returns only valid JSON." },
+          { role: "system", content: "You are a news wire service that finds and reports real, current news stories. You must search the web and return only verifiable news items with real URLs. Return only valid JSON." },
           { role: "user", content: searchPrompt }
         ],
+        tools: [{ google_search: {} }],
       }),
     });
 
