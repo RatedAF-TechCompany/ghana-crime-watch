@@ -133,16 +133,17 @@ serve(async (req) => {
       );
     }
 
-    // Build tweet text
+    // Build tweet text — must fit within 140 characters total (including URL)
     const articleUrl = `https://ghanacrimes.com/${article.category_slug}/${article.article_slug}`;
-    const tweetContent = article.twitter_post
-      ? `${article.twitter_post} ${articleUrl}`
-      : `${article.title.substring(0, 200)} ${articleUrl}`;
+    const urlLength = articleUrl.length;
+    const maxTextLength = 140 - urlLength - 1; // -1 for space before URL
 
-    // Ensure tweet is within 280 chars
-    const finalTweet = tweetContent.length > 280
-      ? `${tweetContent.substring(0, 277)}...`
-      : tweetContent;
+    let tweetText = article.twitter_post || article.title;
+    if (tweetText.length > maxTextLength) {
+      tweetText = tweetText.substring(0, maxTextLength - 3) + "...";
+    }
+
+    const finalTweet = `${tweetText} ${articleUrl}`;
 
     console.log(`Posting tweet for article ${article_id}: ${finalTweet.substring(0, 50)}...`);
 
