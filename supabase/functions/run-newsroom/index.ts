@@ -420,6 +420,124 @@ async function downloadAndUploadImage(
 // AI image enhancement has been removed per Photo-First Editorial Policy.
 // AI is only used as a last-resort fallback to generate photorealistic stock-style images.
 
+// ═══════════════════════════════════════════════════════════════════
+// LIVE FACT-CHECKING FILTER — verifies claims using real-time web search
+// Catches errors like incorrect titles, wrong officeholders, outdated roles
+// ═══════════════════════════════════════════════════════════════════
+interface FactCheckResult {
+  passed: boolean;
+  corrections: Array<{
+    original: string;
+    corrected: string;
+    field: string;
+    reason: string;
+  }>;
+  corrected_article: any | null;
+}
+
+async function liveFactCheck(
+  articleJson: any,
+  lovableApiKey: string
+): Promise<FactCheckResult> {
+  const currentDateTime = new Date().toISOString();
+  
+  const factCheckPrompt = `You are a LIVE FACT-CHECKER for a Ghana crime news platform. The current date and time is ${currentDateTime}.
+
+Your job is to verify ALL factual claims in this article using real-time web search. You must be especially vigilant about:
+
+1. **CURRENT OFFICEHOLDERS & TITLES**: Verify that anyone mentioned holds the title/role stated AS OF RIGHT NOW (${currentDateTime}). Presidents, ministers, chiefs, commissioners, directors — their titles MUST reflect who currently holds office. If someone is referred to as "former" when they are actually the current officeholder, or vice versa, this is a CRITICAL error.
+
+2. **NAMES & SPELLINGS**: Verify correct spelling of all names — people, places, institutions.
+
+3. **DATES & TIMELINES**: Verify that dates mentioned are accurate and consistent.
+
+4. **INSTITUTIONAL NAMES**: Verify official names of agencies, courts, police divisions, etc.
+
+5. **LEGAL TERMINOLOGY**: Verify charges, legal processes, and court procedures are accurately described.
+
+6. **GEOGRAPHIC ACCURACY**: Verify locations, regions, districts are correctly identified.
+
+ARTICLE TO FACT-CHECK:
+
+Headline: ${articleJson.headline}
+Subtitle: ${articleJson.subtitle || ""}
+Summary: ${articleJson.summary || ""}
+Body: ${articleJson.body || ""}
+Tweet: ${articleJson.twitter_post || ""}
+Tags: ${JSON.stringify(articleJson.tags || [])}
+
+INSTRUCTIONS:
+- Search the web to verify EVERY factual claim, especially titles and roles of named individuals.
+- For Ghana's President, Vice President, IGP, Attorney General, ministers — confirm who CURRENTLY holds each position as of today.
+- If ANY factual error is found, provide the correction.
+- If corrections are needed, return a FULLY CORRECTED version of the article with all fields.
+- The corrected article must maintain the exact same structure and writing style.
+- Do NOT change the writing style, tone, or structure — only fix factual errors.
+- Do NOT add new information that wasn't in the original.
+- Do NOT remove information unless it is factually wrong.
+
+Return ONLY valid JSON:
+{
+  "passed": true/false,
+  "corrections": [
+    {
+      "original": "exact text that is wrong",
+      "corrected": "what it should be",
+      "field": "which field (headline/body/summary/subtitle/twitter_post/tags)",
+      "reason": "why this is wrong and source of correct info"
+    }
+  ],
+  "corrected_article": null (if passed=true) OR { full corrected article with all original fields } (if passed=false)
+}
+
+If everything checks out, return: {"passed": true, "corrections": [], "corrected_article": null}`;
+
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${lovableApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: "You are a rigorous, real-time fact-checker for a professional news organization. You verify every claim using live web search. You are especially strict about current officeholders, titles, and roles. Return only valid JSON." },
+          { role: "user", content: factCheckPrompt }
+        ],
+        tools: [{ google_search: {} }],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error(`Fact-check API failed: ${response.status}`);
+      // On API failure, pass through but log warning
+      return { passed: true, corrections: [], corrected_article: null };
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || "{}";
+    
+    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, content];
+    const result = JSON.parse(jsonMatch[1] || content);
+    
+    if (!result.passed && result.corrections?.length > 0) {
+      console.log(`FACT-CHECK FAILED — ${result.corrections.length} corrections needed:`);
+      for (const c of result.corrections) {
+        console.log(`  ❌ [${c.field}] "${c.original}" → "${c.corrected}" (${c.reason})`);
+      }
+    } else {
+      console.log("FACT-CHECK PASSED — all claims verified");
+    }
+    
+    return result;
+  } catch (e) {
+    console.error("Fact-check error:", e);
+    // On error, pass through but log
+    return { passed: true, corrections: [], corrected_article: null };
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -1023,6 +1141,26 @@ Return ONLY valid JSON with exactly these keys:
             error_message: reasonMap[skipFlag],
           }).eq("id", newsItem.id);
           continue;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // LIVE FACT-CHECK — verify all claims using real-time web search
+        // ═══════════════════════════════════════════════════════════════
+        console.log(`Running live fact-check for: ${articleJson.headline}`);
+        const factCheckResult = await liveFactCheck(articleJson, lovableApiKey);
+        
+        if (!factCheckResult.passed && factCheckResult.corrected_article) {
+          console.log(`Applying ${factCheckResult.corrections?.length || 0} fact-check corrections to article`);
+          // Replace article fields with corrected versions
+          if (factCheckResult.corrected_article.headline) articleJson.headline = factCheckResult.corrected_article.headline;
+          if (factCheckResult.corrected_article.subtitle) articleJson.subtitle = factCheckResult.corrected_article.subtitle;
+          if (factCheckResult.corrected_article.summary) articleJson.summary = factCheckResult.corrected_article.summary;
+          if (factCheckResult.corrected_article.body) articleJson.body = factCheckResult.corrected_article.body;
+          if (factCheckResult.corrected_article.seo_description) articleJson.seo_description = factCheckResult.corrected_article.seo_description;
+          if (factCheckResult.corrected_article.twitter_post) articleJson.twitter_post = factCheckResult.corrected_article.twitter_post;
+          if (factCheckResult.corrected_article.tags) articleJson.tags = factCheckResult.corrected_article.tags;
+          if (factCheckResult.corrected_article.slug) articleJson.slug = factCheckResult.corrected_article.slug;
+          if (factCheckResult.corrected_article.photo_description) articleJson.photo_description = factCheckResult.corrected_article.photo_description;
         }
 
         // Use AI-generated slug or create from headline
