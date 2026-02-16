@@ -511,6 +511,10 @@ Focus on: murders, robberies, fraud, court proceedings, police operations, arres
 
 Return ONLY a valid JSON array, no other text.`;
 
+      // Add 15s timeout so Gemini search doesn't block the entire pipeline
+      const geminiController = new AbortController();
+      const geminiTimeout = setTimeout(() => geminiController.abort(), 15000);
+      
       const searchResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -525,7 +529,9 @@ Return ONLY a valid JSON array, no other text.`;
           ],
           tools: [{ google_search: {} }],
         }),
+        signal: geminiController.signal,
       });
+      clearTimeout(geminiTimeout);
 
       if (searchResponse.ok) {
         const searchData = await searchResponse.json();
@@ -591,15 +597,6 @@ Return ONLY a valid JSON array, no other text.`;
       for (const keyword of outdatedKeywords) {
         if (combined.includes(keyword)) {
           console.log(`Filtering outdated story (keyword: ${keyword}): ${headline}`);
-          return true;
-        }
-      }
-      
-      // Check estimated_date — enforce 20-hour cutoff
-      if (item.estimated_date) {
-        const estimatedDate = new Date(item.estimated_date);
-        if (estimatedDate < twentyHoursAgo) {
-          console.log(`Filtering outdated story (date: ${item.estimated_date}): ${headline}`);
           return true;
         }
       }
