@@ -133,10 +133,10 @@ serve(async (req) => {
       );
     }
 
-    // Build tweet text — no URL, just the tweet text up to 280 characters
+    // Build tweet text — no URL, max 170 characters
     let tweetText = article.twitter_post || article.title;
-    if (tweetText.length > 280) {
-      tweetText = tweetText.substring(0, 277) + "...";
+    if (tweetText.length > 170) {
+      tweetText = tweetText.substring(0, 167) + "...";
     }
 
     const finalTweet = tweetText;
