@@ -7,33 +7,55 @@ const corsHeaders = {
 };
 
 const NEWS_SOURCES = [
-  { name: "Ghana Police Service", domain: "police.gov.gh", rss: null },
-  { name: "Graphic Online", domain: "graphic.com.gh", rss: "https://www.graphic.com.gh/feed" },
-  { name: "Citi Newsroom", domain: "citinewsroom.com", rss: "https://citinewsroom.com/feed/" },
   { name: "GhanaWeb", domain: "ghanaweb.com", rss: "https://www.ghanaweb.com/GhanaHomePage/crime/rss.xml" },
-  { name: "Modern Ghana", domain: "modernghana.com", rss: "https://www.modernghana.com/rss/" },
+  { name: "Citi Newsroom", domain: "citinewsroom.com", rss: "https://citinewsroom.com/feed/" },
   { name: "MyJoyOnline", domain: "myjoyonline.com", rss: "https://www.myjoyonline.com/feed/" },
-  { name: "Starr FM", domain: "starrfm.com.gh", rss: "https://starrfm.com.gh/feed/" },
-  { name: "Peace FM", domain: "peacefmonline.com", rss: "https://www.peacefmonline.com/pages/local/crime/rss.xml" },
-  { name: "GBC Ghana Online", domain: "gbcghanaonline.com", rss: "https://www.gbcghanaonline.com/feed/" },
-  { name: "Kessben Online", domain: "kessbenonline.com", rss: null },
-  { name: "Adom Online", domain: "adomonline.com", rss: "https://www.adomonline.com/feed/" },
+  { name: "Graphic Online", domain: "graphic.com.gh", rss: "https://www.graphic.com.gh/feed" },
   { name: "3News", domain: "3news.com", rss: "https://3news.com/feed/" },
-  { name: "TV3 Ghana", domain: "tv3network.com", rss: null },
+  { name: "UTV Ghana", domain: "utvghana.com", rss: null },
+  { name: "Metro TV Ghana", domain: "metrotvonline.com", rss: null },
+  { name: "Peace FM Online", domain: "peacefmonline.com", rss: "https://www.peacefmonline.com/pages/local/crime/rss.xml" },
+  { name: "Adom Online", domain: "adomonline.com", rss: "https://www.adomonline.com/feed/" },
+  { name: "Starr FM", domain: "starrfm.com.gh", rss: "https://starrfm.com.gh/feed/" },
   { name: "Pulse Ghana", domain: "pulse.com.gh", rss: "https://www.pulse.com.gh/rss" },
-  { name: "Ghana News Agency", domain: "gna.org.gh", rss: "https://gna.org.gh/feed/" },
+  { name: "Modern Ghana", domain: "modernghana.com", rss: "https://www.modernghana.com/rss/" },
+  { name: "News Ghana", domain: "newsghana.com.gh", rss: "https://newsghana.com.gh/feed/" },
+  { name: "The Chronicle Ghana", domain: "thechronicle.com.gh", rss: "https://thechronicle.com.gh/feed/" },
+  { name: "Daily Guide Network", domain: "dailyguidenetwork.com", rss: "https://dailyguidenetwork.com/feed/" },
+  { name: "The Finder Online", domain: "thefinderonline.com", rss: null },
+  { name: "Ghanaian Times", domain: "ghanaiantimes.com.gh", rss: "https://www.ghanaiantimes.com.gh/feed/" },
+  { name: "GBC Ghana Online", domain: "gbcghanaonline.com", rss: "https://www.gbcghanaonline.com/feed/" },
+  { name: "Asaase Radio", domain: "asaaseradio.com", rss: "https://asaaseradio.com/feed/" },
+  { name: "Atinka Online", domain: "atinkaonline.com", rss: "https://atinkaonline.com/feed/" },
 ];
 
-// Crime-related keywords to filter RSS items
+// Strict crime-only keywords for RSS filtering
+// Story MUST involve a criminal act, formal allegation, police/court action, seizure, or investigation
 const CRIME_KEYWORDS = [
-  'crime', 'criminal', 'murder', 'kill', 'dead', 'death', 'arrest', 'police',
-  'court', 'judge', 'sentence', 'jail', 'prison', 'robbery', 'robber', 'steal',
-  'theft', 'thief', 'fraud', 'scam', 'assault', 'attack', 'stab', 'shoot',
-  'gun', 'drug', 'narcotic', 'rape', 'abuse', 'domestic violence', 'kidnap',
-  'missing', 'suspect', 'accused', 'convict', 'bail', 'remand', 'cybercrime',
-  'hack', 'corruption', 'bribe', 'arson', 'fire', 'vandal', 'mob', 'lynch',
-  'defraud', 'forgery', 'smuggle', 'trafficking', 'wanted', 'manhunt',
-  'burglary', 'extortion', 'threat', 'victim', 'homicide', 'manslaughter',
+  // Criminal acts
+  'arrest', 'arrested', 'murder', 'murdered', 'homicide', 'manslaughter',
+  'robbery', 'robber', 'armed robbery', 'steal', 'stolen', 'theft', 'thief', 'burglary',
+  'fraud', 'defraud', 'scam', 'scammer', 'forgery',
+  'assault', 'assaulted', 'attack', 'stab', 'stabbed', 'shoot', 'shooting', 'shot',
+  'rape', 'raped', 'defilement', 'defiled',
+  'kidnap', 'kidnapped', 'kidnapping', 'abduction',
+  'abuse', 'child abuse', 'domestic violence',
+  'cybercrime', 'cyber fraud', 'hack', 'hacked', 'hacking',
+  'drug seizure', 'drug bust', 'narcotic', 'cocaine', 'cannabis', 'tramadol',
+  'money laundering', 'corruption charges', 'bribe', 'bribery',
+  'human trafficking', 'trafficking',
+  'arson', 'vandal', 'vandalism',
+  'extortion', 'threat', 'threatening',
+  'smuggle', 'smuggling', 'contraband',
+  // Law enforcement & courts
+  'police', 'suspect', 'accused', 'convict', 'convicted', 'sentence', 'sentenced',
+  'court', 'judge', 'magistrate', 'bail', 'remand', 'remanded',
+  'jail', 'prison', 'inmate', 'prisoner',
+  'investigation', 'investigating', 'crime', 'criminal',
+  'most wanted', 'manhunt', 'wanted',
+  'seizure', 'confiscate', 'confiscated',
+  'charge', 'charged', 'prosecution', 'prosecuted',
+  'victim', 'perpetrator',
 ];
 
 // Parse RSS/Atom XML feed and extract items
@@ -492,22 +514,36 @@ serve(async (req) => {
     let geminiNewsItems: any[] = [];
     try {
       const sourcesList = NEWS_SOURCES.map(s => `${s.name} (${s.domain})`).join(", ");
-      const searchPrompt = `Search the web for the latest crime news from Ghana published in the last 20 hours.
+      const searchPrompt = `You are the GhanaCrimes News Intake Filter.
 
-Preferred sources: ${sourcesList}.
+You are scanning the following approved Ghanaian news outlets:
+${sourcesList}
 
 Today's date and time is ${new Date().toISOString()}. Only return news published within the last 20 hours.
-Only return CURRENT news — no stories about past holidays, events older than 20 hours.
 
-Return a JSON array of 5-10 real crime news items. Each item must have:
+Your job is to extract ONLY crime-related news. You must IGNORE all stories that are:
+Politics, Business, Sports, Entertainment, Opinion, Lifestyle, Education, Religion, Health (unless directly tied to a criminal investigation), Editorial commentary, Announcements, Feature stories, Human interest stories.
+
+Only extract stories involving:
+Arrests, Court cases, Sentencing, Police investigations, Fraud, Scams, Robbery, Armed robbery, Murder, Attempted murder, Assault, Domestic violence, Child abuse, Defilement, Rape, Cybercrime, Drug seizures, Money laundering, Corruption charges, Human trafficking, Kidnapping, Prison news, Crime statistics, Security operations, Most wanted notices.
+
+Filtering Rules:
+- The article must involve a criminal act or formal criminal allegation.
+- There must be either: a named suspect, a police or court action, a filed charge, a sentencing decision, a seizure of illegal items, or an official criminal investigation.
+- If the story does not involve a criminal offence or official criminal action, discard it.
+- If the story is opinion or analysis about crime trends without a specific incident, discard it.
+- If the story is purely political debate without charges filed, discard it.
+- If unsure, discard it.
+
+Return only items that clearly meet crime criteria.
+
+Return a JSON array of 5-15 real crime news items. Each item must have:
 - source_name: The news outlet name
 - original_headline: The exact headline from the source
 - original_summary: A brief 1-2 sentence summary of the story
 - source_url: The actual URL where this story was published (must be a real URL you found)
 - category_hint: One of: ${VALID_CATEGORIES.join(", ")}
 - estimated_date: Publication date in YYYY-MM-DD format
-
-Focus on: murders, robberies, fraud, court proceedings, police operations, arrests, drug busts, cybercrime, domestic violence cases.
 
 Return ONLY a valid JSON array, no other text.`;
 
