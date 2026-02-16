@@ -521,21 +521,28 @@ ${sourcesList}
 
 Today's date and time is ${new Date().toISOString()}. Only return news published within the last 20 hours.
 
-Your job is to extract ONLY crime-related news. You must IGNORE all stories that are:
-Politics, Business, Sports, Entertainment, Opinion, Lifestyle, Education, Religion, Health (unless directly tied to a criminal investigation), Editorial commentary, Announcements, Feature stories, Human interest stories.
+CRITICAL GEOGRAPHIC RULE:
+You must ONLY return crime news that takes place IN GHANA or directly involves Ghanaian citizens, Ghanaian institutions, or Ghanaian law enforcement.
+Do NOT return any international crime news from the USA, UK, Nigeria, or any other country unless it directly involves a Ghanaian suspect, Ghanaian victim, or Ghanaian authorities.
+If a story is about a crime in another country with no Ghana connection, discard it immediately.
+
+Your job is to extract ONLY crime-related news FROM GHANA. You must IGNORE all stories that are:
+Politics, Business, Sports, Entertainment, Opinion, Lifestyle, Education, Religion, Health (unless directly tied to a criminal investigation), Editorial commentary, Announcements, Feature stories, Human interest stories, International news without a direct Ghana connection.
 
 Only extract stories involving:
 Arrests, Court cases, Sentencing, Police investigations, Fraud, Scams, Robbery, Armed robbery, Murder, Attempted murder, Assault, Domestic violence, Child abuse, Defilement, Rape, Cybercrime, Drug seizures, Money laundering, Corruption charges, Human trafficking, Kidnapping, Prison news, Crime statistics, Security operations, Most wanted notices.
 
 Filtering Rules:
+- The crime must have occurred in Ghana OR directly involve Ghanaian nationals or institutions.
 - The article must involve a criminal act or formal criminal allegation.
 - There must be either: a named suspect, a police or court action, a filed charge, a sentencing decision, a seizure of illegal items, or an official criminal investigation.
 - If the story does not involve a criminal offence or official criminal action, discard it.
 - If the story is opinion or analysis about crime trends without a specific incident, discard it.
 - If the story is purely political debate without charges filed, discard it.
+- If the crime happened outside Ghana with no Ghanaian connection, discard it.
 - If unsure, discard it.
 
-Return only items that clearly meet crime criteria.
+Return only items that clearly meet BOTH the crime AND Ghana criteria.
 
 Return a JSON array of 5-15 real crime news items. Each item must have:
 - source_name: The news outlet name
@@ -849,6 +856,16 @@ All other fields empty.
 
 ---
 
+GEOGRAPHIC RULE
+
+This is a GHANA-ONLY crime news platform. The story MUST take place in Ghana or directly involve Ghanaian citizens, Ghanaian institutions, or Ghanaian law enforcement.
+If the crime occurred in another country (USA, UK, Nigeria, etc.) with no direct Ghana connection, return:
+
+headline = NON_GHANA_SKIP
+All other fields empty.
+
+---
+
 FRESHNESS RULE
 
 If the event is more than 30 days old based on verified publication dates, return:
@@ -987,16 +1004,18 @@ Return ONLY valid JSON with exactly these keys:
 
         // Skip flags from AI verification
         const skipFlag = articleJson.headline;
-        if (skipFlag === "OUTDATED_SKIP" || skipFlag === "DUPLICATE_SKIP" || skipFlag === "INSUFFICIENT_VERIFICATION") {
+        if (skipFlag === "OUTDATED_SKIP" || skipFlag === "DUPLICATE_SKIP" || skipFlag === "INSUFFICIENT_VERIFICATION" || skipFlag === "NON_GHANA_SKIP") {
           const statusMap: Record<string, string> = {
             "OUTDATED_SKIP": "outdated",
             "DUPLICATE_SKIP": "duplicate",
             "INSUFFICIENT_VERIFICATION": "unverified",
+            "NON_GHANA_SKIP": "rejected",
           };
           const reasonMap: Record<string, string> = {
             "OUTDATED_SKIP": "AI verification determined this story is outdated",
             "DUPLICATE_SKIP": "AI verification determined this is a duplicate of a recently published story",
             "INSUFFICIENT_VERIFICATION": "AI could not verify key facts across multiple sources",
+            "NON_GHANA_SKIP": "Story is not related to Ghana — international news rejected",
           };
           console.log(`AI flagged story as ${skipFlag}, skipping: ${newsItem.original_headline}`);
           await supabase.from("newsroom_articles").update({
