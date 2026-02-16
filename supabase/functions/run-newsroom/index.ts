@@ -929,8 +929,11 @@ tags
 Array including location, agency, crime type, key individuals.
 
 twitter_post
-Maximum 140 characters. No emojis. No hashtags. No links.
-If it exceeds 140 characters, rewrite until it fits.
+A full, complete sentence in reported speech form with subject-verb-object structure. Maximum 250 characters. No emojis. No hashtags. No links. No headline style.
+Do NOT write tweet text that sounds like a headline. Write it as a news report sentence.
+Good example: "A 35-year-old man has been arrested by police in Kumasi for allegedly stealing goods worth GHS 50,000 from a warehouse."
+Bad example: "Man arrested for warehouse theft in Kumasi"
+If it exceeds 250 characters, rewrite until it fits.
 
 photo_description
 Describe a real world photograph. Maximum 50 words. No faces described. No illustrations.
