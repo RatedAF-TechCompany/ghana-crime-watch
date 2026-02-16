@@ -7,22 +7,119 @@ const corsHeaders = {
 };
 
 const NEWS_SOURCES = [
-  { name: "Ghana Police Service", domain: "police.gov.gh" },
-  { name: "Graphic Online", domain: "graphic.com.gh" },
-  { name: "Citi Newsroom", domain: "citinewsroom.com" },
-  { name: "GhanaWeb", domain: "ghanaweb.com" },
-  { name: "Modern Ghana", domain: "modernghana.com" },
-  { name: "MyJoyOnline", domain: "myjoyonline.com" },
-  { name: "Starr FM", domain: "starrfm.com.gh" },
-  { name: "Peace FM", domain: "peacefmonline.com" },
-  { name: "GBC Ghana Online", domain: "gbcghanaonline.com" },
-  { name: "Kessben Online", domain: "kessbenonline.com" },
-  { name: "Adom Online", domain: "adomonline.com" },
-  { name: "3News", domain: "3news.com" },
-  { name: "TV3 Ghana", domain: "tv3network.com" },
-  { name: "Pulse Ghana", domain: "pulse.com.gh" },
-  { name: "Ghana News Agency", domain: "gna.org.gh" },
+  { name: "Ghana Police Service", domain: "police.gov.gh", rss: null },
+  { name: "Graphic Online", domain: "graphic.com.gh", rss: "https://www.graphic.com.gh/feed" },
+  { name: "Citi Newsroom", domain: "citinewsroom.com", rss: "https://citinewsroom.com/feed/" },
+  { name: "GhanaWeb", domain: "ghanaweb.com", rss: "https://www.ghanaweb.com/GhanaHomePage/crime/rss.xml" },
+  { name: "Modern Ghana", domain: "modernghana.com", rss: "https://www.modernghana.com/rss/" },
+  { name: "MyJoyOnline", domain: "myjoyonline.com", rss: "https://www.myjoyonline.com/feed/" },
+  { name: "Starr FM", domain: "starrfm.com.gh", rss: "https://starrfm.com.gh/feed/" },
+  { name: "Peace FM", domain: "peacefmonline.com", rss: "https://www.peacefmonline.com/pages/local/crime/rss.xml" },
+  { name: "GBC Ghana Online", domain: "gbcghanaonline.com", rss: "https://www.gbcghanaonline.com/feed/" },
+  { name: "Kessben Online", domain: "kessbenonline.com", rss: null },
+  { name: "Adom Online", domain: "adomonline.com", rss: "https://www.adomonline.com/feed/" },
+  { name: "3News", domain: "3news.com", rss: "https://3news.com/feed/" },
+  { name: "TV3 Ghana", domain: "tv3network.com", rss: null },
+  { name: "Pulse Ghana", domain: "pulse.com.gh", rss: "https://www.pulse.com.gh/rss" },
+  { name: "Ghana News Agency", domain: "gna.org.gh", rss: "https://gna.org.gh/feed/" },
 ];
+
+// Crime-related keywords to filter RSS items
+const CRIME_KEYWORDS = [
+  'crime', 'criminal', 'murder', 'kill', 'dead', 'death', 'arrest', 'police',
+  'court', 'judge', 'sentence', 'jail', 'prison', 'robbery', 'robber', 'steal',
+  'theft', 'thief', 'fraud', 'scam', 'assault', 'attack', 'stab', 'shoot',
+  'gun', 'drug', 'narcotic', 'rape', 'abuse', 'domestic violence', 'kidnap',
+  'missing', 'suspect', 'accused', 'convict', 'bail', 'remand', 'cybercrime',
+  'hack', 'corruption', 'bribe', 'arson', 'fire', 'vandal', 'mob', 'lynch',
+  'defraud', 'forgery', 'smuggle', 'trafficking', 'wanted', 'manhunt',
+  'burglary', 'extortion', 'threat', 'victim', 'homicide', 'manslaughter',
+];
+
+// Parse RSS/Atom XML feed and extract items
+function parseRSSItems(xml: string, sourceName: string): any[] {
+  const items: any[] = [];
+  
+  // Try RSS <item> tags first, then Atom <entry> tags
+  const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
+  const entryRegex = /<entry>([\s\S]*?)<\/entry>/gi;
+  
+  const matches = [...xml.matchAll(itemRegex), ...xml.matchAll(entryRegex)];
+  
+  for (const match of matches) {
+    const block = match[1];
+    
+    const title = block.match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i)?.[1]?.trim() || "";
+    const description = block.match(/<description[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/i)?.[1]?.trim()
+      || block.match(/<summary[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/summary>/i)?.[1]?.trim()
+      || "";
+    const link = block.match(/<link[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/link>/i)?.[1]?.trim()
+      || block.match(/<link[^>]*href="([^"]*)"[^>]*\/?>/i)?.[1]?.trim()
+      || "";
+    const pubDate = block.match(/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/i)?.[1]?.trim()
+      || block.match(/<published[^>]*>([\s\S]*?)<\/published>/i)?.[1]?.trim()
+      || block.match(/<updated[^>]*>([\s\S]*?)<\/updated>/i)?.[1]?.trim()
+      || "";
+    
+    // Strip HTML tags from description
+    const cleanSummary = description.replace(/<[^>]*>/g, '').substring(0, 500);
+    
+    if (title) {
+      items.push({
+        source_name: sourceName,
+        original_headline: title,
+        original_summary: cleanSummary,
+        source_url: link || null,
+        pub_date: pubDate ? new Date(pubDate) : null,
+      });
+    }
+  }
+  
+  return items;
+}
+
+// Fetch and parse a single RSS feed with timeout
+async function fetchRSSFeed(source: { name: string; rss: string | null }): Promise<any[]> {
+  if (!source.rss) return [];
+  
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s per feed
+    
+    const response = await fetch(source.rss, {
+      headers: { 'User-Agent': 'GhanaCrimes-Newsroom/1.0' },
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      console.log(`RSS feed failed for ${source.name}: ${response.status}`);
+      return [];
+    }
+    
+    const xml = await response.text();
+    const items = parseRSSItems(xml, source.name);
+    console.log(`RSS: ${source.name} returned ${items.length} items`);
+    return items;
+  } catch (e) {
+    console.log(`RSS fetch error for ${source.name}: ${e instanceof Error ? e.message : 'unknown'}`);
+    return [];
+  }
+}
+
+// Filter RSS items to crime-related stories within the freshness window
+function filterCrimeItems(items: any[], maxAgeHours: number): any[] {
+  const cutoff = new Date(Date.now() - maxAgeHours * 60 * 60 * 1000);
+  
+  return items.filter(item => {
+    // Check freshness
+    if (item.pub_date && item.pub_date < cutoff) return false;
+    
+    // Check if crime-related
+    const text = `${item.original_headline} ${item.original_summary}`.toLowerCase();
+    return CRIME_KEYWORDS.some(keyword => text.includes(keyword));
+  });
+}
 
 // Valid categories that match the database CHECK constraint
 const VALID_CATEGORIES = [
@@ -357,18 +454,50 @@ serve(async (req) => {
 
     console.log(`Started newsroom run: ${run.id}`);
 
-    // Step 1: Use Gemini with SEARCH GROUNDING to find real Ghana crime news
-    // This enables Gemini to actually search the web for current news items
-    const MIN_NEWS_DATE = "2026-01-20"; // Do not publish stories older than this date
+    // ═══════════════════════════════════════════════════════════════════
+    // STEP 1A: NATIVE RSS FEED SCANNING — real grounded news discovery
+    // ═══════════════════════════════════════════════════════════════════
+    const MAX_AGE_HOURS = 20; // Strict 20-hour freshness cutoff
     const today = new Date().toISOString().split('T')[0];
     
-    const sourcesList = NEWS_SOURCES.map(s => `${s.name} (${s.domain})`).join(", ");
-    const searchPrompt = `Search the web for the latest crime news from Ghana published in the last 48 hours.
+    console.log("Step 1A: Scanning RSS feeds from whitelisted sources...");
+    
+    // Fetch all RSS feeds in parallel
+    const rssPromises = NEWS_SOURCES.map(source => fetchRSSFeed(source));
+    const rssResults = await Promise.all(rssPromises);
+    const allRssItems = rssResults.flat();
+    
+    console.log(`RSS total: ${allRssItems.length} raw items from ${NEWS_SOURCES.filter(s => s.rss).length} feeds`);
+    
+    // Filter to crime-related items within 20-hour window
+    const freshCrimeItems = filterCrimeItems(allRssItems, MAX_AGE_HOURS);
+    console.log(`RSS filtered: ${freshCrimeItems.length} crime items within ${MAX_AGE_HOURS}h window`);
+    
+    // Convert RSS items to standard format
+    const rssNewsItems = freshCrimeItems.map(item => ({
+      source_name: item.source_name,
+      original_headline: item.original_headline,
+      original_summary: item.original_summary,
+      source_url: item.source_url,
+      category_hint: "top-stories",
+      estimated_date: item.pub_date ? item.pub_date.toISOString().split('T')[0] : today,
+      discovery_method: "rss",
+    }));
+
+    // ═══════════════════════════════════════════════════════════════════
+    // STEP 1B: GEMINI SEARCH GROUNDING — supplementary AI web search
+    // ═══════════════════════════════════════════════════════════════════
+    console.log("Step 1B: Running Gemini search grounding for additional stories...");
+    
+    let geminiNewsItems: any[] = [];
+    try {
+      const sourcesList = NEWS_SOURCES.map(s => `${s.name} (${s.domain})`).join(", ");
+      const searchPrompt = `Search the web for the latest crime news from Ghana published in the last 20 hours.
 
 Preferred sources: ${sourcesList}.
 
-Today's date is ${today}. Only return news from ${MIN_NEWS_DATE} or later.
-Only return CURRENT news — no stories about past holidays, Christmas, New Year, or events older than 7 days.
+Today's date and time is ${new Date().toISOString()}. Only return news published within the last 20 hours.
+Only return CURRENT news — no stories about past holidays, events older than 20 hours.
 
 Return a JSON array of 5-10 real crime news items. Each item must have:
 - source_name: The news outlet name
@@ -382,64 +511,76 @@ Focus on: murders, robberies, fraud, court proceedings, police operations, arres
 
 Return ONLY a valid JSON array, no other text.`;
 
-    const searchResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${lovableApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: "You are a news wire service that finds and reports real, current news stories. You must search the web and return only verifiable news items with real URLs. Return only valid JSON." },
-          { role: "user", content: searchPrompt }
-        ],
-        tools: [{ google_search: {} }],
-      }),
-    });
+      const searchResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${lovableApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: "You are a news wire service that finds and reports real, current news stories. You must search the web and return only verifiable news items with real URLs. Return only valid JSON." },
+            { role: "user", content: searchPrompt }
+          ],
+          tools: [{ google_search: {} }],
+        }),
+      });
 
-    if (!searchResponse.ok) {
-      const errorText = await searchResponse.text();
-      console.error("AI search error:", searchResponse.status, errorText);
-      
-      if (searchResponse.status === 429) {
-        await supabase.from("newsroom_runs").update({
-          status: "failed",
-          error_message: "Rate limit exceeded. Please try again later.",
-          completed_at: new Date().toISOString(),
-        }).eq("id", run.id);
+      if (searchResponse.ok) {
+        const searchData = await searchResponse.json();
+        const newsContent = searchData.choices?.[0]?.message?.content || "[]";
         
-        return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        try {
+          const jsonMatch = newsContent.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, newsContent];
+          const parsed = JSON.parse(jsonMatch[1] || newsContent);
+          geminiNewsItems = (Array.isArray(parsed) ? parsed : []).map((item: any) => ({
+            ...item,
+            discovery_method: "gemini_search",
+          }));
+        } catch (e) {
+          console.error("Failed to parse Gemini search results:", e);
+        }
+        console.log(`Gemini search: found ${geminiNewsItems.length} items`);
+      } else {
+        const errText = await searchResponse.text();
+        console.error(`Gemini search failed (${searchResponse.status}): ${errText}`);
+        if (searchResponse.status === 429) {
+          console.log("Rate limited on Gemini search, continuing with RSS results only");
+        }
       }
-      
-      throw new Error(`AI search failed: ${searchResponse.status}`);
+    } catch (geminiError) {
+      console.error("Gemini search error:", geminiError);
     }
 
-    const searchData = await searchResponse.json();
-    const newsContent = searchData.choices?.[0]?.message?.content || "[]";
+    // ═══════════════════════════════════════════════════════════════════
+    // STEP 1C: MERGE & DEDUPLICATE — combine RSS + Gemini results
+    // ═══════════════════════════════════════════════════════════════════
+    const allDiscoveredItems = [...rssNewsItems, ...geminiNewsItems];
     
-    // Parse the news items
-    let newsItems: any[] = [];
-    try {
-      // Extract JSON from potential markdown code blocks
-      const jsonMatch = newsContent.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, newsContent];
-      newsItems = JSON.parse(jsonMatch[1] || newsContent);
-    } catch (e) {
-      console.error("Failed to parse news items:", e, newsContent);
-      newsItems = [];
-    }
+    // Deduplicate by headline similarity
+    const seenHeadlines = new Set<string>();
+    const newsItems = allDiscoveredItems.filter(item => {
+      const normalized = (item.original_headline || "").toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+      const keyPhrase = normalized.split(' ').slice(0, 6).join(' ');
+      if (seenHeadlines.has(normalized) || (keyPhrase.length > 15 && seenHeadlines.has(keyPhrase))) {
+        return false;
+      }
+      seenHeadlines.add(normalized);
+      seenHeadlines.add(keyPhrase);
+      return true;
+    });
+    
+    console.log(`Merged: ${allDiscoveredItems.length} total → ${newsItems.length} unique items (${rssNewsItems.length} RSS + ${geminiNewsItems.length} Gemini)`);
 
-    console.log(`Found ${newsItems.length} news items`);
-
-    // Step 1.5: Filter out outdated stories based on keywords and date hints
+    // Step 1.5: Filter out outdated stories based on keywords and strict 20-hour cutoff
     const outdatedKeywords = [
       'christmas eve', 'christmas day', 'christmas preparation', 'christmas preparedness',
       'holiday season preparation', 'yuletide', 'festive season', 'new year eve',
       'december 24', 'december 25', 'december 31', 'january 1st celebration'
     ];
+    
+    const twentyHoursAgo = new Date(Date.now() - MAX_AGE_HOURS * 60 * 60 * 1000);
     
     const isOutdatedStory = (item: any): boolean => {
       const headline = (item.original_headline || item.headline || "").toLowerCase();
@@ -454,11 +595,10 @@ Return ONLY a valid JSON array, no other text.`;
         }
       }
       
-      // Check estimated_date if provided
+      // Check estimated_date — enforce 20-hour cutoff
       if (item.estimated_date) {
         const estimatedDate = new Date(item.estimated_date);
-        const minDate = new Date(MIN_NEWS_DATE);
-        if (estimatedDate < minDate) {
+        if (estimatedDate < twentyHoursAgo) {
           console.log(`Filtering outdated story (date: ${item.estimated_date}): ${headline}`);
           return true;
         }
