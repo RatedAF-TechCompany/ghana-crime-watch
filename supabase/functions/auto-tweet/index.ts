@@ -133,18 +133,13 @@ serve(async (req) => {
       );
     }
 
-    // Build tweet text — must fit within 280 characters total (including URL)
-    // X/Twitter counts t.co wrapped URLs as 23 characters regardless of actual length
-    const articleUrl = `https://ghanacrimes.com/${article.category_slug}/${article.article_slug}`;
-    const tcoLength = 23; // X wraps all URLs to t.co (23 chars)
-    const maxTextLength = 280 - tcoLength - 1; // -1 for space before URL
-
+    // Build tweet text — no URL, just the tweet text up to 280 characters
     let tweetText = article.twitter_post || article.title;
-    if (tweetText.length > maxTextLength) {
-      tweetText = tweetText.substring(0, maxTextLength - 3) + "...";
+    if (tweetText.length > 280) {
+      tweetText = tweetText.substring(0, 277) + "...";
     }
 
-    const finalTweet = `${tweetText} ${articleUrl}`;
+    const finalTweet = tweetText;
 
     console.log(`Posting tweet for article ${article_id}: ${finalTweet.substring(0, 50)}...`);
 
