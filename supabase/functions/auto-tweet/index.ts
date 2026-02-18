@@ -111,6 +111,23 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // --- Rate limit: max 1 tweet every 3 hours ---
+    const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+    const { data: recentTweets } = await supabase
+      .from("articles")
+      .select("id, twitter_post, published_at")
+      .like("twitter_post", "POSTED:%")
+      .gte("updated_at", threeHoursAgo)
+      .limit(1);
+
+    if (recentTweets && recentTweets.length > 0) {
+      console.log("Rate limited: a tweet was posted within the last 3 hours");
+      return new Response(
+        JSON.stringify({ error: "Rate limited: only 1 tweet allowed every 3 hours", rate_limited: true }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Fetch the article
     const { data: article, error: fetchError } = await supabase
       .from("articles")
@@ -133,10 +150,31 @@ serve(async (req) => {
       );
     }
 
-    // Build tweet text — no URL, max 170 characters
+    // --- Count total posted tweets to determine if this is the 6th ---
+    const { count: totalPosted } = await supabase
+      .from("articles")
+      .select("id", { count: "exact", head: true })
+      .like("twitter_post", "POSTED:%");
+
+    const isUrlTweet = totalPosted !== null && (totalPosted % 5 === 4); // 0-indexed: 5th item (index 4) = 6th tweet
+
+    // Build article URL
+    const articleUrl = `https://ghana-crime-watch.lovable.app/${article.category_slug}/${article.article_slug}`;
+
+    // Build tweet text — max 160 characters
     let tweetText = article.twitter_post || article.title;
-    if (tweetText.length > 170) {
-      tweetText = tweetText.substring(0, 167) + "...";
+
+    if (isUrlTweet) {
+      // Reserve space for URL (t.co links are 23 chars) + newline
+      const maxTextLen = 160 - 24;
+      if (tweetText.length > maxTextLen) {
+        tweetText = tweetText.substring(0, maxTextLen - 3) + "...";
+      }
+      tweetText = `${tweetText}\n${articleUrl}`;
+    } else {
+      if (tweetText.length > 160) {
+        tweetText = tweetText.substring(0, 157) + "...";
+      }
     }
 
     const finalTweet = tweetText;
