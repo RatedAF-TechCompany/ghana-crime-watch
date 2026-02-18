@@ -164,17 +164,13 @@ serve(async (req) => {
     // Build tweet text — max 160 characters
     let tweetText = article.twitter_post || article.title;
 
+    // Cap text at 160 chars regardless of URL
+    if (tweetText.length > 160) {
+      tweetText = tweetText.substring(0, 157) + "...";
+    }
+
     if (isUrlTweet) {
-      // Reserve space for URL (t.co links are 23 chars) + newline
-      const maxTextLen = 160 - 24;
-      if (tweetText.length > maxTextLen) {
-        tweetText = tweetText.substring(0, maxTextLen - 3) + "...";
-      }
       tweetText = `${tweetText}\n${articleUrl}`;
-    } else {
-      if (tweetText.length > 160) {
-        tweetText = tweetText.substring(0, 157) + "...";
-      }
     }
 
     const finalTweet = tweetText;
