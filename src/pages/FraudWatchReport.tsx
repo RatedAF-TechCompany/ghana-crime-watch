@@ -108,80 +108,32 @@ export default function FraudWatchReport() {
 
     setSubmitting(true);
     try {
-      // Check for duplicate account (same platform + account_name or account_handle)
-      const normalizedName = form.accountName.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
-      const { data: existing } = await supabase
-        .from("fraud_accounts")
-        .select("id")
-        .eq("platform", form.platform)
-        .ilike("account_name", form.accountName.trim())
-        .maybeSingle();
-
-      let fraudAccountId: string;
-
-      if (existing) {
-        fraudAccountId = existing.id;
-      } else {
-        // Check by link
-        let byLink = null;
-        if (form.accountLink.trim()) {
-          const { data } = await supabase
-            .from("fraud_accounts")
-            .select("id")
-            .eq("account_link", form.accountLink.trim())
-            .maybeSingle();
-          byLink = data;
-        }
-
-        if (byLink) {
-          fraudAccountId = byLink.id;
-        } else {
-          // Create new fraud account record (Pending)
-          const { data: newAccount, error: accountError } = await supabase
-            .from("fraud_accounts")
-            .insert({
-              platform: form.platform,
-              account_name: form.accountName.trim(),
-              account_handle: form.accountHandle.trim() || null,
-              account_link: form.accountLink.trim() || null,
-              status: "Pending",
-            })
-            .select("id")
-            .single();
-
-          if (accountError) throw accountError;
-          fraudAccountId = newAccount.id;
-        }
-      }
-
-      // Upload evidence files
+      // Upload evidence files first
       const evidenceUrls = await uploadFiles();
 
-      // Generate reference ID
-      const refId = `GCF-${Date.now().toString(36).toUpperCase().slice(-6)}`;
+      // Call SECURITY DEFINER function that handles deduplication + insert
+      const { data, error } = await supabase.rpc("submit_fraud_report", {
+        p_platform: form.platform,
+        p_account_name: form.accountName.trim(),
+        p_account_handle: form.accountHandle.trim() || null,
+        p_account_link: form.accountLink.trim() || null,
+        p_reporter_name: form.reporterName.trim() || null,
+        p_reporter_email: form.reporterEmail.trim() || null,
+        p_reporter_phone: form.reporterPhone.trim() || null,
+        p_payment_method: form.paymentMethod,
+        p_amount: form.amount ? Number(form.amount) : null,
+        p_currency: form.currency,
+        p_incident_date: form.incidentDate,
+        p_region: form.region || null,
+        p_description: form.description.trim(),
+        p_evidence_files: evidenceUrls,
+      });
 
-      // Insert report
-      const { error: reportError } = await supabase
-        .from("fraud_reports")
-        .insert({
-          fraud_account_id: fraudAccountId,
-          reporter_name: form.reporterName.trim() || null,
-          reporter_email: form.reporterEmail.trim() || null,
-          reporter_phone: form.reporterPhone.trim() || null,
-          payment_method: form.paymentMethod,
-          amount: form.amount ? Number(form.amount) : null,
-          currency: form.currency,
-          incident_date: form.incidentDate,
-          region: form.region || null,
-          description: form.description.trim(),
-          evidence_files: evidenceUrls,
-          reference_id: refId,
-          is_public: false,
-        });
+      if (error) throw error;
+      const result = data as { success?: boolean; error?: string; reference_id?: string };
+      if (result?.error) throw new Error(result.error);
 
-      if (reportError) throw reportError;
-
-      setReferenceId(refId);
+      setReferenceId(result.reference_id ?? "");
       setSubmitted(true);
       window.scrollTo(0, 0);
     } catch (err: any) {
