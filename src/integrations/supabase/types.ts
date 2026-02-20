@@ -260,6 +260,178 @@ export type Database = {
         }
         Relationships: []
       }
+      fraud_accounts: {
+        Row: {
+          account_handle: string | null
+          account_link: string | null
+          account_name: string
+          created_at: string
+          id: string
+          last_reported_at: string | null
+          moderator_note: string | null
+          platform: string
+          reports_count: number
+          status: string
+          total_reported_loss: number
+          updated_at: string
+          views_count: number
+        }
+        Insert: {
+          account_handle?: string | null
+          account_link?: string | null
+          account_name: string
+          created_at?: string
+          id?: string
+          last_reported_at?: string | null
+          moderator_note?: string | null
+          platform: string
+          reports_count?: number
+          status?: string
+          total_reported_loss?: number
+          updated_at?: string
+          views_count?: number
+        }
+        Update: {
+          account_handle?: string | null
+          account_link?: string | null
+          account_name?: string
+          created_at?: string
+          id?: string
+          last_reported_at?: string | null
+          moderator_note?: string | null
+          platform?: string
+          reports_count?: number
+          status?: string
+          total_reported_loss?: number
+          updated_at?: string
+          views_count?: number
+        }
+        Relationships: []
+      }
+      fraud_admin_notes: {
+        Row: {
+          admin_name: string | null
+          admin_user_id: string | null
+          created_at: string
+          fraud_account_id: string
+          id: string
+          note: string
+        }
+        Insert: {
+          admin_name?: string | null
+          admin_user_id?: string | null
+          created_at?: string
+          fraud_account_id: string
+          id?: string
+          note: string
+        }
+        Update: {
+          admin_name?: string | null
+          admin_user_id?: string | null
+          created_at?: string
+          fraud_account_id?: string
+          id?: string
+          note?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fraud_admin_notes_fraud_account_id_fkey"
+            columns: ["fraud_account_id"]
+            isOneToOne: false
+            referencedRelation: "fraud_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fraud_reports: {
+        Row: {
+          amount: number | null
+          created_at: string
+          currency: string | null
+          description: string
+          evidence_files: string[] | null
+          fraud_account_id: string
+          id: string
+          incident_date: string
+          ip_address: string | null
+          is_public: boolean
+          payment_method: string
+          reference_id: string
+          region: string | null
+          reporter_email: string | null
+          reporter_name: string | null
+          reporter_phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          currency?: string | null
+          description: string
+          evidence_files?: string[] | null
+          fraud_account_id: string
+          id?: string
+          incident_date: string
+          ip_address?: string | null
+          is_public?: boolean
+          payment_method: string
+          reference_id?: string
+          region?: string | null
+          reporter_email?: string | null
+          reporter_name?: string | null
+          reporter_phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          currency?: string | null
+          description?: string
+          evidence_files?: string[] | null
+          fraud_account_id?: string
+          id?: string
+          incident_date?: string
+          ip_address?: string | null
+          is_public?: boolean
+          payment_method?: string
+          reference_id?: string
+          region?: string | null
+          reporter_email?: string | null
+          reporter_name?: string | null
+          reporter_phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fraud_reports_fraud_account_id_fkey"
+            columns: ["fraud_account_id"]
+            isOneToOne: false
+            referencedRelation: "fraud_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fraud_search_analytics: {
+        Row: {
+          created_at: string
+          id: string
+          query: string
+          results_count: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          query: string
+          results_count?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          query?: string
+          results_count?: number
+        }
+        Relationships: []
+      }
       newsletter_subscribers: {
         Row: {
           created_at: string
@@ -591,6 +763,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_fraud_account_views: {
+        Args: { account_id: string }
+        Returns: undefined
       }
       increment_view_count: { Args: { article_id: string }; Returns: undefined }
     }

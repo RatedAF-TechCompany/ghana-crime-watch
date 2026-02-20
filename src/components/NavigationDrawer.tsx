@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { X, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { CATEGORIES } from "@/lib/categories";
@@ -25,6 +25,15 @@ export function NavigationDrawer({ open, onClose }: NavigationDrawerProps) {
           </Button>
         </div>
         <nav className="flex flex-col py-2">
+          {/* Fraud Watch feature link */}
+          <Link
+            to="/fraud-watch"
+            onClick={onClose}
+            className="flex items-center gap-2 border-b-2 border-primary px-4 py-3.5 font-serif text-sm font-bold text-primary transition-colors hover:bg-muted"
+          >
+            <Shield className="h-4 w-4 shrink-0" />
+            Fraud Watch
+          </Link>
           {CATEGORIES.map((category) => (
             <Link
               key={category.slug}
