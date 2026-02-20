@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Edit, Trash2, ArrowLeft, Users, FileText, MessageSquare, BarChart3, Newspaper, Zap, Megaphone, Twitter } from 'lucide-react';
+import { Plus, Edit, Trash2, ArrowLeft, Users, FileText, MessageSquare, BarChart3, Newspaper, Zap, Megaphone, Twitter, Shield } from 'lucide-react';
 import { AdSettingsPanel } from '@/components/admin/AdSettingsPanel';
 import { useToast } from '@/hooks/use-toast';
 import { getRelativeTime } from '@/lib/time';
@@ -280,6 +280,12 @@ export default function Dashboard() {
                 AI Newsroom
               </Button>
             </>
+          )}
+          {(userRole === 'admin' || userRole === 'editor') && (
+            <Button variant="outline" size="sm" onClick={() => navigate('/admin/fraud-watch')}>
+              <Shield className="h-4 w-4 mr-2" />
+              Fraud Watch
+            </Button>
           )}
           {userRole === 'admin' && (
             <Button variant="outline" size="sm" onClick={() => navigate('/admin/analytics')}>
