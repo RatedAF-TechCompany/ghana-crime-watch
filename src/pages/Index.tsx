@@ -74,11 +74,6 @@ export default function Index() {
       {/* Breaking News Ticker */}
       <BreakingNewsTicker />
 
-      {/* Top Ad Banner */}
-      <div className="mt-6">
-        <AdBanner slotId={0} probability={1} />
-      </div>
-
       {/* Hero Article - Full Width */}
       <div className="mt-6">
         {heroArticle && <HeroArticle article={heroArticle} />}
@@ -109,9 +104,9 @@ export default function Index() {
             <CrimeDashboard />
           </div>
 
-          {/* Ad Banner - between article sections */}
-          <div className="my-6">
-            <AdBanner slotId={1} probability={1} />
+          {/* Ad Banner - between article sections, max half-width */}
+          <div className="my-6 max-w-xs">
+            <AdBanner slotId={0} probability={1} />
           </div>
 
           {/* Remaining Articles */}
