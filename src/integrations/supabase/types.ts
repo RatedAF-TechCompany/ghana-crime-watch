@@ -769,6 +769,26 @@ export type Database = {
         Returns: undefined
       }
       increment_view_count: { Args: { article_id: string }; Returns: undefined }
+      submit_fraud_report: {
+        Args: {
+          p_account_handle?: string
+          p_account_link?: string
+          p_account_name: string
+          p_amount?: number
+          p_currency?: string
+          p_description?: string
+          p_evidence_files?: string[]
+          p_incident_date?: string
+          p_payment_method?: string
+          p_platform: string
+          p_reference_id?: string
+          p_region?: string
+          p_reporter_email?: string
+          p_reporter_name?: string
+          p_reporter_phone?: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "editor" | "contributor" | "reader"
