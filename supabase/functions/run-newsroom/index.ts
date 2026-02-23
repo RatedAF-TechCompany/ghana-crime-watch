@@ -567,8 +567,8 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const triggerType = body.trigger_type || "manual";
 
-    // Clean up stale "running" runs (older than 10 minutes) - they are timed-out ghosts
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    // Clean up stale "running" runs (older than 8 minutes) - they are timed-out ghosts
+    const tenMinutesAgo = new Date(Date.now() - 8 * 60 * 1000).toISOString();
     await supabase.from("newsroom_runs").update({
       status: "failed",
       error_message: "Timed out — run did not complete within expected window",
@@ -1010,17 +1010,13 @@ Never update old stories to appear recent.
 
 VERIFICATION RULE
 
-Confirm key facts using at least two credible sources where possible.
+Confirm key facts using credible sources where possible.
 Prefer official or primary sources such as police statements, court filings, or named officials.
 If only one media source exists and no official confirmation is available, write the facts plainly without naming the outlet.
 If a detail appears in only one source, clearly attribute it.
 If details conflict, report both versions and attribute each.
 Never invent names, numbers, dates, or quotes.
-
-If key facts cannot be verified at all, return:
-
-headline = INSUFFICIENT_VERIFICATION
-All other fields empty.
+Publish even with a single source — do not reject stories for lack of multi-source verification.
 
 ---
 
@@ -1133,19 +1129,17 @@ Return ONLY valid JSON with exactly these keys:
           throw new Error("Failed to parse article JSON");
         }
 
-        // Skip flags from AI verification
+        // Skip flags from AI verification — INSUFFICIENT_VERIFICATION no longer blocks publishing
         const skipFlag = articleJson.headline;
-        if (skipFlag === "OUTDATED_SKIP" || skipFlag === "DUPLICATE_SKIP" || skipFlag === "INSUFFICIENT_VERIFICATION" || skipFlag === "NON_GHANA_SKIP") {
+        if (skipFlag === "OUTDATED_SKIP" || skipFlag === "DUPLICATE_SKIP" || skipFlag === "NON_GHANA_SKIP") {
           const statusMap: Record<string, string> = {
             "OUTDATED_SKIP": "outdated",
             "DUPLICATE_SKIP": "duplicate",
-            "INSUFFICIENT_VERIFICATION": "unverified",
             "NON_GHANA_SKIP": "rejected",
           };
           const reasonMap: Record<string, string> = {
             "OUTDATED_SKIP": "AI verification determined this story is outdated",
             "DUPLICATE_SKIP": "AI verification determined this is a duplicate of a recently published story",
-            "INSUFFICIENT_VERIFICATION": "AI could not verify key facts across multiple sources",
             "NON_GHANA_SKIP": "Story is not related to Ghana — international news rejected",
           };
           console.log(`AI flagged story as ${skipFlag}, skipping: ${newsItem.original_headline}`);
@@ -1156,25 +1150,9 @@ Return ONLY valid JSON with exactly these keys:
           continue;
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // LIVE FACT-CHECK — verify all claims using real-time web search
-        // ═══════════════════════════════════════════════════════════════
-        console.log(`Running live fact-check for: ${articleJson.headline}`);
-        const factCheckResult = await liveFactCheck(articleJson, lovableApiKey);
-        
-        if (!factCheckResult.passed && factCheckResult.corrected_article) {
-          console.log(`Applying ${factCheckResult.corrections?.length || 0} fact-check corrections to article`);
-          // Replace article fields with corrected versions
-          if (factCheckResult.corrected_article.headline) articleJson.headline = factCheckResult.corrected_article.headline;
-          if (factCheckResult.corrected_article.subtitle) articleJson.subtitle = factCheckResult.corrected_article.subtitle;
-          if (factCheckResult.corrected_article.summary) articleJson.summary = factCheckResult.corrected_article.summary;
-          if (factCheckResult.corrected_article.body) articleJson.body = factCheckResult.corrected_article.body;
-          if (factCheckResult.corrected_article.seo_description) articleJson.seo_description = factCheckResult.corrected_article.seo_description;
-          if (factCheckResult.corrected_article.twitter_post) articleJson.twitter_post = factCheckResult.corrected_article.twitter_post;
-          if (factCheckResult.corrected_article.tags) articleJson.tags = factCheckResult.corrected_article.tags;
-          if (factCheckResult.corrected_article.slug) articleJson.slug = factCheckResult.corrected_article.slug;
-          if (factCheckResult.corrected_article.photo_description) articleJson.photo_description = factCheckResult.corrected_article.photo_description;
-        }
+        // FACT-CHECK SKIPPED for speed — articles must publish within 10 minutes
+        // Fact-checking was adding ~15s latency per article, causing timeout backlogs
+        console.log(`Skipping fact-check for speed: ${articleJson.headline}`);
 
         // Use AI-generated slug or create from headline
         const slugBase = (articleJson.slug || articleJson.headline || "article")
@@ -1185,42 +1163,14 @@ Return ONLY valid JSON with exactly these keys:
 
         const articleSlug = `${slugBase}-${Date.now()}`;
 
-        // PHOTO-FIRST IMAGE SOURCING — strict editorial policy
+        // FAST IMAGE SOURCING — go straight to AI photorealistic for speed
+        // Real photo search removed to avoid 2 extra AI calls per article (~20s saved)
         let heroImageUrl: string | null = null;
         let imageSourceType: string = 'ai_photorealistic';
         
         try {
-          // Step 1: Analyze what photo strategy to use (real photo priority)
-          const imageAnalysis = await analyzeImageStrategy(
-            articleJson.headline,
-            articleJson.summary || newsItem.original_summary,
-            articleJson.body,
-            lovableApiKey
-          );
-          
-          imageSourceType = imageAnalysis.strategy;
-          
-          // For all real-photo strategies, attempt to find and download
-          if (imageAnalysis.strategy !== 'ai_photorealistic') {
-            console.log(`Photo-first: searching for real photograph — ${imageAnalysis.strategy}: ${imageAnalysis.search_query}`);
-            const realPhotoUrl = await searchForRealPhoto(
-              imageAnalysis.search_query || imageAnalysis.subject_name || articleJson.headline,
-              imageAnalysis.subject_type,
-              lovableApiKey
-            );
-            
-            if (realPhotoUrl) {
-              heroImageUrl = await downloadAndUploadImage(realPhotoUrl, articleSlug, supabase);
-              if (heroImageUrl) {
-                console.log(`Photo-first: successfully sourced real photograph for "${imageAnalysis.subject_name}"`);
-              }
-            }
-          }
-          
-          // FALLBACK: AI-generated photorealistic image (hidden tool only)
-          // Must be indistinguishable from a real photograph
-          if (!heroImageUrl) {
-            console.log("Photo-first: no real photo found, generating photorealistic AI fallback");
+          {
+            console.log("Generating photorealistic AI image for speed");
             imageSourceType = 'ai_photorealistic';
             
             const photoDescription = articleJson.photo_description || articleJson.image_prompt || `Generic scene related to ${articleJson.headline}`;
