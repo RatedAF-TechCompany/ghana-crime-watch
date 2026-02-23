@@ -917,9 +917,22 @@ Return ONLY a valid JSON array, no other text.`;
       articles_found: newsItems.length,
     }).eq("id", run.id);
 
-    // Step 3: Process only unique (non-duplicate) items
+    // Step 3: Process pending items — include carry-over from previous timed-out runs
     let articlesCreated = 0;
-    const pendingItems = (insertedNews || []).filter(item => item.processing_status === "pending");
+    const newPendingItems = (insertedNews || []).filter(item => item.processing_status === "pending");
+
+    // Also fetch leftover pending items from previous runs that timed out
+    const { data: carryOverItems } = await supabase
+      .from("newsroom_articles")
+      .select("*")
+      .eq("processing_status", "pending")
+      .not("run_id", "eq", run.id)
+      .order("created_at", { ascending: true })
+      .limit(20);
+
+    // Process carry-over items FIRST (they've been waiting longest), then new items
+    const pendingItems = [...(carryOverItems || []), ...newPendingItems];
+    console.log(`Processing ${pendingItems.length} pending items (${(carryOverItems || []).length} carry-over + ${newPendingItems.length} new)`);
 
     for (const newsItem of pendingItems) {
       try {
@@ -1064,11 +1077,11 @@ tags
 Array including location, agency, crime type, key individuals.
 
 twitter_post
-A full, complete sentence in reported speech form with subject-verb-object structure. Maximum 170 characters. No emojis. No hashtags. No links. No headline style.
+A full, complete sentence in reported speech form with subject-verb-object structure. Maximum 150 characters. No emojis. No hashtags. No links. No headline style.
 Do NOT write tweet text that sounds like a headline. Write it as a news report sentence.
 Good example: "A 35-year-old man has been arrested by police in Kumasi for allegedly stealing goods worth GHS 50,000."
 Bad example: "Man arrested for warehouse theft in Kumasi"
-If it exceeds 170 characters, rewrite shorter until it fits.
+If it exceeds 150 characters, rewrite shorter until it fits.
 
 photo_description
 Describe a real world photograph. Maximum 50 words. No faces described. No illustrations.
