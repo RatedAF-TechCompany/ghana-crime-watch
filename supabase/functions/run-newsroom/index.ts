@@ -267,7 +267,7 @@ Return ONLY valid JSON:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-flash-lite",
         messages: [
           { role: "system", content: "You are a photo desk editor for a Financial Times-style publication. You source real photographs only. You NEVER suggest photos of identifiable people. Return only valid JSON." },
           { role: "user", content: analysisPrompt }
@@ -330,7 +330,7 @@ Do NOT return illustrations, digital art, or AI-generated imagery.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash-lite",
         messages: [
           { role: "system", content: "You are a wire service photo researcher. You find only real photographs — never illustrations or AI art. Return only valid JSON." },
           { role: "user", content: searchPrompt }
@@ -500,7 +500,7 @@ If everything checks out, return: {"passed": true, "corrections": [], "corrected
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-flash-lite",
         messages: [
           { role: "system", content: "You are a rigorous, real-time fact-checker for a professional news organization. You verify every claim using live web search. You are especially strict about current officeholders, titles, and roles. Return only valid JSON." },
           { role: "user", content: factCheckPrompt }
@@ -683,7 +683,7 @@ Return ONLY a valid JSON array, no other text.`;
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: "google/gemini-2.5-flash-lite",
           messages: [
             { role: "system", content: "You are a news wire service that finds and reports real, current news stories. You must search the web and return only verifiable news items with real URLs. Return only valid JSON." },
             { role: "user", content: searchPrompt }
@@ -931,8 +931,10 @@ Return ONLY a valid JSON array, no other text.`;
       .limit(20);
 
     // Process carry-over items FIRST (they've been waiting longest), then new items
-    const pendingItems = [...(carryOverItems || []), ...newPendingItems];
-    console.log(`Processing ${pendingItems.length} pending items (${(carryOverItems || []).length} carry-over + ${newPendingItems.length} new)`);
+    // CAP: Maximum 3 articles per run to control AI credit usage
+    const MAX_ARTICLES_PER_RUN = 3;
+    const pendingItems = [...(carryOverItems || []), ...newPendingItems].slice(0, MAX_ARTICLES_PER_RUN);
+    console.log(`Processing ${pendingItems.length} pending items (capped at ${MAX_ARTICLES_PER_RUN}) from ${(carryOverItems || []).length} carry-over + ${newPendingItems.length} new`);
 
     for (const newsItem of pendingItems) {
       try {
@@ -1106,7 +1108,7 @@ Return ONLY valid JSON with exactly these keys:
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-flash-lite",
             messages: [
               { role: "system", content: "You are the GhanaCrimes Automated Newsroom Engine. You are a senior investigative crime editor. You write in clear, simple English that a 10 year old can understand, while maintaining professional newsroom standards. You do not mention or promote other media outlets. You do not narrate your verification process. You do not hedge excessively. You do not repeat facts. You do not use filler language. Return only valid JSON. Never use colons, long dashes, bullet points, emojis, hashtags, URLs, or media outlet names." },
               { role: "user", content: articlePrompt }
