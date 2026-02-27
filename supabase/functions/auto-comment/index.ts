@@ -84,14 +84,14 @@ CRITICAL RULES:
 
 Return ONLY the comment text, nothing else.`;
 
-  const response = await fetch("https://api.lovable.dev/v1/chat/completions", {
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${lovableApiKey}`,
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: "google/gemini-2.5-flash-lite",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.9, // Higher temperature for variety
       max_tokens: 150,
