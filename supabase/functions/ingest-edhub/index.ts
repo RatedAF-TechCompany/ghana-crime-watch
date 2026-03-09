@@ -466,18 +466,21 @@ Rules:
           headline: articleData.headline,
         });
 
-        // Trigger auto-tweet for GhanaCrimes
+        // Post tweet directly (no rate limit)
         try {
-          await fetch(`${supabaseUrl}/functions/v1/auto-tweet`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${supabaseKey}`,
-            },
-            body: JSON.stringify({ article_id: article.id }),
-          });
+          const tweetId = await postTweetDirectly(
+            gcTweet, consumerKey, consumerSecret, accessToken, accessTokenSecret
+          );
+          if (tweetId) {
+            await supabase.from("articles")
+              .update({ twitter_post: `POSTED:${tweetId}|${gcTweet}` })
+              .eq("id", article.id);
+            console.log(`Tweet posted for article ${article.id}: ${tweetId}`);
+          } else {
+            console.error("Tweet post returned no ID for article:", article.id);
+          }
         } catch (tweetErr) {
-          console.error("Auto-tweet trigger failed:", tweetErr);
+          console.error("Direct tweet failed:", tweetErr);
           // Non-blocking - article is still published
         }
 
