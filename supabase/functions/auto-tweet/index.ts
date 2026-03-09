@@ -175,8 +175,21 @@ serve(async (req) => {
       tweetText = tweetText.replace(filler, "");
     }
 
-    // Title case
-    tweetText = tweetText.replace(/\w\S*/g, (txt: string) => txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase());
+    // Known acronyms to preserve
+    const ACRONYMS = new Set([
+      "CSA", "GPS", "CID", "BNI", "NIB", "EOCO", "NACOB", "FDA", "GRA",
+      "NDC", "NPP", "IGP", "ACP", "DSP", "ASP", "CEO", "MP", "MCE", "DCE",
+      "FC", "GFA", "CAF", "FIFA", "UN", "AU", "EU", "US", "USA", "UK",
+      "HIV", "COVID", "DNA", "CCTV", "ATM", "SIM", "ID", "TV", "FM",
+      "SWAT", "DEA", "FBI", "CIA", "INTERPOL", "ECOWAS", "IMF",
+    ]);
+
+    // Title case with acronym preservation
+    tweetText = tweetText.replace(/\w\S*/g, (word: string) => {
+      const upper = word.toUpperCase();
+      if (ACRONYMS.has(upper)) return upper;
+      return word.charAt(0).toUpperCase() + word.substring(1).toLowerCase();
+    });
 
     // Ensure ends with period, no ellipsis or truncation
     tweetText = tweetText.replace(/[.!?…]+$/, "").trim() + ".";
