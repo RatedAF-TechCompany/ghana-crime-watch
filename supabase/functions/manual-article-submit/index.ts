@@ -142,35 +142,38 @@ async function findOptimalPublishTime(supabase: any): Promise<Date> {
   return tomorrowFirst;
 }
 
-function generateTweet(title: string, summary: string, category: string): string {
-  const hashtags: Record<string, string> = {
-    "top-stories": "#GhanaNews #Breaking",
-    "violent-crime": "#GhanaCrime #Violence",
-    "property-crime": "#GhanaCrime #Theft",
-    "cybercrime": "#GhanaCybercrime #Tech",
-    "fraud-scams": "#GhanaFraud #Scams",
-    "drug-offences": "#GhanaDrugs #Crime",
-    "domestic-violence": "#DomesticViolence #Ghana",
-    "traffic-offences": "#GhanaRoads #Traffic",
-    "youth-crime": "#YouthCrime #Ghana",
-    "organised-crime": "#OrganisedCrime #Ghana",
-    "white-collar-crime": "#WhiteCollarCrime #Ghana",
-    "court-cases": "#GhanaCourt #Justice",
-    "police-reports": "#GhanaPolice #Crime",
-    "prison-news": "#GhanaPrison #Crime",
-    "crime-prevention": "#CrimePrevention #Ghana",
-    "crime-statistics": "#CrimeStats #Ghana",
-    "investigations": "#GhanaInvestigations #Crime",
-    "most-wanted": "#MostWanted #Ghana",
-  };
-
-  const categoryHashtags = hashtags[category as keyof typeof hashtags] || "#GhanaCrimes";
-  const maxTitleLength = 200;
-  const truncatedTitle = title.length > maxTitleLength 
-    ? title.substring(0, maxTitleLength) + "..." 
-    : title;
-
-  return `🚨 ${truncatedTitle}\n\nRead more: [LINK]\n\n${categoryHashtags} #GhanaCrimes`;
+function generateTweet(title: string, _summary: string, _category: string): string {
+  // Convert title into hook-style tweet: HOOK + ACTION + CRIME/EVENT + LOCATION
+  // Title case, active voice, no hashtags/emojis/links, ends with period
+  let tweet = title.trim();
+  
+  // Remove filler prefixes
+  const fillerPrefixes = [
+    /^the ghana police service has\s+/i,
+    /^it has been reported that\s+/i,
+    /^authorities say that\s+/i,
+    /^there has been\s+/i,
+    /^reports indicate that\s+/i,
+    /^according to reports,?\s+/i,
+  ];
+  for (const filler of fillerPrefixes) {
+    tweet = tweet.replace(filler, "");
+  }
+  
+  // Title case
+  tweet = tweet.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase());
+  
+  // Ensure it ends with a period
+  tweet = tweet.replace(/[.!?…]+$/, "").trim() + ".";
+  
+  // Cap at 150 characters
+  if (tweet.length > 150) {
+    // Find last space before 149 chars (leaving room for period)
+    const cut = tweet.lastIndexOf(" ", 148);
+    tweet = tweet.substring(0, cut > 0 ? cut : 148).replace(/[.,;:!?\s]+$/, "") + ".";
+  }
+  
+  return tweet;
 }
 
 serve(async (req: Request): Promise<Response> => {
