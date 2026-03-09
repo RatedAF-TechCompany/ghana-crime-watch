@@ -91,6 +91,23 @@ function isCrimeRelated(text: string): boolean {
   return CRIME_KEYWORDS.some((kw) => lower.includes(kw));
 }
 
+// Known acronyms to preserve during title-casing
+const ACRONYMS = new Set([
+  "CSA", "GPS", "CID", "BNI", "NIB", "EOCO", "NACOB", "FDA", "GRA",
+  "NDC", "NPP", "IGP", "ACP", "DSP", "ASP", "CEO", "MP", "MCE", "DCE",
+  "FC", "GFA", "CAF", "FIFA", "UN", "AU", "EU", "US", "USA", "UK",
+  "HIV", "COVID", "DNA", "CCTV", "ATM", "SIM", "ID", "TV", "FM",
+  "SWAT", "DEA", "FBI", "CIA", "INTERPOL", "ECOWAS", "IMF",
+]);
+
+function titleCaseWithAcronyms(text: string): string {
+  return text.replace(/\w\S*/g, (word) => {
+    const upper = word.toUpperCase();
+    if (ACRONYMS.has(upper)) return upper;
+    return word.charAt(0).toUpperCase() + word.substring(1).toLowerCase();
+  });
+}
+
 function generateTweetText(title: string): string {
   let tweet = title.trim();
   // Strip filler prefixes
@@ -102,8 +119,8 @@ function generateTweetText(title: string): string {
     /^reports indicate that\s+/i,
   ];
   for (const f of fillers) tweet = tweet.replace(f, "");
-  // Title case
-  tweet = tweet.replace(/\w\S*/g, (t) => t.charAt(0).toUpperCase() + t.substring(1).toLowerCase());
+  // Title case with acronym preservation
+  tweet = titleCaseWithAcronyms(tweet);
   // End with period
   tweet = tweet.replace(/[.!?…]+$/, "").trim() + ".";
   // Cap at 150
@@ -112,6 +129,37 @@ function generateTweetText(title: string): string {
     tweet = tweet.substring(0, cut > 0 ? cut : 148).replace(/[.,;:!?\s]+$/, "") + ".";
   }
   return tweet;
+}
+
+// Post tweet directly to X/Twitter (bypasses auto-tweet rate limit)
+async function postTweetDirectly(
+  tweetText: string,
+  consumerKey: string, consumerSecret: string,
+  accessToken: string, accessTokenSecret: string
+): Promise<string | null> {
+  const twitterUrl = "https://api.x.com/2/tweets";
+  const authHeader = await createOAuthHeader(
+    "POST", twitterUrl, {},
+    consumerKey, consumerSecret, accessToken, accessTokenSecret
+  );
+
+  const res = await fetch(twitterUrl, {
+    method: "POST",
+    headers: {
+      Authorization: authHeader,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ text: tweetText }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    console.error("Tweet post failed:", res.status, errText);
+    return null;
+  }
+
+  const data = await res.json();
+  return data.data?.id || null;
 }
 
 serve(async (req) => {
@@ -418,18 +466,21 @@ Rules:
           headline: articleData.headline,
         });
 
-        // Trigger auto-tweet for GhanaCrimes
+        // Post tweet directly (no rate limit)
         try {
-          await fetch(`${supabaseUrl}/functions/v1/auto-tweet`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${supabaseKey}`,
-            },
-            body: JSON.stringify({ article_id: article.id }),
-          });
+          const tweetId = await postTweetDirectly(
+            gcTweet, consumerKey, consumerSecret, accessToken, accessTokenSecret
+          );
+          if (tweetId) {
+            await supabase.from("articles")
+              .update({ twitter_post: `POSTED:${tweetId}|${gcTweet}` })
+              .eq("id", article.id);
+            console.log(`Tweet posted for article ${article.id}: ${tweetId}`);
+          } else {
+            console.error("Tweet post returned no ID for article:", article.id);
+          }
         } catch (tweetErr) {
-          console.error("Auto-tweet trigger failed:", tweetErr);
+          console.error("Direct tweet failed:", tweetErr);
           // Non-blocking - article is still published
         }
 
