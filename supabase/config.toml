@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.auto-tweet]
 verify_jwt = false
+
+[functions.ingest-edhub]
+verify_jwt = false
