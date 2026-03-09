@@ -161,12 +161,30 @@ serve(async (req) => {
     // Build article URL
     const articleUrl = `https://ghana-crime-watch.lovable.app/${article.category_slug}/${article.article_slug}`;
 
-    // Build tweet text — max 160 characters
+    // Build tweet text — max 150 characters, must end with period
     let tweetText = article.twitter_post || article.title;
 
-    // Cap text at 150 chars regardless of URL
+    // Strip filler prefixes for cleaner hooks
+    const fillerPrefixes = [
+      /^the ghana police service has\s+/i,
+      /^it has been reported that\s+/i,
+      /^authorities say that\s+/i,
+      /^there has been\s+/i,
+    ];
+    for (const filler of fillerPrefixes) {
+      tweetText = tweetText.replace(filler, "");
+    }
+
+    // Title case
+    tweetText = tweetText.replace(/\w\S*/g, (txt: string) => txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase());
+
+    // Ensure ends with period, no ellipsis or truncation
+    tweetText = tweetText.replace(/[.!?…]+$/, "").trim() + ".";
+
+    // Cap at 150 chars cleanly (no truncated words)
     if (tweetText.length > 150) {
-      tweetText = tweetText.substring(0, 147) + "...";
+      const cut = tweetText.lastIndexOf(" ", 148);
+      tweetText = tweetText.substring(0, cut > 0 ? cut : 148).replace(/[.,;:!?\s]+$/, "") + ".";
     }
 
     if (isUrlTweet) {

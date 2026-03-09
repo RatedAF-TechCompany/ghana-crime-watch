@@ -1075,11 +1075,20 @@ tags
 Array including location, agency, crime type, key individuals.
 
 twitter_post
-A full, complete sentence in reported speech form with subject-verb-object structure. Maximum 150 characters. No emojis. No hashtags. No links. No headline style.
-Do NOT write tweet text that sounds like a headline. Write it as a news report sentence.
-Good example: "A 35-year-old man has been arrested by police in Kumasi for allegedly stealing goods worth GHS 50,000."
-Bad example: "Man arrested for warehouse theft in Kumasi"
-If it exceeds 150 characters, rewrite shorter until it fits.
+A concise, engaging, title-case reported news sentence. Maximum 150 characters. Must end with a period.
+Structure: HOOK + ACTION + CRIME/EVENT + LOCATION.
+The first 6-8 words MUST be a hook starting with a Number, Authority (Police, Court, Government, Military), or Event (Explosion, Fire, Robbery, Arrest, Shooting).
+Use active voice and direct verbs (arrest, charge, seize, investigate, jail, deploy). No passive phrasing.
+Compress filler: "The Ghana Police Service has arrested" becomes "Police Arrest".
+No hashtags. No emojis. No links. No ellipsis. No long dashes. No truncated endings.
+Good examples:
+- "Police Arrest 5 Suspects In Galamsey Crackdown In Ashanti."
+- "18-Year-Old Appears In Adabraka Court Over Security Guard Assault."
+- "Court Charges 3 Over Armed Robbery Case In Kumasi."
+Bad examples:
+- "The Ghana Police Service has increased its presence in Bawku to address clashes."
+- "It has been reported that suspects were arrested."
+If it exceeds 150 characters, rewrite shorter until it fits. Must not end with truncation.
 
 photo_description
 Describe a real world photograph. Maximum 50 words. No faces described. No illustrations.
