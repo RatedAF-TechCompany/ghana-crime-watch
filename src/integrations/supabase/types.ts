@@ -432,6 +432,30 @@ export type Database = {
         }
         Relationships: []
       }
+      ingestion_logs: {
+        Row: {
+          created_at: string
+          details: Json | null
+          event_type: string
+          id: string
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          event_type: string
+          id?: string
+          source: string
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          event_type?: string
+          id?: string
+          source?: string
+        }
+        Relationships: []
+      }
       newsletter_subscribers: {
         Row: {
           created_at: string
@@ -559,6 +583,53 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      processed_tweets: {
+        Row: {
+          author_username: string
+          created_at: string
+          error_message: string | null
+          generated_article_id: string | null
+          id: string
+          processing_status: string
+          tweet_created_at: string | null
+          tweet_id: string
+          tweet_media_urls: string[] | null
+          tweet_text: string
+        }
+        Insert: {
+          author_username: string
+          created_at?: string
+          error_message?: string | null
+          generated_article_id?: string | null
+          id?: string
+          processing_status?: string
+          tweet_created_at?: string | null
+          tweet_id: string
+          tweet_media_urls?: string[] | null
+          tweet_text: string
+        }
+        Update: {
+          author_username?: string
+          created_at?: string
+          error_message?: string | null
+          generated_article_id?: string | null
+          id?: string
+          processing_status?: string
+          tweet_created_at?: string | null
+          tweet_id?: string
+          tweet_media_urls?: string[] | null
+          tweet_text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processed_tweets_generated_article_id_fkey"
+            columns: ["generated_article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
             referencedColumns: ["id"]
           },
         ]
