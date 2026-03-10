@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.ingest-edhub]
 verify_jwt = false
+
+[functions.ingest-ghchronicles]
+verify_jwt = false
