@@ -142,9 +142,16 @@ async function findOptimalPublishTime(supabase: any): Promise<Date> {
   return tomorrowFirst;
 }
 
+// Known acronyms to preserve
+const ACRONYMS = new Set([
+  "CSA", "GPS", "CID", "BNI", "NIB", "EOCO", "NACOB", "FDA", "GRA",
+  "NDC", "NPP", "IGP", "ACP", "DSP", "ASP", "CEO", "MP", "MCE", "DCE",
+  "FC", "GFA", "CAF", "FIFA", "UN", "AU", "EU", "US", "USA", "UK",
+  "HIV", "COVID", "DNA", "CCTV", "ATM", "SIM", "ID", "TV", "FM",
+  "SWAT", "DEA", "FBI", "CIA", "INTERPOL", "ECOWAS", "IMF",
+]);
+
 function generateTweet(title: string, _summary: string, _category: string): string {
-  // Convert title into hook-style tweet: HOOK + ACTION + CRIME/EVENT + LOCATION
-  // Title case, active voice, no hashtags/emojis/links, ends with period
   let tweet = title.trim();
   
   // Remove filler prefixes
@@ -160,15 +167,19 @@ function generateTweet(title: string, _summary: string, _category: string): stri
     tweet = tweet.replace(filler, "");
   }
   
-  // Title case
-  tweet = tweet.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase());
+  // Sentence case: lowercase everything, capitalize first letter, preserve acronyms
+  tweet = tweet.toLowerCase().replace(/\b\w+/g, (word, index) => {
+    const upper = word.toUpperCase();
+    if (ACRONYMS.has(upper)) return upper;
+    if (index === 0) return word.charAt(0).toUpperCase() + word.substring(1);
+    return word;
+  });
   
   // Ensure it ends with a period
   tweet = tweet.replace(/[.!?…]+$/, "").trim() + ".";
   
   // Cap at 150 characters
   if (tweet.length > 150) {
-    // Find last space before 149 chars (leaving room for period)
     const cut = tweet.lastIndexOf(" ", 148);
     tweet = tweet.substring(0, cut > 0 ? cut : 148).replace(/[.,;:!?\s]+$/, "") + ".";
   }

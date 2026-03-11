@@ -175,7 +175,7 @@ serve(async (req) => {
       tweetText = tweetText.replace(filler, "");
     }
 
-    // Known acronyms to preserve
+    // Known acronyms/proper nouns to preserve in uppercase
     const ACRONYMS = new Set([
       "CSA", "GPS", "CID", "BNI", "NIB", "EOCO", "NACOB", "FDA", "GRA",
       "NDC", "NPP", "IGP", "ACP", "DSP", "ASP", "CEO", "MP", "MCE", "DCE",
@@ -184,11 +184,12 @@ serve(async (req) => {
       "SWAT", "DEA", "FBI", "CIA", "INTERPOL", "ECOWAS", "IMF",
     ]);
 
-    // Title case with acronym preservation
-    tweetText = tweetText.replace(/\w\S*/g, (word: string) => {
+    // Sentence case: lowercase everything, capitalize first letter, preserve acronyms
+    tweetText = tweetText.toLowerCase().replace(/\b\w+/g, (word: string, index: number) => {
       const upper = word.toUpperCase();
       if (ACRONYMS.has(upper)) return upper;
-      return word.charAt(0).toUpperCase() + word.substring(1).toLowerCase();
+      if (index === 0) return word.charAt(0).toUpperCase() + word.substring(1);
+      return word;
     });
 
     // Ensure ends with period, no ellipsis or truncation

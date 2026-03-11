@@ -100,11 +100,12 @@ const ACRONYMS = new Set([
   "SWAT", "DEA", "FBI", "CIA", "INTERPOL", "ECOWAS", "IMF",
 ]);
 
-function titleCaseWithAcronyms(text: string): string {
-  return text.replace(/\w\S*/g, (word) => {
+function sentenceCaseWithAcronyms(text: string): string {
+  return text.toLowerCase().replace(/\b\w+/g, (word, index) => {
     const upper = word.toUpperCase();
     if (ACRONYMS.has(upper)) return upper;
-    return word.charAt(0).toUpperCase() + word.substring(1).toLowerCase();
+    if (index === 0) return word.charAt(0).toUpperCase() + word.substring(1);
+    return word;
   });
 }
 
@@ -119,8 +120,8 @@ function generateTweetText(title: string): string {
     /^reports indicate that\s+/i,
   ];
   for (const f of fillers) tweet = tweet.replace(f, "");
-  // Title case with acronym preservation
-  tweet = titleCaseWithAcronyms(tweet);
+  // Sentence case with acronym preservation
+  tweet = sentenceCaseWithAcronyms(tweet);
   // End with period
   tweet = tweet.replace(/[.!?…]+$/, "").trim() + ".";
   // Cap at 150
