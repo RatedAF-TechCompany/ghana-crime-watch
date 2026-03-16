@@ -500,7 +500,7 @@ Rules:
           ? articleData.category
           : "police-reports";
 
-        const gcTweet = generateTweetText(articleData.headline);
+        const gcTweet = await generateTweetText(articleData.headline, lovableApiKey);
         const heroImage = tweetMediaUrls.length > 0 ? tweetMediaUrls[0] : null;
 
         const { data: article, error: insertErr } = await supabase

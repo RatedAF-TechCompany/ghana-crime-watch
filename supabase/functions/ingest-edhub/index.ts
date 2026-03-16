@@ -522,7 +522,7 @@ Rules:
           : "police-reports";
 
         // Generate tweet for GhanaCrimes
-        const gcTweet = generateTweetText(articleData.headline);
+        const gcTweet = await generateTweetText(articleData.headline, lovableApiKey);
 
         // Attach hero image if available
         const heroImage = tweetMediaUrls.length > 0 ? tweetMediaUrls[0] : null;
