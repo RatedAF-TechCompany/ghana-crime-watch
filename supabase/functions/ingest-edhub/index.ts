@@ -179,22 +179,56 @@ function sentenceCaseWithAcronyms(text: string): string {
   return result;
 }
 
-function generateTweetText(title: string): string {
+async function generateTweetText(title: string, apiKey: string | undefined): Promise<string> {
   let tweet = title.trim();
-  // Strip filler prefixes
-  const fillers = [
-    /^the ghana police service has\s+/i,
-    /^it has been reported that\s+/i,
-    /^authorities say that\s+/i,
-    /^there has been\s+/i,
-    /^reports indicate that\s+/i,
-  ];
-  for (const f of fillers) tweet = tweet.replace(f, "");
-  // Sentence case with acronym preservation
+
+  // Try AI rewrite into reported news sentence
+  if (apiKey) {
+    try {
+      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash-lite",
+          messages: [{
+            role: "user",
+            content: `Rewrite this headline as a short reported news sentence. Maximum 145 characters. Must end with a period.
+
+RULES:
+- Write as a normal English sentence, NOT a headline
+- Must have a clear subject and verb
+- Use sentence case (capitalize first word, proper nouns, acronyms, place names)
+- Use forms like: "Police have arrested...", "A court has remanded...", "Authorities have seized..."
+- Spell out small numbers (three, five) but keep large numbers as digits
+- No hashtags, emojis, links, or ellipsis
+- Capitalize acronyms: EC, CID, NPP, NDC, IGP, GRA, NACOC, PAC
+- Capitalize Ghana place names: Accra, Kumasi, Kasoa, Tamale, etc.
+
+HEADLINE: "${tweet}"
+
+Return ONLY the rewritten sentence, nothing else.`
+          }],
+          temperature: 0.3,
+          max_tokens: 100,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const rewritten = data.choices?.[0]?.message?.content?.trim()?.replace(/^["']|["']$/g, "");
+        if (rewritten && rewritten.length > 10 && rewritten.length <= 155) {
+          tweet = rewritten;
+          console.log(`AI rewrote tweet: "${title}" → "${tweet}"`);
+        }
+      }
+    } catch (e) {
+      console.error("AI tweet rewrite failed, using fallback:", e);
+    }
+  }
+
+  // Fallback: apply sentence case with proper nouns
   tweet = sentenceCaseWithAcronyms(tweet);
-  // End with period
   tweet = tweet.replace(/[.!?…]+$/, "").trim() + ".";
-  // Cap at 150
+  tweet = tweet.charAt(0).toUpperCase() + tweet.slice(1);
   if (tweet.length > 150) {
     const cut = tweet.lastIndexOf(" ", 148);
     tweet = tweet.substring(0, cut > 0 ? cut : 148).replace(/[.,;:!?\s]+$/, "") + ".";
@@ -488,7 +522,7 @@ Rules:
           : "police-reports";
 
         // Generate tweet for GhanaCrimes
-        const gcTweet = generateTweetText(articleData.headline);
+        const gcTweet = await generateTweetText(articleData.headline, lovableApiKey);
 
         // Attach hero image if available
         const heroImage = tweetMediaUrls.length > 0 ? tweetMediaUrls[0] : null;
