@@ -7,7 +7,8 @@ const corsHeaders = {
 };
 
 const NEWS_SOURCES = [
-  { name: "GhanaWeb", domain: "ghanaweb.com", rss: "https://www.ghanaweb.com/GhanaHomePage/crime/rss.xml" },
+  { name: "GhanaWeb Crime", domain: "ghanaweb.com", rss: "https://www.ghanaweb.com/GhanaHomePage/crime/rss.xml" },
+  { name: "GhanaWeb News", domain: "ghanaweb.com", rss: "https://www.ghanaweb.com/GhanaHomePage/NewsArchive/rss.xml" },
   { name: "Citi Newsroom", domain: "citinewsroom.com", rss: "https://citinewsroom.com/feed/" },
   { name: "MyJoyOnline", domain: "myjoyonline.com", rss: "https://www.myjoyonline.com/feed/" },
   { name: "Graphic Online", domain: "graphic.com.gh", rss: "https://www.graphic.com.gh/feed" },
