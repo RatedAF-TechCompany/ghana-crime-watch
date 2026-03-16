@@ -161,119 +161,68 @@ serve(async (req) => {
     // Build article URL
     const articleUrl = `https://ghana-crime-watch.lovable.app/${article.category_slug}/${article.article_slug}`;
 
-    // Build tweet text — max 150 characters, must end with period
-    let tweetText = article.twitter_post || article.title;
+    // Build tweet text — use AI to rewrite as reported news sentence
+    const rawText = article.twitter_post || article.title;
 
-    // Strip filler prefixes for cleaner hooks
-    const fillerPrefixes = [
-      /^the ghana police service has\s+/i,
-      /^it has been reported that\s+/i,
-      /^authorities say that\s+/i,
-      /^there has been\s+/i,
-    ];
-    for (const filler of fillerPrefixes) {
-      tweetText = tweetText.replace(filler, "");
+    // Use AI to rewrite headline into a proper reported news sentence
+    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+    let tweetText = rawText;
+
+    if (lovableApiKey) {
+      try {
+        const rewriteResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${lovableApiKey}`,
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash-lite",
+            messages: [{
+              role: "user",
+              content: `Rewrite this headline as a short reported news sentence. Maximum 145 characters. Must end with a period.
+
+RULES:
+- Write as a normal English sentence, NOT a headline
+- Must have a clear subject and verb
+- Use sentence case only (capitalize first word, proper nouns, acronyms, place names)
+- Use forms like: "Police have arrested...", "A court has remanded...", "Authorities have seized..."
+- Spell out small numbers (three, five) but keep large numbers as digits
+- No hashtags, emojis, links, or ellipsis
+- Keep factual and neutral
+- Capitalize acronyms: EC, CID, NPP, NDC, IGP, GRA, NACOC, PAC
+- Capitalize Ghana place names: Accra, Kumasi, Kasoa, Tamale, etc.
+
+HEADLINE: "${rawText}"
+
+Return ONLY the rewritten sentence, nothing else.`
+            }],
+            temperature: 0.3,
+            max_tokens: 100,
+          }),
+        });
+
+        if (rewriteResponse.ok) {
+          const aiData = await rewriteResponse.json();
+          const rewritten = aiData.choices?.[0]?.message?.content?.trim();
+          if (rewritten && rewritten.length > 10 && rewritten.length <= 155) {
+            tweetText = rewritten.replace(/^["']|["']$/g, ""); // Strip quotes if AI wrapped them
+            console.log(`AI rewrote tweet: "${rawText}" → "${tweetText}"`);
+          } else {
+            console.log(`AI rewrite rejected (length: ${rewritten?.length}), using fallback`);
+          }
+        }
+      } catch (aiErr) {
+        console.error("AI rewrite failed, using fallback:", aiErr);
+      }
     }
 
-    // --- Smart Capitalization Engine ---
-    // Step 1: Lowercase everything first
-    tweetText = tweetText.toLowerCase();
-
-    // Step 2: Capitalize first letter of the sentence
-    tweetText = tweetText.charAt(0).toUpperCase() + tweetText.slice(1);
-
-    // Step 3: Known acronyms & institutions (always UPPERCASE)
-    const ACRONYMS = new Set([
-      "CSA", "GPS", "CID", "BNI", "NIB", "EOCO", "NACOB", "NACOC", "FDA", "GRA",
-      "NDC", "NPP", "IGP", "ACP", "DSP", "ASP", "CEO", "MP", "MCE", "DCE",
-      "FC", "GFA", "CAF", "FIFA", "UN", "AU", "EU", "US", "USA", "UK",
-      "HIV", "COVID", "DNA", "CCTV", "ATM", "SIM", "ID", "TV", "FM",
-      "SWAT", "DEA", "FBI", "CIA", "INTERPOL", "ECOWAS", "IMF",
-      "EC", "PPP", "GHS", "GES", "CHRAJ", "GNPC", "SSNIT", "NHIA", "NHIS",
-      "NIA", "NCA", "EPA", "VAT", "DVLA", "WAEC", "BECE", "WASSCE",
-      "COCOBOD", "ECG", "VRA", "GWCL", "KMA", "AMA", "TMA",
-      "KNUST", "UG", "UCC", "UEW", "UPSA", "GIMPA",
-      "GBC", "UTV", "TV3", "GTV", "JOY", "ADOM",
-      "POW", "MOU", "RPC", "OPD", "ICU", "PHD",
-      "NPP'S", "NDC'S", "EC'S", "IGP'S", "CID'S",
-    ]);
-    tweetText = tweetText.replace(/\b[\w']+\b/g, (word: string) => {
-      const upper = word.toUpperCase();
-      if (ACRONYMS.has(upper)) return upper;
-      return word;
-    });
-
-    // Step 4: Capitalize known proper nouns (places, institutions, titles)
-    const PROPER_NOUNS: Record<string, string> = {
-      // Ghana cities & towns
-      "accra": "Accra", "kumasi": "Kumasi", "tamale": "Tamale", "takoradi": "Takoradi",
-      "sekondi": "Sekondi", "tema": "Tema", "cape coast": "Cape Coast", "sunyani": "Sunyani",
-      "koforidua": "Koforidua", "ho": "Ho", "wa": "Wa", "bolgatanga": "Bolgatanga",
-      "techiman": "Techiman", "obuasi": "Obuasi", "tarkwa": "Tarkwa", "winneba": "Winneba",
-      "kasoa": "Kasoa", "madina": "Madina", "ashaiman": "Ashaiman", "nima": "Nima",
-      "lapaz": "Lapaz", "dansoman": "Dansoman", "spintex": "Spintex", "east legon": "East Legon",
-      "cantonments": "Cantonments", "osu": "Osu", "labadi": "Labadi", "teshie": "Teshie",
-      "kaneshie": "Kaneshie", "achimota": "Achimota", "dome": "Dome", "kwabenya": "Kwabenya",
-      "dodowa": "Dodowa", "nsawam": "Nsawam", "suhum": "Suhum", "nkawkaw": "Nkawkaw",
-      "konongo": "Konongo", "ejisu": "Ejisu", "mampong": "Mampong", "bekwai": "Bekwai",
-      "bibiani": "Bibiani", "dunkwa": "Dunkwa", "prestea": "Prestea", "bogoso": "Bogoso",
-      "agona": "Agona", "swedru": "Swedru", "mankessim": "Mankessim", "saltpond": "Saltpond",
-      "elmina": "Elmina", "axim": "Axim", "half assini": "Half Assini", "aflao": "Aflao",
-      "keta": "Keta", "hohoe": "Hohoe", "kpando": "Kpando", "akosombo": "Akosombo",
-      "somanya": "Somanya", "akim oda": "Akim Oda", "kibi": "Kibi", "akropong": "Akropong",
-      "aburi": "Aburi", "adenta": "Adenta", "tetegu": "Tetegu", "weija": "Weija",
-      "pokuase": "Pokuase", "amasaman": "Amasaman", "bortianor": "Bortianor",
-      "dawhenya": "Dawhenya", "prampram": "Prampram", "ada": "Ada", "sogakope": "Sogakope",
-      "yendi": "Yendi", "damongo": "Damongo", "bole": "Bole", "salaga": "Salaga",
-      "nalerigu": "Nalerigu", "gambaga": "Gambaga", "navrongo": "Navrongo",
-      "bawku": "Bawku", "zebilla": "Zebilla", "tumu": "Tumu", "lawra": "Lawra",
-      "jirapa": "Jirapa", "nandom": "Nandom", "goaso": "Goaso", "bechem": "Bechem",
-      "dormaa": "Dormaa", "berekum": "Berekum", "wenchi": "Wenchi", "atebubu": "Atebubu",
-      "kintampo": "Kintampo", "nkoranza": "Nkoranza", "yeji": "Yeji",
-      // Countries & regions
-      "ghana": "Ghana", "africa": "Africa", "nigeria": "Nigeria", "togo": "Togo",
-      "ivory coast": "Ivory Coast", "burkina faso": "Burkina Faso", "china": "China",
-      "chinese": "Chinese", "african": "African",
-      // Institutions & bodies
-      "supreme court": "Supreme Court", "high court": "High Court",
-      "circuit court": "Circuit Court", "district court": "District Court",
-      "parliament": "Parliament", "attorney general": "Attorney General",
-      "inspector general": "Inspector General",
-      "ghana police service": "Ghana Police Service",
-      "ghana fire service": "Ghana Fire Service",
-      "ghana immigration service": "Ghana Immigration Service",
-      "ghana prisons service": "Ghana Prisons Service",
-      "national security": "National Security",
-      "electoral commission": "Electoral Commission",
-      "bank of ghana": "Bank of Ghana",
-      "jubilee house": "Jubilee House",
-      // Titles
-      "president": "President", "vice president": "Vice President",
-      "chief justice": "Chief Justice", "speaker": "Speaker",
-    };
-
-    // Apply multi-word proper nouns first (longest first)
-    const multiWordNouns = Object.entries(PROPER_NOUNS)
-      .filter(([k]) => k.includes(" "))
-      .sort((a, b) => b[0].length - a[0].length);
-    for (const [lower, proper] of multiWordNouns) {
-      const regex = new RegExp(`\\b${lower}\\b`, "gi");
-      tweetText = tweetText.replace(regex, proper);
-    }
-
-    // Apply single-word proper nouns
-    const singleWordNouns = Object.entries(PROPER_NOUNS)
-      .filter(([k]) => !k.includes(" "));
-    tweetText = tweetText.replace(/\b[a-z]+\b/g, (word: string) => {
-      const entry = singleWordNouns.find(([k]) => k === word.toLowerCase());
-      return entry ? entry[1] : word;
-    });
-
-    // Step 5: Capitalize after sentence-ending punctuation
-    tweetText = tweetText.replace(/([.!?]\s+)([a-z])/g, (_m, p, c) => p + c.toUpperCase());
-
-    // Ensure ends with period, no ellipsis or truncation
+    // Fallback: ensure proper formatting even without AI
+    // Ensure ends with period
     tweetText = tweetText.replace(/[.!?…]+$/, "").trim() + ".";
+
+    // Ensure first letter is capitalized
+    tweetText = tweetText.charAt(0).toUpperCase() + tweetText.slice(1);
 
     // Cap at 150 chars cleanly (no truncated words)
     if (tweetText.length > 150) {
