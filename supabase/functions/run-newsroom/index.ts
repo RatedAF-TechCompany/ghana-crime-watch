@@ -1076,19 +1076,23 @@ tags
 Array including location, agency, crime type, key individuals.
 
 twitter_post
-A concise, engaging, title-case reported news sentence. Maximum 150 characters. Must end with a period.
-Structure: HOOK + ACTION + CRIME/EVENT + LOCATION.
-The first 6-8 words MUST be a hook starting with a Number, Authority (Police, Court, Government, Military), or Event (Explosion, Fire, Robbery, Arrest, Shooting).
-Use active voice and direct verbs (arrest, charge, seize, investigate, jail, deploy). No passive phrasing.
-Compress filler: "The Ghana Police Service has arrested" becomes "Police Arrest".
-No hashtags. No emojis. No links. No ellipsis. No long dashes. No truncated endings.
+A short reported news sentence written in normal English. Maximum 150 characters. Must end with a period.
+Must read like a journalist reporting the news, NOT a headline.
+Use sentence case (only capitalize first word, proper nouns, acronyms, and place names).
+Every tweet must have a clear subject and verb. Use forms like:
+- "Police have arrested..."
+- "A court has remanded..."
+- "Authorities have seized..."
+- "A suspect has been charged..."
+Use active voice. No hashtags. No emojis. No links. No ellipsis. No long dashes.
 Good examples:
+- "Police have arrested five suspects in a galamsey crackdown in the Ashanti Region."
+- "An 18-year-old has appeared in Adabraka court over a security guard assault."
+- "A court has charged three people over an armed robbery case in Kumasi."
+Bad examples (DO NOT generate these):
 - "Police Arrest 5 Suspects In Galamsey Crackdown In Ashanti."
 - "18-Year-Old Appears In Adabraka Court Over Security Guard Assault."
 - "Court Charges 3 Over Armed Robbery Case In Kumasi."
-Bad examples:
-- "The Ghana Police Service has increased its presence in Bawku to address clashes."
-- "It has been reported that suspects were arrested."
 If it exceeds 150 characters, rewrite shorter until it fits. Must not end with truncation.
 
 photo_description
