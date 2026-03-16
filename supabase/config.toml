@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.ingest-ghchronicles]
 verify_jwt = false
+
+[functions.ingest-ghanaweb]
+verify_jwt = false
