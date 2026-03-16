@@ -412,7 +412,7 @@ Rules:
 - Maintain journalistic objectivity
 - Use Ghana-specific context
 - Respect presumption of innocence
-- Source attribution must say "EDHUB"
+- Do not credit or name any source
 - Headline must follow HOOK + ACTION + CRIME/EVENT + LOCATION pattern`;
 
         const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
