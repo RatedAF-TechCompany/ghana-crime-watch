@@ -318,7 +318,7 @@ Tweet: "${tweetText}"
 Return a JSON object:
 {
   "headline": "Compelling headline under 100 chars, hook-style: Authority/Number/Event + Action + Subject + Location",
-  "body": "<p>Short intro paragraph with key facts.</p><p>Details paragraph with context.</p><p><em>Source: GhChronicles</em></p>",
+  "body": "<p>Short intro paragraph with key facts.</p><p>Details paragraph with context.</p>",
   "summary": "2-3 sentence summary under 200 chars",
   "category": "One of: top-stories, violent-crime, property-crime, cybercrime, fraud-scams, drug-offences, domestic-violence, traffic-offences, youth-crime, organised-crime, white-collar-crime, police-reports, court-cases, prison-news, crime-prevention, investigations, most-wanted",
   "tags": ["crime", "police", "ghana", ...other relevant tags],
