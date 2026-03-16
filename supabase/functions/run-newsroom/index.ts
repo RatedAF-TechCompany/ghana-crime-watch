@@ -7,7 +7,8 @@ const corsHeaders = {
 };
 
 const NEWS_SOURCES = [
-  { name: "GhanaWeb", domain: "ghanaweb.com", rss: "https://www.ghanaweb.com/GhanaHomePage/crime/rss.xml" },
+  { name: "GhanaWeb Crime", domain: "ghanaweb.com", rss: "https://www.ghanaweb.com/GhanaHomePage/crime/rss.xml" },
+  { name: "GhanaWeb News", domain: "ghanaweb.com", rss: "https://www.ghanaweb.com/GhanaHomePage/NewsArchive/rss.xml" },
   { name: "Citi Newsroom", domain: "citinewsroom.com", rss: "https://citinewsroom.com/feed/" },
   { name: "MyJoyOnline", domain: "myjoyonline.com", rss: "https://www.myjoyonline.com/feed/" },
   { name: "Graphic Online", domain: "graphic.com.gh", rss: "https://www.graphic.com.gh/feed" },
@@ -931,8 +932,8 @@ Return ONLY a valid JSON array, no other text.`;
       .limit(20);
 
     // Process carry-over items FIRST (they've been waiting longest), then new items
-    // CAP: Maximum 3 articles per run to control AI credit usage
-    const MAX_ARTICLES_PER_RUN = 3;
+    // CAP: Maximum 6 articles per run to improve coverage
+    const MAX_ARTICLES_PER_RUN = 6;
     const pendingItems = [...(carryOverItems || []), ...newPendingItems].slice(0, MAX_ARTICLES_PER_RUN);
     console.log(`Processing ${pendingItems.length} pending items (capped at ${MAX_ARTICLES_PER_RUN}) from ${(carryOverItems || []).length} carry-over + ${newPendingItems.length} new`);
 
