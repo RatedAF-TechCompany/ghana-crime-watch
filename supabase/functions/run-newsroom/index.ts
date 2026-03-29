@@ -59,6 +59,33 @@ const CRIME_KEYWORDS = [
   'victim', 'perpetrator',
 ];
 
+const PLACEHOLDER_IMAGE_URL = "https://zninjnjujptjxdikehun.supabase.co/storage/v1/object/public/article-images/placeholder-hero.jpg";
+
+// Extract image URL from an RSS item block
+function extractRSSImage(block: string): string | null {
+  // Try <media:content url="...">
+  const mediaContent = block.match(/<media:content[^>]+url="([^"]+)"[^>]*\/?>/i)?.[1];
+  if (mediaContent) return mediaContent;
+
+  // Try <media:thumbnail url="...">
+  const mediaThumbnail = block.match(/<media:thumbnail[^>]+url="([^"]+)"[^>]*\/?>/i)?.[1];
+  if (mediaThumbnail) return mediaThumbnail;
+
+  // Try <enclosure url="..." type="image/...">
+  const enclosure = block.match(/<enclosure[^>]+url="([^"]+)"[^>]+type="image\/[^"]*"[^>]*\/?>/i)?.[1];
+  if (enclosure) return enclosure;
+
+  // Try <image><url>...</url></image>
+  const imageUrl = block.match(/<image>[\s\S]*?<url>([\s\S]*?)<\/url>[\s\S]*?<\/image>/i)?.[1]?.trim();
+  if (imageUrl) return imageUrl;
+
+  // Try first <img src="..."> in description/content
+  const imgSrc = block.match(/<img[^>]+src="([^"]+)"[^>]*\/?>/i)?.[1];
+  if (imgSrc && (imgSrc.startsWith('http://') || imgSrc.startsWith('https://'))) return imgSrc;
+
+  return null;
+}
+
 // Parse RSS/Atom XML feed and extract items
 function parseRSSItems(xml: string, sourceName: string): any[] {
   const items: any[] = [];
@@ -87,6 +114,9 @@ function parseRSSItems(xml: string, sourceName: string): any[] {
     // Strip HTML tags from description
     const cleanSummary = description.replace(/<[^>]*>/g, '').substring(0, 500);
     
+    // Extract image from RSS item
+    const imageUrl = extractRSSImage(block) || extractRSSImage(description);
+    
     if (title) {
       items.push({
         source_name: sourceName,
@@ -94,6 +124,7 @@ function parseRSSItems(xml: string, sourceName: string): any[] {
         original_summary: cleanSummary,
         source_url: link || null,
         pub_date: pubDate ? new Date(pubDate) : null,
+        source_image_url: imageUrl,
       });
     }
   }
