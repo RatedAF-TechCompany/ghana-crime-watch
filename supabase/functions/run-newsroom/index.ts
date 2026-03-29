@@ -1179,69 +1179,11 @@ Return ONLY valid JSON with exactly these keys:
 
         const articleSlug = `${slugBase}-${Date.now()}`;
 
-        // FAST IMAGE SOURCING — go straight to AI photorealistic for speed
-        // Real photo search removed to avoid 2 extra AI calls per article (~20s saved)
+        // IMAGE GENERATION DISABLED — saves ~1 AI call per article to reduce credit usage
+        // Articles will publish without hero images
         let heroImageUrl: string | null = null;
-        let imageSourceType: string = 'ai_photorealistic';
-        
-        try {
-          {
-            console.log("Generating photorealistic AI image for speed");
-            imageSourceType = 'ai_photorealistic';
-            
-            const photoDescription = articleJson.photo_description || articleJson.image_prompt || `Generic scene related to ${articleJson.headline}`;
-            const photoPrompt = `${PHOTOREALISTIC_PROMPT_PREFIX} ${photoDescription}. Ghana, West Africa setting. The scene must look like it was taken by a news photographer with a professional camera. No people's faces visible. No text. No signage with readable words.`;
-            
-            console.log(`Generating photorealistic AI image`);
-            
-            const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${lovableApiKey}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                model: "google/gemini-2.5-flash-image",
-                messages: [
-                  { role: "user", content: photoPrompt }
-                ],
-                modalities: ["image", "text"]
-              }),
-            });
-
-            if (imageResponse.ok) {
-              const imageData = await imageResponse.json();
-              const base64Image = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-
-              if (base64Image && base64Image.startsWith("data:image")) {
-                const base64Data = base64Image.split(",")[1];
-                const imageBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-
-                const imagePath = `newsroom/${articleSlug}.png`;
-                const { error: uploadError } = await supabase.storage
-                  .from("article-images")
-                  .upload(imagePath, imageBuffer, {
-                    contentType: "image/png",
-                    upsert: true
-                  });
-
-                if (!uploadError) {
-                  const { data: publicUrl } = supabase.storage
-                    .from("article-images")
-                    .getPublicUrl(imagePath);
-                  heroImageUrl = publicUrl.publicUrl;
-                  console.log(`Photo-first: uploaded AI photorealistic image: ${heroImageUrl}`);
-                } else {
-                  console.error("Image upload failed:", uploadError);
-                }
-              }
-            } else {
-              console.error("AI photorealistic image generation failed:", imageResponse.status);
-            }
-          }
-        } catch (imgError) {
-          console.error("Photo sourcing error:", imgError);
-        }
+        let imageSourceType: string = 'none';
+        console.log("Image generation disabled to save AI credits");
 
         // Update newsroom article with image source type
         await supabase.from("newsroom_articles").update({
