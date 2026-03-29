@@ -501,7 +501,35 @@ Rules:
           : "police-reports";
 
         const gcTweet = await generateTweetText(articleData.headline, lovableApiKey);
-        const heroImage = tweetMediaUrls.length > 0 ? tweetMediaUrls[0] : null;
+        // Download and upload tweet media to storage (Twitter URLs expire)
+        let heroImage: string | null = null;
+        if (tweetMediaUrls.length > 0) {
+          try {
+            const mediaUrl = tweetMediaUrls[0];
+            console.log(`Downloading tweet media: ${mediaUrl}`);
+            const imgResp = await fetch(mediaUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; GhanaCrimes/1.0)', 'Accept': 'image/*' } });
+            if (imgResp.ok) {
+              const contentType = imgResp.headers.get('content-type') || 'image/jpeg';
+              const buffer = new Uint8Array(await imgResp.arrayBuffer());
+              let ext = 'jpg';
+              if (contentType.includes('png')) ext = 'png';
+              else if (contentType.includes('webp')) ext = 'webp';
+              const imgPath = `tweets/${finalSlug}.${ext}`;
+              const { error: upErr } = await supabase.storage.from("article-images").upload(imgPath, buffer, { contentType, upsert: true });
+              if (!upErr) {
+                const { data: pubUrl } = supabase.storage.from("article-images").getPublicUrl(imgPath);
+                heroImage = pubUrl.publicUrl;
+                console.log(`Uploaded tweet image: ${heroImage}`);
+              }
+            }
+          } catch (imgErr) {
+            console.error("Tweet image download failed:", imgErr);
+          }
+        }
+        // Fallback to placeholder
+        if (!heroImage) {
+          heroImage = "https://zninjnjujptjxdikehun.supabase.co/storage/v1/object/public/article-images/placeholder-hero.jpg";
+        }
 
         const { data: article, error: insertErr } = await supabase
           .from("articles")
