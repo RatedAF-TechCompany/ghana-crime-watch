@@ -59,6 +59,33 @@ const CRIME_KEYWORDS = [
   'victim', 'perpetrator',
 ];
 
+const PLACEHOLDER_IMAGE_URL = "https://zninjnjujptjxdikehun.supabase.co/storage/v1/object/public/article-images/placeholder-hero.jpg";
+
+// Extract image URL from an RSS item block
+function extractRSSImage(block: string): string | null {
+  // Try <media:content url="...">
+  const mediaContent = block.match(/<media:content[^>]+url="([^"]+)"[^>]*\/?>/i)?.[1];
+  if (mediaContent) return mediaContent;
+
+  // Try <media:thumbnail url="...">
+  const mediaThumbnail = block.match(/<media:thumbnail[^>]+url="([^"]+)"[^>]*\/?>/i)?.[1];
+  if (mediaThumbnail) return mediaThumbnail;
+
+  // Try <enclosure url="..." type="image/...">
+  const enclosure = block.match(/<enclosure[^>]+url="([^"]+)"[^>]+type="image\/[^"]*"[^>]*\/?>/i)?.[1];
+  if (enclosure) return enclosure;
+
+  // Try <image><url>...</url></image>
+  const imageUrl = block.match(/<image>[\s\S]*?<url>([\s\S]*?)<\/url>[\s\S]*?<\/image>/i)?.[1]?.trim();
+  if (imageUrl) return imageUrl;
+
+  // Try first <img src="..."> in description/content
+  const imgSrc = block.match(/<img[^>]+src="([^"]+)"[^>]*\/?>/i)?.[1];
+  if (imgSrc && (imgSrc.startsWith('http://') || imgSrc.startsWith('https://'))) return imgSrc;
+
+  return null;
+}
+
 // Parse RSS/Atom XML feed and extract items
 function parseRSSItems(xml: string, sourceName: string): any[] {
   const items: any[] = [];
@@ -87,6 +114,9 @@ function parseRSSItems(xml: string, sourceName: string): any[] {
     // Strip HTML tags from description
     const cleanSummary = description.replace(/<[^>]*>/g, '').substring(0, 500);
     
+    // Extract image from RSS item
+    const imageUrl = extractRSSImage(block) || extractRSSImage(description);
+    
     if (title) {
       items.push({
         source_name: sourceName,
@@ -94,6 +124,7 @@ function parseRSSItems(xml: string, sourceName: string): any[] {
         original_summary: cleanSummary,
         source_url: link || null,
         pub_date: pubDate ? new Date(pubDate) : null,
+        source_image_url: imageUrl,
       });
     }
   }
@@ -620,6 +651,7 @@ serve(async (req) => {
       original_headline: item.original_headline,
       original_summary: item.original_summary,
       source_url: item.source_url,
+      source_image_url: item.source_image_url || null,
       category_hint: "top-stories",
       estimated_date: item.pub_date ? item.pub_date.toISOString().split('T')[0] : today,
       discovery_method: "rss",
@@ -888,6 +920,7 @@ Return ONLY a valid JSON array, no other text.`;
       original_headline: item.original_headline || item.headline || "Untitled",
       original_summary: item.original_summary || item.summary || "",
       source_url: item.source_url || null,
+      image_style: item.source_image_url || null,
       processing_status: "pending",
     }));
 
@@ -1179,11 +1212,28 @@ Return ONLY valid JSON with exactly these keys:
 
         const articleSlug = `${slugBase}-${Date.now()}`;
 
-        // IMAGE GENERATION DISABLED — saves ~1 AI call per article to reduce credit usage
-        // Articles will publish without hero images
+        // SOURCE IMAGE EXTRACTION — use original images from RSS feeds (zero AI cost)
         let heroImageUrl: string | null = null;
         let imageSourceType: string = 'none';
-        console.log("Image generation disabled to save AI credits");
+
+        // Try to use the source image from RSS feed
+        const sourceImageUrl = newsItem.image_style || null;
+        if (sourceImageUrl) {
+          console.log(`Attempting to download source image: ${sourceImageUrl}`);
+          const uploadedUrl = await downloadAndUploadImage(sourceImageUrl, articleSlug, supabase);
+          if (uploadedUrl) {
+            heroImageUrl = uploadedUrl;
+            imageSourceType = 'source';
+            console.log(`Source image uploaded: ${uploadedUrl}`);
+          }
+        }
+
+        // Fallback to branded placeholder
+        if (!heroImageUrl) {
+          heroImageUrl = PLACEHOLDER_IMAGE_URL;
+          imageSourceType = 'placeholder';
+          console.log("Using placeholder image");
+        }
 
         // Update newsroom article with image source type
         await supabase.from("newsroom_articles").update({
