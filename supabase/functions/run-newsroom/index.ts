@@ -1210,11 +1210,28 @@ Return ONLY valid JSON with exactly these keys:
 
         const articleSlug = `${slugBase}-${Date.now()}`;
 
-        // IMAGE GENERATION DISABLED — saves ~1 AI call per article to reduce credit usage
-        // Articles will publish without hero images
+        // SOURCE IMAGE EXTRACTION — use original images from RSS feeds (zero AI cost)
         let heroImageUrl: string | null = null;
         let imageSourceType: string = 'none';
-        console.log("Image generation disabled to save AI credits");
+
+        // Try to use the source image from RSS feed
+        const sourceImageUrl = (newsItem as any).source_image_url || null;
+        if (sourceImageUrl) {
+          console.log(`Attempting to download source image: ${sourceImageUrl}`);
+          const uploadedUrl = await downloadAndUploadImage(sourceImageUrl, articleSlug, supabase);
+          if (uploadedUrl) {
+            heroImageUrl = uploadedUrl;
+            imageSourceType = 'source';
+            console.log(`Source image uploaded: ${uploadedUrl}`);
+          }
+        }
+
+        // Fallback to branded placeholder
+        if (!heroImageUrl) {
+          heroImageUrl = PLACEHOLDER_IMAGE_URL;
+          imageSourceType = 'placeholder';
+          console.log("Using placeholder image");
+        }
 
         // Update newsroom article with image source type
         await supabase.from("newsroom_articles").update({
