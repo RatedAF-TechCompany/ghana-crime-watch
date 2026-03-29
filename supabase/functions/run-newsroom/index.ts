@@ -920,6 +920,7 @@ Return ONLY a valid JSON array, no other text.`;
       original_headline: item.original_headline || item.headline || "Untitled",
       original_summary: item.original_summary || item.summary || "",
       source_url: item.source_url || null,
+      image_style: item.source_image_url || null,
       processing_status: "pending",
     }));
 
