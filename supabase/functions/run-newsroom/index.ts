@@ -1217,7 +1217,7 @@ Return ONLY valid JSON with exactly these keys:
         let imageSourceType: string = 'none';
 
         // Try to use the source image from RSS feed
-        const sourceImageUrl = (newsItem as any).source_image_url || null;
+        const sourceImageUrl = newsItem.image_style || null;
         if (sourceImageUrl) {
           console.log(`Attempting to download source image: ${sourceImageUrl}`);
           const uploadedUrl = await downloadAndUploadImage(sourceImageUrl, articleSlug, supabase);
