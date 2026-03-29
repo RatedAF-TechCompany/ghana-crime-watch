@@ -932,8 +932,8 @@ Return ONLY a valid JSON array, no other text.`;
       .limit(20);
 
     // Process carry-over items FIRST (they've been waiting longest), then new items
-    // CAP: Maximum 6 articles per run to improve coverage
-    const MAX_ARTICLES_PER_RUN = 6;
+    // CAP: Maximum 3 articles per run to reduce AI credit usage
+    const MAX_ARTICLES_PER_RUN = 3;
     const pendingItems = [...(carryOverItems || []), ...newPendingItems].slice(0, MAX_ARTICLES_PER_RUN);
     console.log(`Processing ${pendingItems.length} pending items (capped at ${MAX_ARTICLES_PER_RUN}) from ${(carryOverItems || []).length} carry-over + ${newPendingItems.length} new`);
 
