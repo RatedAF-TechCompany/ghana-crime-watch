@@ -651,6 +651,7 @@ serve(async (req) => {
       original_headline: item.original_headline,
       original_summary: item.original_summary,
       source_url: item.source_url,
+      source_image_url: item.source_image_url || null,
       category_hint: "top-stories",
       estimated_date: item.pub_date ? item.pub_date.toISOString().split('T')[0] : today,
       discovery_method: "rss",
