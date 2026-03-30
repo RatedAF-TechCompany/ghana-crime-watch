@@ -161,10 +161,10 @@ serve(async (req) => {
     // Build article URL
     const articleUrl = `https://ghana-crime-watch.lovable.app/${article.category_slug}/${article.article_slug}`;
 
-    // Build tweet text — use AI to rewrite as reported news sentence
+    // Build tweet text — use AI to craft engaging, shareable crime tweet
     const rawText = article.twitter_post || article.title;
+    const summary = article.summary || "";
 
-    // Use AI to rewrite headline into a proper reported news sentence
     const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
     let tweetText = rawText;
 
@@ -180,33 +180,45 @@ serve(async (req) => {
             model: "google/gemini-2.5-flash-lite",
             messages: [{
               role: "user",
-              content: `Rewrite this headline as a short reported news sentence. Maximum 145 characters. Must end with a period.
+              content: `You are a sharp, trusted Ghanaian crime journalist writing tweets for GhanaCrimes — the #1 crime news feed in Ghana on X.
 
-RULES:
-- Write as a normal English sentence, NOT a headline
-- Must have a clear subject and verb
-- Use sentence case only (capitalize first word, proper nouns, acronyms, place names)
-- Use forms like: "Police have arrested...", "A court has remanded...", "Authorities have seized..."
-- Spell out small numbers (three, five) but keep large numbers as digits
-- No hashtags, emojis, links, or ellipsis
-- Keep factual and neutral
-- Capitalize acronyms: EC, CID, NPP, NDC, IGP, GRA, NACOC, PAC
-- Capitalize Ghana place names: Accra, Kumasi, Kasoa, Tamale, etc.
+Transform this headline and summary into ONE highly engaging tweet.
 
 HEADLINE: "${rawText}"
+SUMMARY: "${summary}"
 
-Return ONLY the rewritten sentence, nothing else.`
+TWEET FORMULA (follow this structure):
+1. Hook first — open with the most striking, specific, or unexpected detail. NEVER open with "Police have…" or "Authorities say…"
+2. One punchy sentence of context — who, where, what. Keep it tight.
+3. One line of texture — a detail that makes it feel real (weapon used, how they were caught, what was stolen).
+4. CTA closer — end with ONE of these: "Stay safe out there." / "Developing — follow for updates." / "This is Ghana 🇬🇭." / "Drop your thoughts below."
+
+TONE RULES:
+- Conversational but credible. Punchy but accurate.
+- Never invent details — only use what's in the source.
+- AVOID words like: daring, shocking, horrific, brutal — let the facts do the drama.
+- Ghana-specific language encouraged — reference neighbourhoods, landmarks, local context.
+- Use dashes for pacing. Short sentences hit harder.
+- Never write in a way that invites harassment of suspects or victims.
+
+LENGTH: Target 220-260 characters. Never exceed 275 characters.
+- Sentence case (capitalize first word, proper nouns, acronyms, place names).
+- Capitalize acronyms: EC, CID, NPP, NDC, IGP, GRA, NACOC.
+- Capitalize Ghana place names: Accra, Kumasi, Kasoa, Tamale, Tema, etc.
+- Max 2 relevant hashtags allowed (e.g. #Ghana #Accra) but only if they fit naturally.
+
+Return ONLY the tweet text, nothing else.`
             }],
-            temperature: 0.3,
-            max_tokens: 100,
+            temperature: 0.7,
+            max_tokens: 200,
           }),
         });
 
         if (rewriteResponse.ok) {
           const aiData = await rewriteResponse.json();
           const rewritten = aiData.choices?.[0]?.message?.content?.trim();
-          if (rewritten && rewritten.length > 10 && rewritten.length <= 155) {
-            tweetText = rewritten.replace(/^["']|["']$/g, ""); // Strip quotes if AI wrapped them
+          if (rewritten && rewritten.length > 20 && rewritten.length <= 280) {
+            tweetText = rewritten.replace(/^["']|["']$/g, "");
             console.log(`AI rewrote tweet: "${rawText}" → "${tweetText}"`);
           } else {
             console.log(`AI rewrite rejected (length: ${rewritten?.length}), using fallback`);
@@ -217,17 +229,20 @@ Return ONLY the rewritten sentence, nothing else.`
       }
     }
 
-    // Fallback: ensure proper formatting even without AI
-    // Ensure ends with period
-    tweetText = tweetText.replace(/[.!?…]+$/, "").trim() + ".";
+    // Fallback: basic cleanup if AI didn't run
+    if (tweetText === rawText) {
+      tweetText = tweetText.replace(/[.!?…]+$/, "").trim() + ".";
+      tweetText = tweetText.charAt(0).toUpperCase() + tweetText.slice(1);
+      if (tweetText.length > 260) {
+        const cut = tweetText.lastIndexOf(" ", 258);
+        tweetText = tweetText.substring(0, cut > 0 ? cut : 258).replace(/[.,;:!?\s]+$/, "") + ".";
+      }
+    }
 
-    // Ensure first letter is capitalized
-    tweetText = tweetText.charAt(0).toUpperCase() + tweetText.slice(1);
-
-    // Cap at 150 chars cleanly (no truncated words)
-    if (tweetText.length > 150) {
-      const cut = tweetText.lastIndexOf(" ", 148);
-      tweetText = tweetText.substring(0, cut > 0 ? cut : 148).replace(/[.,;:!?\s]+$/, "") + ".";
+    // Cap absolute max at 275 to leave room for URL
+    if (tweetText.length > 275) {
+      const cut = tweetText.lastIndexOf(" ", 273);
+      tweetText = tweetText.substring(0, cut > 0 ? cut : 273).replace(/[.,;:!?\s]+$/, "") + ".";
     }
 
     if (isUrlTweet) {
