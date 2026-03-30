@@ -503,7 +503,7 @@ Rules:
           ? articleData.category
           : "police-reports";
 
-        const gcTweet = await generateTweetText(articleData.headline, lovableApiKey);
+        const gcTweet = await generateTweetText(articleData.headline, articleData.summary || "", lovableApiKey);
         // Download and upload tweet media to storage (Twitter URLs expire)
         let heroImage: string | null = null;
         if (tweetMediaUrls.length > 0) {
