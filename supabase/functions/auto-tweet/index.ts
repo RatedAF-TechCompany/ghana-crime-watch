@@ -156,7 +156,7 @@ serve(async (req) => {
       .select("id", { count: "exact", head: true })
       .like("twitter_post", "POSTED:%");
 
-    const isUrlTweet = totalPosted !== null && (totalPosted % 4 === 3); // 0-indexed: every 4th tweet (after 3) includes URL
+    const isUrlTweet = totalPosted !== null && (totalPosted % 3 === 2); // 0-indexed: every 3rd tweet includes URL
 
     // Build article URL
     const articleUrl = `https://ghana-crime-watch.lovable.app/${article.category_slug}/${article.article_slug}`;
