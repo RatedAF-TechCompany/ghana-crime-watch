@@ -179,10 +179,9 @@ function sentenceCaseWithAcronyms(text: string): string {
   return result;
 }
 
-async function generateTweetText(title: string, apiKey: string | undefined): Promise<string> {
+async function generateTweetText(title: string, summary: string, apiKey: string | undefined): Promise<string> {
   let tweet = title.trim();
 
-  // Try AI rewrite into reported news sentence
   if (apiKey) {
     try {
       const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -192,32 +191,36 @@ async function generateTweetText(title: string, apiKey: string | undefined): Pro
           model: "google/gemini-2.5-flash-lite",
           messages: [{
             role: "user",
-            content: `Rewrite this headline as a short reported news sentence. Maximum 145 characters. Must end with a period.
+            content: `You are a sharp, trusted Ghanaian crime journalist writing tweets for GhanaCrimes — the #1 crime news feed in Ghana on X.
 
-RULES:
-- Write as a normal English sentence, NOT a headline
-- Must have a clear subject and verb
-- Use sentence case (capitalize first word, proper nouns, acronyms, place names)
-- Use forms like: "Police have arrested...", "A court has remanded...", "Authorities have seized..."
-- Spell out small numbers (three, five) but keep large numbers as digits
-- No hashtags, emojis, links, or ellipsis
-- Capitalize acronyms: EC, CID, NPP, NDC, IGP, GRA, NACOC, PAC
-- Capitalize Ghana place names: Accra, Kumasi, Kasoa, Tamale, etc.
+Transform this headline and summary into ONE highly engaging tweet.
 
-HEADLINE: "${tweet}"
+HEADLINE: "${title}"
+SUMMARY: "${summary}"
 
-Return ONLY the rewritten sentence, nothing else.`
+TWEET FORMULA:
+1. Hook first — open with the most striking detail. NEVER open with "Police have…" or "Authorities say…"
+2. One punchy sentence of context — who, where, what.
+3. One line of texture — a detail that makes it feel real.
+4. CTA closer — end with ONE of: "Stay safe out there." / "Developing — follow for updates." / "This is Ghana 🇬🇭." / "Drop your thoughts below."
+
+TONE: Conversational but credible. Punchy but accurate. Use dashes for pacing. Short sentences hit harder. AVOID words like: daring, shocking, horrific, brutal. Reference neighbourhoods and landmarks.
+
+LENGTH: Target 220-260 characters. Never exceed 275. Sentence case. Capitalize acronyms and Ghana place names. Max 2 hashtags only if natural.
+
+Return ONLY the tweet text.`
           }],
-          temperature: 0.3,
-          max_tokens: 100,
+          temperature: 0.7,
+          max_tokens: 200,
         }),
       });
       if (res.ok) {
         const data = await res.json();
         const rewritten = data.choices?.[0]?.message?.content?.trim()?.replace(/^["']|["']$/g, "");
-        if (rewritten && rewritten.length > 10 && rewritten.length <= 155) {
+        if (rewritten && rewritten.length > 20 && rewritten.length <= 280) {
           tweet = rewritten;
           console.log(`AI rewrote tweet: "${title}" → "${tweet}"`);
+          return tweet;
         }
       }
     } catch (e) {
@@ -229,9 +232,9 @@ Return ONLY the rewritten sentence, nothing else.`
   tweet = sentenceCaseWithAcronyms(tweet);
   tweet = tweet.replace(/[.!?…]+$/, "").trim() + ".";
   tweet = tweet.charAt(0).toUpperCase() + tweet.slice(1);
-  if (tweet.length > 150) {
-    const cut = tweet.lastIndexOf(" ", 148);
-    tweet = tweet.substring(0, cut > 0 ? cut : 148).replace(/[.,;:!?\s]+$/, "") + ".";
+  if (tweet.length > 260) {
+    const cut = tweet.lastIndexOf(" ", 258);
+    tweet = tweet.substring(0, cut > 0 ? cut : 258).replace(/[.,;:!?\s]+$/, "") + ".";
   }
   return tweet;
 }
