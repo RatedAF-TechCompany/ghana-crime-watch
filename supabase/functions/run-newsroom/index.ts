@@ -59,7 +59,7 @@ const CRIME_KEYWORDS = [
   'victim', 'perpetrator',
 ];
 
-const PLACEHOLDER_IMAGE_URL = "https://zninjnjujptjxdikehun.supabase.co/storage/v1/object/public/article-images/placeholder-hero.jpg";
+// No placeholder — articles without source images will have hero_image = null
 
 // Extract image URL from an RSS item block
 function extractRSSImage(block: string): string | null {
