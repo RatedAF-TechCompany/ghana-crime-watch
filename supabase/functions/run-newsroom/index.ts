@@ -449,8 +449,45 @@ async function downloadAndUploadImage(
   }
 }
 
-// AI image enhancement has been removed per Photo-First Editorial Policy.
-// AI is only used as a last-resort fallback to generate photorealistic stock-style images.
+// Extract og:image from a source article URL (fallback when RSS has no image)
+async function extractOgImage(url: string): Promise<string | null> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; GhanaCrimes/1.0)' },
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) return null;
+    
+    const html = await response.text();
+    
+    // Try og:image
+    const ogImage = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)?.[1]
+      || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)?.[1];
+    if (ogImage && (ogImage.startsWith('http://') || ogImage.startsWith('https://'))) {
+      console.log(`Found og:image: ${ogImage}`);
+      return ogImage;
+    }
+    
+    // Try twitter:image
+    const twitterImage = html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i)?.[1]
+      || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i)?.[1];
+    if (twitterImage && (twitterImage.startsWith('http://') || twitterImage.startsWith('https://'))) {
+      console.log(`Found twitter:image: ${twitterImage}`);
+      return twitterImage;
+    }
+    
+    return null;
+  } catch (e) {
+    console.log(`og:image extraction failed for ${url}: ${e instanceof Error ? e.message : 'unknown'}`);
+    return null;
+  }
+}
+
 
 // ═══════════════════════════════════════════════════════════════════
 // LIVE FACT-CHECKING FILTER — verifies claims using real-time web search
