@@ -549,10 +549,7 @@ Rules:
             console.error("Tweet image download failed:", imgErr);
           }
         }
-        // Fallback to placeholder
-        if (!heroImage) {
-          heroImage = "https://zninjnjujptjxdikehun.supabase.co/storage/v1/object/public/article-images/placeholder-hero.jpg";
-        }
+        // No placeholder — leave hero_image null if no tweet media available
 
         // Insert article
         const { data: article, error: insertErr } = await supabase

@@ -1216,7 +1216,7 @@ Return ONLY valid JSON with exactly these keys:
         let heroImageUrl: string | null = null;
         let imageSourceType: string = 'none';
 
-        // Try to use the source image from RSS feed
+        // Try to use the source image from RSS feed metadata
         const sourceImageUrl = newsItem.image_style || null;
         if (sourceImageUrl) {
           console.log(`Attempting to download source image: ${sourceImageUrl}`);
@@ -1228,11 +1228,24 @@ Return ONLY valid JSON with exactly these keys:
           }
         }
 
-        // Fallback to branded placeholder
+        // Fallback: fetch og:image from the source article URL
+        if (!heroImageUrl && newsItem.source_url) {
+          console.log(`Trying og:image from source URL: ${newsItem.source_url}`);
+          const ogImage = await extractOgImage(newsItem.source_url);
+          if (ogImage) {
+            const uploadedUrl = await downloadAndUploadImage(ogImage, articleSlug, supabase);
+            if (uploadedUrl) {
+              heroImageUrl = uploadedUrl;
+              imageSourceType = 'og_image';
+              console.log(`OG image uploaded: ${uploadedUrl}`);
+            }
+          }
+        }
+
+        // No placeholder — articles without images simply have no hero image
         if (!heroImageUrl) {
-          heroImageUrl = PLACEHOLDER_IMAGE_URL;
-          imageSourceType = 'placeholder';
-          console.log("Using placeholder image");
+          imageSourceType = 'none';
+          console.log("No source image found — article will have no hero image");
         }
 
         // Update newsroom article with image source type
