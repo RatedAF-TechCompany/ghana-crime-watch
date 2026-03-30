@@ -131,7 +131,7 @@ serve(async (req) => {
     // Fetch the article
     const { data: article, error: fetchError } = await supabase
       .from("articles")
-      .select("id, title, twitter_post, category_slug, article_slug, is_published")
+      .select("id, title, summary, twitter_post, category_slug, article_slug, is_published")
       .eq("id", article_id)
       .single();
 
