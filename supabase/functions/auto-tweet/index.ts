@@ -180,45 +180,40 @@ serve(async (req) => {
             model: "google/gemini-2.5-flash-lite",
             messages: [{
               role: "user",
-              content: `You are a sharp, trusted Ghanaian crime journalist writing tweets for GhanaCrimes — the #1 crime news feed in Ghana on X.
+              content: `You are a sharp, trusted Ghanaian crime journalist writing tweets for GhanaCrimes, the #1 crime news feed in Ghana on X.
 
 Transform this headline and summary into ONE highly engaging tweet.
 
 HEADLINE: "${rawText}"
 SUMMARY: "${summary}"
 
-TWEET FORMULA (follow this structure):
-1. Hook first — open with the most striking, specific, or unexpected detail. NEVER open with "Police have…" or "Authorities say…"
-2. One punchy sentence of context — who, where, what. Keep it tight.
-3. One line of texture — a detail that makes it feel real (weapon used, how they were caught, what was stolen).
-4. CTA closer — end with ONE of these: "Stay safe out there." / "Developing — follow for updates." / "This is Ghana 🇬🇭." / "Drop your thoughts below."
+TWEET FORMULA:
+1. Hook first. Open with the most striking or unexpected detail. NEVER open with "Police have..." or "Authorities say..."
+2. One punchy sentence of context. Who, where, what. Keep it tight.
+3. One line of texture. A detail that makes it feel real (weapon used, how they were caught, what was stolen).
+4. CTA closer. End with ONE of: "Stay safe out there." / "Developing, follow for updates." / "Drop your thoughts below."
 
-TONE RULES:
-- Conversational but credible. Punchy but accurate.
-- Never invent details — only use what's in the source.
-- AVOID words like: daring, shocking, horrific, brutal — let the facts do the drama.
-- Ghana-specific language encouraged — reference neighbourhoods, landmarks, local context.
-- Use dashes for pacing. Short sentences hit harder.
-- Never write in a way that invites harassment of suspects or victims.
-
-LENGTH: Target 220-260 characters. Never exceed 275 characters.
-- Sentence case (capitalize first word, proper nouns, acronyms, place names).
-- Capitalize acronyms: EC, CID, NPP, NDC, IGP, GRA, NACOC.
-- Capitalize Ghana place names: Accra, Kumasi, Kasoa, Tamale, Tema, etc.
-- Max 2 relevant hashtags allowed (e.g. #Ghana #Accra) but only if they fit naturally.
+HARD RULES:
+- NEVER use emojis. Zero emojis allowed.
+- NEVER use em dashes or en dashes. Use commas, periods, or semicolons instead.
+- NEVER exceed 200 characters. Target 150-190 characters.
+- Sentence case. Capitalize acronyms (EC, CID, NPP, NDC, IGP, GRA, NACOC) and Ghana place names.
+- Max 2 hashtags only if they fit naturally.
+- No invented details. Only use what is in the source.
+- AVOID words like: daring, shocking, horrific, brutal.
 
 Return ONLY the tweet text, nothing else.`
             }],
             temperature: 0.7,
-            max_tokens: 200,
+            max_tokens: 150,
           }),
         });
 
         if (rewriteResponse.ok) {
           const aiData = await rewriteResponse.json();
           const rewritten = aiData.choices?.[0]?.message?.content?.trim();
-          if (rewritten && rewritten.length > 20 && rewritten.length <= 280) {
-            tweetText = rewritten.replace(/^["']|["']$/g, "");
+          if (rewritten && rewritten.length > 20 && rewritten.length <= 200) {
+            tweetText = rewritten.replace(/^["']|["']$/g, "").replace(/[\u2014\u2013\u2012]/g, ",").replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2702}-\u{27B0}]/gu, "").trim();
             console.log(`AI rewrote tweet: "${rawText}" → "${tweetText}"`);
           } else {
             console.log(`AI rewrite rejected (length: ${rewritten?.length}), using fallback`);
@@ -231,18 +226,19 @@ Return ONLY the tweet text, nothing else.`
 
     // Fallback: basic cleanup if AI didn't run
     if (tweetText === rawText) {
-      tweetText = tweetText.replace(/[.!?…]+$/, "").trim() + ".";
+      tweetText = tweetText.replace(/[\u2014\u2013\u2012]/g, ",").replace(/[.!?…]+$/, "").trim() + ".";
       tweetText = tweetText.charAt(0).toUpperCase() + tweetText.slice(1);
-      if (tweetText.length > 260) {
-        const cut = tweetText.lastIndexOf(" ", 258);
-        tweetText = tweetText.substring(0, cut > 0 ? cut : 258).replace(/[.,;:!?\s]+$/, "") + ".";
+      if (tweetText.length > 195) {
+        const cut = tweetText.lastIndexOf(" ", 193);
+        tweetText = tweetText.substring(0, cut > 0 ? cut : 193).replace(/[.,;:!?\s]+$/, "") + ".";
       }
     }
 
-    // Cap absolute max at 275 to leave room for URL
-    if (tweetText.length > 275) {
-      const cut = tweetText.lastIndexOf(" ", 273);
-      tweetText = tweetText.substring(0, cut > 0 ? cut : 273).replace(/[.,;:!?\s]+$/, "") + ".";
+    // Strip emojis and dashes, cap at 200
+    tweetText = tweetText.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2702}-\u{27B0}]/gu, "").replace(/[\u2014\u2013\u2012]/g, ",").trim();
+    if (tweetText.length > 200) {
+      const cut = tweetText.lastIndexOf(" ", 198);
+      tweetText = tweetText.substring(0, cut > 0 ? cut : 198).replace(/[.,;:!?\s]+$/, "") + ".";
     }
 
     if (isUrlTweet) {
