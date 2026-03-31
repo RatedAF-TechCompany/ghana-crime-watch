@@ -212,8 +212,8 @@ Return ONLY the tweet text, nothing else.`
         if (rewriteResponse.ok) {
           const aiData = await rewriteResponse.json();
           const rewritten = aiData.choices?.[0]?.message?.content?.trim();
-          if (rewritten && rewritten.length > 20 && rewritten.length <= 280) {
-            tweetText = rewritten.replace(/^["']|["']$/g, "");
+          if (rewritten && rewritten.length > 20 && rewritten.length <= 200) {
+            tweetText = rewritten.replace(/^["']|["']$/g, "").replace(/[\u2014\u2013\u2012]/g, ",").replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2702}-\u{27B0}]/gu, "").trim();
             console.log(`AI rewrote tweet: "${rawText}" → "${tweetText}"`);
           } else {
             console.log(`AI rewrite rejected (length: ${rewritten?.length}), using fallback`);
@@ -226,18 +226,19 @@ Return ONLY the tweet text, nothing else.`
 
     // Fallback: basic cleanup if AI didn't run
     if (tweetText === rawText) {
-      tweetText = tweetText.replace(/[.!?…]+$/, "").trim() + ".";
+      tweetText = tweetText.replace(/[\u2014\u2013\u2012]/g, ",").replace(/[.!?…]+$/, "").trim() + ".";
       tweetText = tweetText.charAt(0).toUpperCase() + tweetText.slice(1);
-      if (tweetText.length > 260) {
-        const cut = tweetText.lastIndexOf(" ", 258);
-        tweetText = tweetText.substring(0, cut > 0 ? cut : 258).replace(/[.,;:!?\s]+$/, "") + ".";
+      if (tweetText.length > 195) {
+        const cut = tweetText.lastIndexOf(" ", 193);
+        tweetText = tweetText.substring(0, cut > 0 ? cut : 193).replace(/[.,;:!?\s]+$/, "") + ".";
       }
     }
 
-    // Cap absolute max at 275 to leave room for URL
-    if (tweetText.length > 275) {
-      const cut = tweetText.lastIndexOf(" ", 273);
-      tweetText = tweetText.substring(0, cut > 0 ? cut : 273).replace(/[.,;:!?\s]+$/, "") + ".";
+    // Strip emojis and dashes, cap at 200
+    tweetText = tweetText.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2702}-\u{27B0}]/gu, "").replace(/[\u2014\u2013\u2012]/g, ",").trim();
+    if (tweetText.length > 200) {
+      const cut = tweetText.lastIndexOf(" ", 198);
+      tweetText = tweetText.substring(0, cut > 0 ? cut : 198).replace(/[.,;:!?\s]+$/, "") + ".";
     }
 
     if (isUrlTweet) {
