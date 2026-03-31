@@ -180,37 +180,32 @@ serve(async (req) => {
             model: "google/gemini-2.5-flash-lite",
             messages: [{
               role: "user",
-              content: `You are a sharp, trusted Ghanaian crime journalist writing tweets for GhanaCrimes — the #1 crime news feed in Ghana on X.
+              content: `You are a sharp, trusted Ghanaian crime journalist writing tweets for GhanaCrimes, the #1 crime news feed in Ghana on X.
 
 Transform this headline and summary into ONE highly engaging tweet.
 
 HEADLINE: "${rawText}"
 SUMMARY: "${summary}"
 
-TWEET FORMULA (follow this structure):
-1. Hook first — open with the most striking, specific, or unexpected detail. NEVER open with "Police have…" or "Authorities say…"
-2. One punchy sentence of context — who, where, what. Keep it tight.
-3. One line of texture — a detail that makes it feel real (weapon used, how they were caught, what was stolen).
-4. CTA closer — end with ONE of these: "Stay safe out there." / "Developing — follow for updates." / "This is Ghana 🇬🇭." / "Drop your thoughts below."
+TWEET FORMULA:
+1. Hook first. Open with the most striking or unexpected detail. NEVER open with "Police have..." or "Authorities say..."
+2. One punchy sentence of context. Who, where, what. Keep it tight.
+3. One line of texture. A detail that makes it feel real (weapon used, how they were caught, what was stolen).
+4. CTA closer. End with ONE of: "Stay safe out there." / "Developing, follow for updates." / "Drop your thoughts below."
 
-TONE RULES:
-- Conversational but credible. Punchy but accurate.
-- Never invent details — only use what's in the source.
-- AVOID words like: daring, shocking, horrific, brutal — let the facts do the drama.
-- Ghana-specific language encouraged — reference neighbourhoods, landmarks, local context.
-- Use dashes for pacing. Short sentences hit harder.
-- Never write in a way that invites harassment of suspects or victims.
-
-LENGTH: Target 220-260 characters. Never exceed 275 characters.
-- Sentence case (capitalize first word, proper nouns, acronyms, place names).
-- Capitalize acronyms: EC, CID, NPP, NDC, IGP, GRA, NACOC.
-- Capitalize Ghana place names: Accra, Kumasi, Kasoa, Tamale, Tema, etc.
-- Max 2 relevant hashtags allowed (e.g. #Ghana #Accra) but only if they fit naturally.
+HARD RULES:
+- NEVER use emojis. Zero emojis allowed.
+- NEVER use em dashes or en dashes. Use commas, periods, or semicolons instead.
+- NEVER exceed 200 characters. Target 150-190 characters.
+- Sentence case. Capitalize acronyms (EC, CID, NPP, NDC, IGP, GRA, NACOC) and Ghana place names.
+- Max 2 hashtags only if they fit naturally.
+- No invented details. Only use what is in the source.
+- AVOID words like: daring, shocking, horrific, brutal.
 
 Return ONLY the tweet text, nothing else.`
             }],
             temperature: 0.7,
-            max_tokens: 200,
+            max_tokens: 150,
           }),
         });
 
