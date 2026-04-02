@@ -200,7 +200,7 @@ TWEET FORMULA:
 HARD RULES:
 - NEVER use emojis. Zero emojis allowed.
 - NEVER use em dashes or en dashes. Use commas, periods, or semicolons instead.
-- NEVER exceed 200 characters. Target 150-190 characters.
+- NEVER exceed 160 characters. Target 120-155 characters.
 - Sentence case. Capitalize acronyms and Ghana place names. Max 2 hashtags only if natural.
 
 Return ONLY the tweet text.`
