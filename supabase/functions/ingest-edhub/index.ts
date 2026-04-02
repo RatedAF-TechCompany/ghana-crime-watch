@@ -207,7 +207,7 @@ TWEET FORMULA:
 HARD RULES:
 - NEVER use emojis. Zero emojis allowed.
 - NEVER use em dashes or en dashes. Use commas, periods, or semicolons instead.
-- NEVER exceed 200 characters. Target 150-190 characters.
+- NEVER exceed 160 characters. Target 120-155 characters.
 - Sentence case. Capitalize acronyms and Ghana place names. Max 2 hashtags only if natural.
 
 Return ONLY the tweet text.`
@@ -222,7 +222,7 @@ Return ONLY the tweet text.`
         if (rewritten) {
           rewritten = rewritten.replace(/[\u2014\u2013\u2012]/g, ",").replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2702}-\u{27B0}]/gu, "").trim();
         }
-        if (rewritten && rewritten.length > 20 && rewritten.length <= 200) {
+        if (rewritten && rewritten.length > 20 && rewritten.length <= 160) {
           tweet = rewritten;
           console.log(`AI rewrote tweet: "${title}" → "${tweet}"`);
           return tweet;

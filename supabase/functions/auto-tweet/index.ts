@@ -196,7 +196,7 @@ TWEET FORMULA:
 HARD RULES:
 - NEVER use emojis. Zero emojis allowed.
 - NEVER use em dashes or en dashes. Use commas, periods, or semicolons instead.
-- NEVER exceed 200 characters. Target 150-190 characters.
+- NEVER exceed 160 characters. Target 120-155 characters.
 - Sentence case. Capitalize acronyms (EC, CID, NPP, NDC, IGP, GRA, NACOC) and Ghana place names.
 - Max 2 hashtags only if they fit naturally.
 - No invented details. Only use what is in the source.
@@ -212,7 +212,7 @@ Return ONLY the tweet text, nothing else.`
         if (rewriteResponse.ok) {
           const aiData = await rewriteResponse.json();
           const rewritten = aiData.choices?.[0]?.message?.content?.trim();
-          if (rewritten && rewritten.length > 20 && rewritten.length <= 200) {
+          if (rewritten && rewritten.length > 20 && rewritten.length <= 160) {
             tweetText = rewritten.replace(/^["']|["']$/g, "").replace(/[\u2014\u2013\u2012]/g, ",").replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2702}-\u{27B0}]/gu, "").trim();
             console.log(`AI rewrote tweet: "${rawText}" → "${tweetText}"`);
           } else {
@@ -228,17 +228,17 @@ Return ONLY the tweet text, nothing else.`
     if (tweetText === rawText) {
       tweetText = tweetText.replace(/[\u2014\u2013\u2012]/g, ",").replace(/[.!?…]+$/, "").trim() + ".";
       tweetText = tweetText.charAt(0).toUpperCase() + tweetText.slice(1);
-      if (tweetText.length > 195) {
-        const cut = tweetText.lastIndexOf(" ", 193);
-        tweetText = tweetText.substring(0, cut > 0 ? cut : 193).replace(/[.,;:!?\s]+$/, "") + ".";
+      if (tweetText.length > 155) {
+        const cut = tweetText.lastIndexOf(" ", 153);
+        tweetText = tweetText.substring(0, cut > 0 ? cut : 153).replace(/[.,;:!?\s]+$/, "") + ".";
       }
     }
 
-    // Strip emojis and dashes, cap at 200
+    // Strip emojis and dashes, cap at 160
     tweetText = tweetText.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2702}-\u{27B0}]/gu, "").replace(/[\u2014\u2013\u2012]/g, ",").trim();
-    if (tweetText.length > 200) {
-      const cut = tweetText.lastIndexOf(" ", 198);
-      tweetText = tweetText.substring(0, cut > 0 ? cut : 198).replace(/[.,;:!?\s]+$/, "") + ".";
+    if (tweetText.length > 160) {
+      const cut = tweetText.lastIndexOf(" ", 158);
+      tweetText = tweetText.substring(0, cut > 0 ? cut : 158).replace(/[.,;:!?\s]+$/, "") + ".";
     }
 
     if (isUrlTweet) {
