@@ -234,11 +234,11 @@ Return ONLY the tweet text, nothing else.`
       }
     }
 
-    // Strip emojis and dashes, cap at 200
+    // Strip emojis and dashes, cap at 160
     tweetText = tweetText.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2702}-\u{27B0}]/gu, "").replace(/[\u2014\u2013\u2012]/g, ",").trim();
-    if (tweetText.length > 200) {
-      const cut = tweetText.lastIndexOf(" ", 198);
-      tweetText = tweetText.substring(0, cut > 0 ? cut : 198).replace(/[.,;:!?\s]+$/, "") + ".";
+    if (tweetText.length > 160) {
+      const cut = tweetText.lastIndexOf(" ", 158);
+      tweetText = tweetText.substring(0, cut > 0 ? cut : 158).replace(/[.,;:!?\s]+$/, "") + ".";
     }
 
     if (isUrlTweet) {
