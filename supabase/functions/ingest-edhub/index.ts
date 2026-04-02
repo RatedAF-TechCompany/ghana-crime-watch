@@ -191,28 +191,29 @@ async function generateTweetText(title: string, summary: string, apiKey: string 
           model: "google/gemini-2.5-flash-lite",
           messages: [{
             role: "user",
-            content: `You are a sharp, trusted Ghanaian crime journalist writing tweets for GhanaCrimes, the #1 crime news feed in Ghana on X.
+            content: `You are the social media editor for GhanaCrimes (@ghanacrimes on X). You write exclusively in the style of The Spectator Index.
 
-Transform this headline and summary into ONE highly engaging tweet.
+Given this headline and summary, write ONE breaking news tweet.
 
 HEADLINE: "${title}"
 SUMMARY: "${summary}"
 
-TWEET FORMULA:
-1. Hook first. Open with the most striking detail. NEVER open with "Police have..." or "Authorities say..."
-2. One punchy sentence of context. Who, where, what.
-3. One line of texture. A detail that makes it feel real.
-4. CTA closer. End with ONE of: "Stay safe out there." / "Developing, follow for updates." / "Drop your thoughts below."
-
-HARD RULES:
-- NEVER use emojis. Zero emojis allowed.
-- NEVER use em dashes or en dashes. Use commas, periods, or semicolons instead.
+RULES:
+- Always open with BREAKING:
+- Maximum 2 sentences. Never more.
+- State only verified facts from the source. No invented details.
+- Use precise figures where available (GH₵ amounts, years sentenced, number of victims).
+- Zero opinion, zero commentary, zero emotion.
+- No hashtags. No emojis. No links.
+- No em dashes or en dashes. Use commas or periods instead.
+- Attribution must be tight: Police, Court, Ghana Police Service, Accra Circuit Court, etc.
+- End with a clean full stop.
+- UK/Ghana English spelling conventions.
 - NEVER exceed 160 characters. Target 120-155 characters.
-- Sentence case. Capitalize acronyms and Ghana place names. Max 2 hashtags only if natural.
 
 Return ONLY the tweet text.`
           }],
-          temperature: 0.7,
+          temperature: 0.3,
           max_tokens: 150,
         }),
       });
