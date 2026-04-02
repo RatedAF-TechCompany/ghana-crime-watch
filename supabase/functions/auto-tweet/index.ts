@@ -226,6 +226,9 @@ Return ONLY the tweet text, nothing else.`
     if (tweetText === rawText) {
       tweetText = tweetText.replace(/[\u2014\u2013\u2012]/g, ",").replace(/[.!?…]+$/, "").trim() + ".";
       tweetText = tweetText.charAt(0).toUpperCase() + tweetText.slice(1);
+      if (!tweetText.startsWith("BREAKING:")) {
+        tweetText = "BREAKING: " + tweetText;
+      }
       if (tweetText.length > 155) {
         const cut = tweetText.lastIndexOf(" ", 153);
         tweetText = tweetText.substring(0, cut > 0 ? cut : 153).replace(/[.,;:!?\s]+$/, "") + ".";

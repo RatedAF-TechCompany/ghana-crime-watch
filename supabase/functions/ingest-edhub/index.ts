@@ -213,7 +213,7 @@ RULES:
 
 Return ONLY the tweet text.`
           }],
-          temperature: 0.7,
+          temperature: 0.3,
           max_tokens: 150,
         }),
       });
