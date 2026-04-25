@@ -685,7 +685,7 @@ serve(async (req) => {
     // ═══════════════════════════════════════════════════════════════════
     // STEP 1A: NATIVE RSS FEED SCANNING — real grounded news discovery
     // ═══════════════════════════════════════════════════════════════════
-    const MAX_AGE_HOURS = 20; // Strict 20-hour freshness cutoff
+    const MAX_AGE_HOURS = 3; // FRESHNESS GUARDRAIL: 3-hour cutoff for crime news
     const today = new Date().toISOString().split('T')[0];
     
     console.log("Step 1A: Scanning RSS feeds from whitelisted sources...");
@@ -697,17 +697,18 @@ serve(async (req) => {
     
     console.log(`RSS total: ${allRssItems.length} raw items from ${NEWS_SOURCES.filter(s => s.rss).length} feeds`);
     
-    // Filter to crime-related items within 20-hour window
+    // GATE 1: Filter to crime-related items within 3-hour window
     const freshCrimeItems = filterCrimeItems(allRssItems, MAX_AGE_HOURS);
     console.log(`RSS filtered: ${freshCrimeItems.length} crime items within ${MAX_AGE_HOURS}h window`);
     
-    // Convert RSS items to standard format
+    // Convert RSS items to standard format — preserve source_published_at for downstream gates
     const rssNewsItems = freshCrimeItems.map(item => ({
       source_name: item.source_name,
       original_headline: item.original_headline,
       original_summary: item.original_summary,
       source_url: item.source_url,
       source_image_url: item.source_image_url || null,
+      source_published_at: item.pub_date ? item.pub_date.toISOString() : null,
       category_hint: "top-stories",
       estimated_date: item.pub_date ? item.pub_date.toISOString().split('T')[0] : today,
       discovery_method: "rss",
