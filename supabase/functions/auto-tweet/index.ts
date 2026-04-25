@@ -193,38 +193,43 @@ serve(async (req) => {
             model: "google/gemini-2.5-flash-lite",
             messages: [{
               role: "user",
-            content: `You are the social media editor for GhanaCrimes (@ghanacrimes on X). You write exclusively in the style of The Spectator Index.
+            content: `You are the social media editor for GhanaCrimes (@ghanacrimes on X).
 
-Given this headline and summary, write ONE breaking news tweet.
+Given this crime news headline and summary, write ONE factual news tweet for the GhanaCrimes audience.
 
 HEADLINE: "${rawText}"
 SUMMARY: "${summary}"
 
-RULES:
-- Always open with BREAKING:
-- Maximum 2 sentences. Never more.
-- State only verified facts from the source. No invented details.
-- Use precise figures where available (GH₵ amounts, years sentenced, number of victims).
-- Zero opinion, zero commentary, zero emotion.
-- No hashtags. No emojis. No links.
+RULES (HARD):
+- Use present perfect tense ("Police have arrested...", "A court has sentenced...", "Authorities have charged...").
+- Always include attribution: police, court, authorities, Ghana Police Service, EOCO, CID, Accra Circuit Court, etc.
+- Maximum 2 sentences. State only verified facts from the source. No invented details.
+- Use precise figures where available (GH₵ amounts, years sentenced, number of suspects, victims).
+- Never speculate on guilt. Never state guilt as fact before conviction. Use "alleged", "accused", "suspected" where appropriate.
+- Zero opinion, zero commentary, zero emotion, zero sensationalism.
+- No hashtags. No emojis. No links. No "BREAKING:" prefix.
 - No em dashes or en dashes. Use commas or periods instead.
-- Attribution must be tight: Police, Court, Ghana Police Service, Accra Circuit Court, etc.
 - End with a clean full stop.
-- UK/Ghana English spelling conventions.
-- NEVER exceed 160 characters. Target 120-155 characters.
+- UK/Ghana English spelling.
+- NEVER exceed 200 characters. Target 150-195 characters.
 
 Return ONLY the tweet text, nothing else.`
             }],
             temperature: 0.3,
-            max_tokens: 150,
+            max_tokens: 180,
           }),
         });
 
         if (rewriteResponse.ok) {
           const aiData = await rewriteResponse.json();
           const rewritten = aiData.choices?.[0]?.message?.content?.trim();
-          if (rewritten && rewritten.length > 20 && rewritten.length <= 160) {
-            tweetText = rewritten.replace(/^["']|["']$/g, "").replace(/[\u2014\u2013\u2012]/g, ",").replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2702}-\u{27B0}]/gu, "").trim();
+          if (rewritten && rewritten.length > 20 && rewritten.length <= 200) {
+            tweetText = rewritten
+              .replace(/^["']|["']$/g, "")
+              .replace(/^BREAKING:\s*/i, "")
+              .replace(/[\u2014\u2013\u2012]/g, ",")
+              .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2702}-\u{27B0}]/gu, "")
+              .trim();
             console.log(`AI rewrote tweet: "${rawText}" → "${tweetText}"`);
           } else {
             console.log(`AI rewrite rejected (length: ${rewritten?.length}), using fallback`);
@@ -237,22 +242,23 @@ Return ONLY the tweet text, nothing else.`
 
     // Fallback: basic cleanup if AI didn't run
     if (tweetText === rawText) {
-      tweetText = tweetText.replace(/[\u2014\u2013\u2012]/g, ",").replace(/[.!?…]+$/, "").trim() + ".";
+      tweetText = tweetText
+        .replace(/^BREAKING:\s*/i, "")
+        .replace(/[\u2014\u2013\u2012]/g, ",")
+        .replace(/[.!?…]+$/, "")
+        .trim() + ".";
       tweetText = tweetText.charAt(0).toUpperCase() + tweetText.slice(1);
-      if (!tweetText.startsWith("BREAKING:")) {
-        tweetText = "BREAKING: " + tweetText;
-      }
-      if (tweetText.length > 155) {
-        const cut = tweetText.lastIndexOf(" ", 153);
-        tweetText = tweetText.substring(0, cut > 0 ? cut : 153).replace(/[.,;:!?\s]+$/, "") + ".";
-      }
     }
 
-    // Strip emojis and dashes, cap at 160
-    tweetText = tweetText.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2702}-\u{27B0}]/gu, "").replace(/[\u2014\u2013\u2012]/g, ",").trim();
-    if (tweetText.length > 160) {
-      const cut = tweetText.lastIndexOf(" ", 158);
-      tweetText = tweetText.substring(0, cut > 0 ? cut : 158).replace(/[.,;:!?\s]+$/, "") + ".";
+    // Strip emojis, dashes, any leftover BREAKING: prefix; cap at 200
+    tweetText = tweetText
+      .replace(/^BREAKING:\s*/i, "")
+      .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2702}-\u{27B0}]/gu, "")
+      .replace(/[\u2014\u2013\u2012]/g, ",")
+      .trim();
+    if (tweetText.length > 200) {
+      const cut = tweetText.lastIndexOf(" ", 198);
+      tweetText = tweetText.substring(0, cut > 0 ? cut : 198).replace(/[.,;:!?\s]+$/, "") + ".";
     }
 
     if (isUrlTweet) {
