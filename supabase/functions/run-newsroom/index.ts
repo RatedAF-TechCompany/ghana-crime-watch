@@ -161,15 +161,34 @@ async function fetchRSSFeed(source: { name: string; rss: string | null }): Promi
   }
 }
 
-// Filter RSS items to crime-related stories within the freshness window
+// GATE 1: Filter RSS items to crime-related stories within the freshness window
+// Rejects stale (>maxAgeHours), invalid (no/unparseable pubDate), or future-dated items.
 function filterCrimeItems(items: any[], maxAgeHours: number): any[] {
-  const cutoff = new Date(Date.now() - maxAgeHours * 60 * 60 * 1000);
-  
+  const now = Date.now();
+  const cutoffMs = maxAgeHours * 60 * 60 * 1000;
+  const futureLimitMs = 60 * 60 * 1000; // 1 hour in the future tolerated
+
   return items.filter(item => {
-    // Check freshness
-    if (item.pub_date && item.pub_date < cutoff) return false;
-    
-    // Check if crime-related
+    // GATE 1A: Must have a valid pubDate
+    if (!item.pub_date || isNaN(item.pub_date.getTime())) {
+      console.log(`REJECTED_INVALID_PUBDATE: "${(item.original_headline || "").substring(0, 60)}"`);
+      return false;
+    }
+    const ageMs = now - item.pub_date.getTime();
+    // GATE 1B: Reject future-dated > 1 hour
+    if (ageMs < -futureLimitMs) {
+      console.log(`REJECTED_INVALID_PUBDATE (future): "${(item.original_headline || "").substring(0, 60)}"`);
+      return false;
+    }
+    // GATE 1C: Reject stale (>3 hours by default)
+    if (ageMs > cutoffMs) {
+      const ageMinutes = Math.round(ageMs / 60000);
+      console.log(`REJECTED_STALE: "${(item.original_headline || "").substring(0, 60)}" — ${ageMinutes} minutes old`);
+      return false;
+    }
+
+    // Crime relevance keyword filter (crime-specialist sources still go through here;
+    // upstream NEWS_SOURCES list controls which feeds are scanned).
     const text = `${item.original_headline} ${item.original_summary}`.toLowerCase();
     return CRIME_KEYWORDS.some(keyword => text.includes(keyword));
   });
