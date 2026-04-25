@@ -1048,6 +1048,16 @@ Return ONLY a valid JSON array, no other text.`;
 
     for (const newsItem of pendingItems) {
       try {
+        // GATE 2: Re-check freshness immediately before AI processing
+        if (isStale(newsItem)) {
+          console.log(`GATE 2 STALE_BEFORE_AI: skipping "${newsItem.original_headline?.substring(0, 60)}"`);
+          await supabase.from("newsroom_articles").update({
+            processing_status: "rejected",
+            error_message: "STALE_BEFORE_AI",
+          }).eq("id", newsItem.id);
+          continue;
+        }
+
         // Update status to processing
         await supabase.from("newsroom_articles").update({
           processing_status: "processing",
