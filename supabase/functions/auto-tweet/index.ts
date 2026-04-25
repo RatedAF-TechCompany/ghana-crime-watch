@@ -111,19 +111,19 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // --- Rate limit: max 1 tweet every 3 hours ---
-    const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+    // --- Rate limit: max 1 tweet every 2 hours (audit step 13) ---
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     const { data: recentTweets } = await supabase
       .from("articles")
       .select("id, twitter_post, published_at")
       .like("twitter_post", "POSTED:%")
-      .gte("updated_at", threeHoursAgo)
+      .gte("updated_at", twoHoursAgo)
       .limit(1);
 
     if (recentTweets && recentTweets.length > 0) {
-      console.log("Rate limited: a tweet was posted within the last 3 hours");
+      console.log("TOO_SOON: a tweet was posted within the last 2 hours");
       return new Response(
-        JSON.stringify({ error: "Rate limited: only 1 tweet allowed every 3 hours", rate_limited: true }),
+        JSON.stringify({ error: "TOO_SOON: only 1 tweet allowed every 2 hours", rate_limited: true }),
         { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -131,7 +131,7 @@ serve(async (req) => {
     // Fetch the article
     const { data: article, error: fetchError } = await supabase
       .from("articles")
-      .select("id, title, summary, twitter_post, category_slug, article_slug, is_published")
+      .select("id, title, summary, twitter_post, category_slug, article_slug, is_published, source_published_at, published_at")
       .eq("id", article_id)
       .single();
 
@@ -140,6 +140,19 @@ serve(async (req) => {
         JSON.stringify({ error: "Article not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // GATE 5: skip tweeting if source is older than 3 hours
+    const sourceTs = article.source_published_at ? new Date(article.source_published_at).getTime() : null;
+    if (sourceTs !== null && !isNaN(sourceTs)) {
+      const ageHours = (Date.now() - sourceTs) / (1000 * 60 * 60);
+      if (ageHours > 3) {
+        console.log(`SKIPPED_STALE_SOURCE: article ${article_id} source is ${ageHours.toFixed(1)}h old`);
+        return new Response(
+          JSON.stringify({ error: "SKIPPED_STALE_SOURCE", stale: true, age_hours: ageHours }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // Check if already posted
@@ -180,38 +193,43 @@ serve(async (req) => {
             model: "google/gemini-2.5-flash-lite",
             messages: [{
               role: "user",
-            content: `You are the social media editor for GhanaCrimes (@ghanacrimes on X). You write exclusively in the style of The Spectator Index.
+            content: `You are the social media editor for GhanaCrimes (@ghanacrimes on X).
 
-Given this headline and summary, write ONE breaking news tweet.
+Given this crime news headline and summary, write ONE factual news tweet for the GhanaCrimes audience.
 
 HEADLINE: "${rawText}"
 SUMMARY: "${summary}"
 
-RULES:
-- Always open with BREAKING:
-- Maximum 2 sentences. Never more.
-- State only verified facts from the source. No invented details.
-- Use precise figures where available (GH₵ amounts, years sentenced, number of victims).
-- Zero opinion, zero commentary, zero emotion.
-- No hashtags. No emojis. No links.
+RULES (HARD):
+- Use present perfect tense ("Police have arrested...", "A court has sentenced...", "Authorities have charged...").
+- Always include attribution: police, court, authorities, Ghana Police Service, EOCO, CID, Accra Circuit Court, etc.
+- Maximum 2 sentences. State only verified facts from the source. No invented details.
+- Use precise figures where available (GH₵ amounts, years sentenced, number of suspects, victims).
+- Never speculate on guilt. Never state guilt as fact before conviction. Use "alleged", "accused", "suspected" where appropriate.
+- Zero opinion, zero commentary, zero emotion, zero sensationalism.
+- No hashtags. No emojis. No links. No "BREAKING:" prefix.
 - No em dashes or en dashes. Use commas or periods instead.
-- Attribution must be tight: Police, Court, Ghana Police Service, Accra Circuit Court, etc.
 - End with a clean full stop.
-- UK/Ghana English spelling conventions.
-- NEVER exceed 160 characters. Target 120-155 characters.
+- UK/Ghana English spelling.
+- NEVER exceed 200 characters. Target 150-195 characters.
 
 Return ONLY the tweet text, nothing else.`
             }],
             temperature: 0.3,
-            max_tokens: 150,
+            max_tokens: 180,
           }),
         });
 
         if (rewriteResponse.ok) {
           const aiData = await rewriteResponse.json();
           const rewritten = aiData.choices?.[0]?.message?.content?.trim();
-          if (rewritten && rewritten.length > 20 && rewritten.length <= 160) {
-            tweetText = rewritten.replace(/^["']|["']$/g, "").replace(/[\u2014\u2013\u2012]/g, ",").replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2702}-\u{27B0}]/gu, "").trim();
+          if (rewritten && rewritten.length > 20 && rewritten.length <= 200) {
+            tweetText = rewritten
+              .replace(/^["']|["']$/g, "")
+              .replace(/^BREAKING:\s*/i, "")
+              .replace(/[\u2014\u2013\u2012]/g, ",")
+              .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2702}-\u{27B0}]/gu, "")
+              .trim();
             console.log(`AI rewrote tweet: "${rawText}" → "${tweetText}"`);
           } else {
             console.log(`AI rewrite rejected (length: ${rewritten?.length}), using fallback`);
@@ -224,22 +242,23 @@ Return ONLY the tweet text, nothing else.`
 
     // Fallback: basic cleanup if AI didn't run
     if (tweetText === rawText) {
-      tweetText = tweetText.replace(/[\u2014\u2013\u2012]/g, ",").replace(/[.!?…]+$/, "").trim() + ".";
+      tweetText = tweetText
+        .replace(/^BREAKING:\s*/i, "")
+        .replace(/[\u2014\u2013\u2012]/g, ",")
+        .replace(/[.!?…]+$/, "")
+        .trim() + ".";
       tweetText = tweetText.charAt(0).toUpperCase() + tweetText.slice(1);
-      if (!tweetText.startsWith("BREAKING:")) {
-        tweetText = "BREAKING: " + tweetText;
-      }
-      if (tweetText.length > 155) {
-        const cut = tweetText.lastIndexOf(" ", 153);
-        tweetText = tweetText.substring(0, cut > 0 ? cut : 153).replace(/[.,;:!?\s]+$/, "") + ".";
-      }
     }
 
-    // Strip emojis and dashes, cap at 160
-    tweetText = tweetText.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2702}-\u{27B0}]/gu, "").replace(/[\u2014\u2013\u2012]/g, ",").trim();
-    if (tweetText.length > 160) {
-      const cut = tweetText.lastIndexOf(" ", 158);
-      tweetText = tweetText.substring(0, cut > 0 ? cut : 158).replace(/[.,;:!?\s]+$/, "") + ".";
+    // Strip emojis, dashes, any leftover BREAKING: prefix; cap at 200
+    tweetText = tweetText
+      .replace(/^BREAKING:\s*/i, "")
+      .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2702}-\u{27B0}]/gu, "")
+      .replace(/[\u2014\u2013\u2012]/g, ",")
+      .trim();
+    if (tweetText.length > 200) {
+      const cut = tweetText.lastIndexOf(" ", 198);
+      tweetText = tweetText.substring(0, cut > 0 ? cut : 198).replace(/[.,;:!?\s]+$/, "") + ".";
     }
 
     if (isUrlTweet) {

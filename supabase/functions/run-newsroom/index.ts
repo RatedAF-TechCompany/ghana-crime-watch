@@ -161,15 +161,34 @@ async function fetchRSSFeed(source: { name: string; rss: string | null }): Promi
   }
 }
 
-// Filter RSS items to crime-related stories within the freshness window
+// GATE 1: Filter RSS items to crime-related stories within the freshness window
+// Rejects stale (>maxAgeHours), invalid (no/unparseable pubDate), or future-dated items.
 function filterCrimeItems(items: any[], maxAgeHours: number): any[] {
-  const cutoff = new Date(Date.now() - maxAgeHours * 60 * 60 * 1000);
-  
+  const now = Date.now();
+  const cutoffMs = maxAgeHours * 60 * 60 * 1000;
+  const futureLimitMs = 60 * 60 * 1000; // 1 hour in the future tolerated
+
   return items.filter(item => {
-    // Check freshness
-    if (item.pub_date && item.pub_date < cutoff) return false;
-    
-    // Check if crime-related
+    // GATE 1A: Must have a valid pubDate
+    if (!item.pub_date || isNaN(item.pub_date.getTime())) {
+      console.log(`REJECTED_INVALID_PUBDATE: "${(item.original_headline || "").substring(0, 60)}"`);
+      return false;
+    }
+    const ageMs = now - item.pub_date.getTime();
+    // GATE 1B: Reject future-dated > 1 hour
+    if (ageMs < -futureLimitMs) {
+      console.log(`REJECTED_INVALID_PUBDATE (future): "${(item.original_headline || "").substring(0, 60)}"`);
+      return false;
+    }
+    // GATE 1C: Reject stale (>3 hours by default)
+    if (ageMs > cutoffMs) {
+      const ageMinutes = Math.round(ageMs / 60000);
+      console.log(`REJECTED_STALE: "${(item.original_headline || "").substring(0, 60)}" — ${ageMinutes} minutes old`);
+      return false;
+    }
+
+    // Crime relevance keyword filter (crime-specialist sources still go through here;
+    // upstream NEWS_SOURCES list controls which feeds are scanned).
     const text = `${item.original_headline} ${item.original_summary}`.toLowerCase();
     return CRIME_KEYWORDS.some(keyword => text.includes(keyword));
   });
@@ -666,7 +685,7 @@ serve(async (req) => {
     // ═══════════════════════════════════════════════════════════════════
     // STEP 1A: NATIVE RSS FEED SCANNING — real grounded news discovery
     // ═══════════════════════════════════════════════════════════════════
-    const MAX_AGE_HOURS = 20; // Strict 20-hour freshness cutoff
+    const MAX_AGE_HOURS = 3; // FRESHNESS GUARDRAIL: 3-hour cutoff for crime news
     const today = new Date().toISOString().split('T')[0];
     
     console.log("Step 1A: Scanning RSS feeds from whitelisted sources...");
@@ -678,17 +697,18 @@ serve(async (req) => {
     
     console.log(`RSS total: ${allRssItems.length} raw items from ${NEWS_SOURCES.filter(s => s.rss).length} feeds`);
     
-    // Filter to crime-related items within 20-hour window
+    // GATE 1: Filter to crime-related items within 3-hour window
     const freshCrimeItems = filterCrimeItems(allRssItems, MAX_AGE_HOURS);
     console.log(`RSS filtered: ${freshCrimeItems.length} crime items within ${MAX_AGE_HOURS}h window`);
     
-    // Convert RSS items to standard format
+    // Convert RSS items to standard format — preserve source_published_at for downstream gates
     const rssNewsItems = freshCrimeItems.map(item => ({
       source_name: item.source_name,
       original_headline: item.original_headline,
       original_summary: item.original_summary,
       source_url: item.source_url,
       source_image_url: item.source_image_url || null,
+      source_published_at: item.pub_date ? item.pub_date.toISOString() : null,
       category_hint: "top-stories",
       estimated_date: item.pub_date ? item.pub_date.toISOString().split('T')[0] : today,
       discovery_method: "rss",
@@ -950,7 +970,7 @@ Return ONLY a valid JSON array, no other text.`;
         processing_status: "outdated",
       }));
 
-    // Insert only unique news items as pending
+    // Insert only unique news items as pending — persist source_published_at
     const newsRecords = uniqueNewsItems.map(item => ({
       run_id: run.id,
       source_name: item.source_name || "Unknown",
@@ -958,6 +978,7 @@ Return ONLY a valid JSON array, no other text.`;
       original_summary: item.original_summary || item.summary || "",
       source_url: item.source_url || null,
       image_style: item.source_image_url || null,
+      source_published_at: item.source_published_at || null,
       processing_status: "pending",
     }));
 
@@ -990,10 +1011,17 @@ Return ONLY a valid JSON array, no other text.`;
 
     // Step 3: Process pending items — include carry-over from previous timed-out runs
     let articlesCreated = 0;
+    const STALE_CUTOFF_MS = MAX_AGE_HOURS * 60 * 60 * 1000;
+    const isStale = (item: any) => {
+      if (!item.source_published_at) return false; // unknown — let downstream decide
+      const ageMs = Date.now() - new Date(item.source_published_at).getTime();
+      return ageMs > STALE_CUTOFF_MS;
+    };
+
     const newPendingItems = (insertedNews || []).filter(item => item.processing_status === "pending");
 
     // Also fetch leftover pending items from previous runs that timed out
-    const { data: carryOverItems } = await supabase
+    const { data: carryOverRaw } = await supabase
       .from("newsroom_articles")
       .select("*")
       .eq("processing_status", "pending")
@@ -1001,14 +1029,35 @@ Return ONLY a valid JSON array, no other text.`;
       .order("created_at", { ascending: true })
       .limit(20);
 
+    // GATE 4: Reject pending queue items whose source is now > 3 hours old
+    const staleCarryOver = (carryOverRaw || []).filter(isStale);
+    if (staleCarryOver.length > 0) {
+      console.log(`GATE 4: Rejecting ${staleCarryOver.length} stale pending queue items`);
+      await supabase
+        .from("newsroom_articles")
+        .update({ processing_status: "rejected", error_message: "STALE_IN_PENDING_QUEUE" })
+        .in("id", staleCarryOver.map(i => i.id));
+    }
+    const carryOverItems = (carryOverRaw || []).filter(item => !isStale(item));
+
     // Process carry-over items FIRST (they've been waiting longest), then new items
     // CAP: Maximum 3 articles per run to reduce AI credit usage
     const MAX_ARTICLES_PER_RUN = 3;
-    const pendingItems = [...(carryOverItems || []), ...newPendingItems].slice(0, MAX_ARTICLES_PER_RUN);
-    console.log(`Processing ${pendingItems.length} pending items (capped at ${MAX_ARTICLES_PER_RUN}) from ${(carryOverItems || []).length} carry-over + ${newPendingItems.length} new`);
+    const pendingItems = [...carryOverItems, ...newPendingItems].slice(0, MAX_ARTICLES_PER_RUN);
+    console.log(`Processing ${pendingItems.length} pending items (capped at ${MAX_ARTICLES_PER_RUN}) from ${carryOverItems.length} carry-over + ${newPendingItems.length} new`);
 
     for (const newsItem of pendingItems) {
       try {
+        // GATE 2: Re-check freshness immediately before AI processing
+        if (isStale(newsItem)) {
+          console.log(`GATE 2 STALE_BEFORE_AI: skipping "${newsItem.original_headline?.substring(0, 60)}"`);
+          await supabase.from("newsroom_articles").update({
+            processing_status: "rejected",
+            error_message: "STALE_BEFORE_AI",
+          }).eq("id", newsItem.id);
+          continue;
+        }
+
         // Update status to processing
         await supabase.from("newsroom_articles").update({
           processing_status: "processing",
@@ -1290,7 +1339,17 @@ Return ONLY valid JSON with exactly these keys:
           image_style: imageSourceType,
         }).eq("id", newsItem.id);
 
-        // Insert the article and auto-publish
+        // GATE 3: Final freshness check before database insert
+        if (isStale(newsItem)) {
+          console.log(`GATE 3 STALE_BEFORE_PUBLISH: skipping "${newsItem.original_headline?.substring(0, 60)}"`);
+          await supabase.from("newsroom_articles").update({
+            processing_status: "rejected",
+            error_message: "STALE_BEFORE_PUBLISH",
+          }).eq("id", newsItem.id);
+          continue;
+        }
+
+        // Insert the article and auto-publish — persist source_published_at
         const { data: newArticle, error: articleError } = await supabase
           .from("articles")
           .insert({
@@ -1308,6 +1367,7 @@ Return ONLY valid JSON with exactly these keys:
             twitter_post: articleJson.twitter_post || null,
             is_published: true,
             published_at: new Date().toISOString(),
+            source_published_at: newsItem.source_published_at || null,
           })
           .select()
           .single();

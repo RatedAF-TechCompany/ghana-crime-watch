@@ -28,6 +28,7 @@ export type Database = {
           published_at: string | null
           seo_description: string | null
           seo_title: string | null
+          source_published_at: string | null
           subtitle: string | null
           summary: string
           tags: string[] | null
@@ -49,6 +50,7 @@ export type Database = {
           published_at?: string | null
           seo_description?: string | null
           seo_title?: string | null
+          source_published_at?: string | null
           subtitle?: string | null
           summary: string
           tags?: string[] | null
@@ -70,6 +72,7 @@ export type Database = {
           published_at?: string | null
           seo_description?: string | null
           seo_title?: string | null
+          source_published_at?: string | null
           subtitle?: string | null
           summary?: string
           tags?: string[] | null
@@ -495,6 +498,7 @@ export type Database = {
           processing_status: string
           run_id: string
           source_name: string
+          source_published_at: string | null
           source_url: string | null
         }
         Insert: {
@@ -508,6 +512,7 @@ export type Database = {
           processing_status?: string
           run_id: string
           source_name: string
+          source_published_at?: string | null
           source_url?: string | null
         }
         Update: {
@@ -521,6 +526,7 @@ export type Database = {
           processing_status?: string
           run_id?: string
           source_name?: string
+          source_published_at?: string | null
           source_url?: string | null
         }
         Relationships: [
