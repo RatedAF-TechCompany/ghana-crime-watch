@@ -1339,7 +1339,17 @@ Return ONLY valid JSON with exactly these keys:
           image_style: imageSourceType,
         }).eq("id", newsItem.id);
 
-        // Insert the article and auto-publish
+        // GATE 3: Final freshness check before database insert
+        if (isStale(newsItem)) {
+          console.log(`GATE 3 STALE_BEFORE_PUBLISH: skipping "${newsItem.original_headline?.substring(0, 60)}"`);
+          await supabase.from("newsroom_articles").update({
+            processing_status: "rejected",
+            error_message: "STALE_BEFORE_PUBLISH",
+          }).eq("id", newsItem.id);
+          continue;
+        }
+
+        // Insert the article and auto-publish — persist source_published_at
         const { data: newArticle, error: articleError } = await supabase
           .from("articles")
           .insert({
@@ -1357,6 +1367,7 @@ Return ONLY valid JSON with exactly these keys:
             twitter_post: articleJson.twitter_post || null,
             is_published: true,
             published_at: new Date().toISOString(),
+            source_published_at: newsItem.source_published_at || null,
           })
           .select()
           .single();
