@@ -131,7 +131,7 @@ serve(async (req) => {
     // Fetch the article
     const { data: article, error: fetchError } = await supabase
       .from("articles")
-      .select("id, title, summary, twitter_post, category_slug, article_slug, is_published")
+      .select("id, title, summary, twitter_post, category_slug, article_slug, is_published, source_published_at, published_at")
       .eq("id", article_id)
       .single();
 
@@ -140,6 +140,19 @@ serve(async (req) => {
         JSON.stringify({ error: "Article not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // GATE 5: skip tweeting if source is older than 3 hours
+    const sourceTs = article.source_published_at ? new Date(article.source_published_at).getTime() : null;
+    if (sourceTs !== null && !isNaN(sourceTs)) {
+      const ageHours = (Date.now() - sourceTs) / (1000 * 60 * 60);
+      if (ageHours > 3) {
+        console.log(`SKIPPED_STALE_SOURCE: article ${article_id} source is ${ageHours.toFixed(1)}h old`);
+        return new Response(
+          JSON.stringify({ error: "SKIPPED_STALE_SOURCE", stale: true, age_hours: ageHours }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // Check if already posted
