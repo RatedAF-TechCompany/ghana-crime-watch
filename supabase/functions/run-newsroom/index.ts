@@ -970,7 +970,7 @@ Return ONLY a valid JSON array, no other text.`;
         processing_status: "outdated",
       }));
 
-    // Insert only unique news items as pending
+    // Insert only unique news items as pending — persist source_published_at
     const newsRecords = uniqueNewsItems.map(item => ({
       run_id: run.id,
       source_name: item.source_name || "Unknown",
@@ -978,6 +978,7 @@ Return ONLY a valid JSON array, no other text.`;
       original_summary: item.original_summary || item.summary || "",
       source_url: item.source_url || null,
       image_style: item.source_image_url || null,
+      source_published_at: item.source_published_at || null,
       processing_status: "pending",
     }));
 
