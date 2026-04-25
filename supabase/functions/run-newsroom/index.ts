@@ -1011,10 +1011,17 @@ Return ONLY a valid JSON array, no other text.`;
 
     // Step 3: Process pending items — include carry-over from previous timed-out runs
     let articlesCreated = 0;
+    const STALE_CUTOFF_MS = MAX_AGE_HOURS * 60 * 60 * 1000;
+    const isStale = (item: any) => {
+      if (!item.source_published_at) return false; // unknown — let downstream decide
+      const ageMs = Date.now() - new Date(item.source_published_at).getTime();
+      return ageMs > STALE_CUTOFF_MS;
+    };
+
     const newPendingItems = (insertedNews || []).filter(item => item.processing_status === "pending");
 
     // Also fetch leftover pending items from previous runs that timed out
-    const { data: carryOverItems } = await supabase
+    const { data: carryOverRaw } = await supabase
       .from("newsroom_articles")
       .select("*")
       .eq("processing_status", "pending")
@@ -1022,11 +1029,22 @@ Return ONLY a valid JSON array, no other text.`;
       .order("created_at", { ascending: true })
       .limit(20);
 
+    // GATE 4: Reject pending queue items whose source is now > 3 hours old
+    const staleCarryOver = (carryOverRaw || []).filter(isStale);
+    if (staleCarryOver.length > 0) {
+      console.log(`GATE 4: Rejecting ${staleCarryOver.length} stale pending queue items`);
+      await supabase
+        .from("newsroom_articles")
+        .update({ processing_status: "rejected", error_message: "STALE_IN_PENDING_QUEUE" })
+        .in("id", staleCarryOver.map(i => i.id));
+    }
+    const carryOverItems = (carryOverRaw || []).filter(item => !isStale(item));
+
     // Process carry-over items FIRST (they've been waiting longest), then new items
     // CAP: Maximum 3 articles per run to reduce AI credit usage
     const MAX_ARTICLES_PER_RUN = 3;
-    const pendingItems = [...(carryOverItems || []), ...newPendingItems].slice(0, MAX_ARTICLES_PER_RUN);
-    console.log(`Processing ${pendingItems.length} pending items (capped at ${MAX_ARTICLES_PER_RUN}) from ${(carryOverItems || []).length} carry-over + ${newPendingItems.length} new`);
+    const pendingItems = [...carryOverItems, ...newPendingItems].slice(0, MAX_ARTICLES_PER_RUN);
+    console.log(`Processing ${pendingItems.length} pending items (capped at ${MAX_ARTICLES_PER_RUN}) from ${carryOverItems.length} carry-over + ${newPendingItems.length} new`);
 
     for (const newsItem of pendingItems) {
       try {
