@@ -111,19 +111,19 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // --- Rate limit: max 1 tweet every 3 hours ---
-    const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+    // --- Rate limit: max 1 tweet every 2 hours (audit step 13) ---
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     const { data: recentTweets } = await supabase
       .from("articles")
       .select("id, twitter_post, published_at")
       .like("twitter_post", "POSTED:%")
-      .gte("updated_at", threeHoursAgo)
+      .gte("updated_at", twoHoursAgo)
       .limit(1);
 
     if (recentTweets && recentTweets.length > 0) {
-      console.log("Rate limited: a tweet was posted within the last 3 hours");
+      console.log("TOO_SOON: a tweet was posted within the last 2 hours");
       return new Response(
-        JSON.stringify({ error: "Rate limited: only 1 tweet allowed every 3 hours", rate_limited: true }),
+        JSON.stringify({ error: "TOO_SOON: only 1 tweet allowed every 2 hours", rate_limited: true }),
         { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
