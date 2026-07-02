@@ -88,6 +88,15 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // KILL SWITCH: auto-tweeting paused by admin request. Remove this block to resume.
+  if (req.method !== "OPTIONS") {
+    console.log("AUTO_TWEET_PAUSED: kill switch active, no tweets will be posted");
+    return new Response(
+      JSON.stringify({ error: "AUTO_TWEET_PAUSED", paused: true }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
   try {
     const { article_id } = await req.json();
 
