@@ -14,6 +14,7 @@ import { WhatsAppChannelCTA, useShouldShowWhatsAppCTA } from "@/components/Whats
 import { AdBanner } from "@/components/AdBanner";
 import DOMPurify from "dompurify";
 import { useEffect, useRef, useMemo } from "react";
+import { FALLBACK_IMAGE_URL, FALLBACK_IMAGE_ALT } from "@/lib/fallback-image";
 
 export default function ArticlePage() {
   const { categorySlug, articleSlug } = useParams<{
@@ -178,11 +179,13 @@ export default function ArticlePage() {
         </div>
       </div>
 
-      {article.hero_image && (
-        <div className="mb-8 w-full overflow-hidden">
-          <img src={article.hero_image} alt={article.title} className="h-full w-full object-cover" />
-        </div>
-      )}
+      <div className="mb-8 w-full overflow-hidden">
+        <img
+          src={article.hero_image || FALLBACK_IMAGE_URL}
+          alt={article.hero_image ? article.title : FALLBACK_IMAGE_ALT}
+          className="h-full w-full object-cover"
+        />
+      </div>
 
       <div className="my-6 border-y border-border py-3">
         <SocialShareButtons title={article.title} summary={article.summary} />
@@ -243,15 +246,13 @@ export default function ArticlePage() {
                     {getRelativeTime(related.published_at!)}
                   </p>
                 </div>
-                {related.hero_image && (
-                  <div className="h-16 w-24 flex-shrink-0 overflow-hidden">
-                    <img
-                      src={related.hero_image}
-                      alt={related.title}
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                    />
-                  </div>
-                )}
+                <div className="h-16 w-24 flex-shrink-0 overflow-hidden">
+                  <img
+                    src={related.hero_image || FALLBACK_IMAGE_URL}
+                    alt={related.hero_image ? related.title : FALLBACK_IMAGE_ALT}
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                  />
+                </div>
               </Link>
             ))}
           </div>
