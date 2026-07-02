@@ -35,11 +35,11 @@ export function ArticleCard({ article, variant, showImage, className }: ArticleC
       <article className={cn("group border-b border-border py-4", className)}>
         <Link to={href} className="flex items-start gap-4">
           <div className="min-w-0 flex-1">
-            <h3 className="story-title text-base sm:text-lg group-hover:text-primary group-hover:underline">
+            <h3 className="story-title text-[17px] sm:text-[19px] group-hover:text-primary">
               {article.title}
             </h3>
             <div className="mt-1.5 meta-text">
-              <span className="uppercase tracking-wide text-primary font-semibold">{categoryLabel}</span>
+              <span className="cat">{categoryLabel}</span>
               <span className="mx-1.5">|</span>
               <span>{relativeTime}</span>
             </div>
@@ -51,10 +51,10 @@ export function ArticleCard({ article, variant, showImage, className }: ArticleC
 
   const titleSize =
     v === "lead"
-      ? "text-2xl sm:text-3xl"
+      ? "text-[26px] sm:text-[32px]"
       : v === "secondary"
-        ? "text-xl"
-        : "text-lg sm:text-[21px]";
+        ? "text-[20px]"
+        : "text-[18px] sm:text-[20px]";
 
   return (
     <article className={cn("group flex flex-col", className)}>
@@ -68,8 +68,8 @@ export function ArticleCard({ article, variant, showImage, className }: ArticleC
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-black text-white">
-              <span className="font-display text-3xl tracking-tight">GhanaCrimes</span>
+            <div className="flex h-full w-full items-center justify-center bg-foreground text-background">
+              <span className="masthead-word text-2xl" style={{ color: "hsl(var(--background))" }}>GhanaCrimes</span>
             </div>
           )}
         </div>
@@ -78,9 +78,9 @@ export function ArticleCard({ article, variant, showImage, className }: ArticleC
             {article.title}
           </h3>
           <div className="mt-2 meta-text">
-            <span>{relativeTime}</span>
+            <span className="cat">{categoryLabel}</span>
             <span className="mx-1.5">|</span>
-            <span className="uppercase tracking-wide font-semibold text-primary">{categoryLabel}</span>
+            <span>{relativeTime}</span>
           </div>
         </div>
       </Link>

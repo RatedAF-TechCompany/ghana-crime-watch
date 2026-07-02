@@ -52,15 +52,18 @@ export function Layout({ children }: LayoutProps) {
       <BreakingNewsTicker />
       <NavigationDrawer open={menuOpen} onClose={() => setMenuOpen(false)} />
       <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
-      <main className="container mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-8 flex-1">
+      <main className="mx-auto w-full max-w-editorial px-4 py-8 md:px-6 md:py-10 flex-1">
         {children}
       </main>
-      <footer className="mt-12 border-t border-border bg-background">
-        <div className="container mx-auto max-w-7xl px-4 py-10 md:px-6">
+      <footer className="mt-12 border-t border-border bg-[hsl(40_25%_94%)]">
+        <div className="mx-auto max-w-editorial px-4 py-10 md:px-6">
+          <div className="mb-8 text-center">
+            <span className="masthead-word text-3xl md:text-4xl">GhanaCrimes</span>
+          </div>
           <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
             {FOOTER_COLUMNS.map((col) => (
               <div key={col.title}>
-                <h3 className="mb-3 text-[11px] font-extrabold uppercase tracking-widest text-foreground">
+                <h3 className="mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-primary">
                   {col.title}
                 </h3>
                 <ul className="space-y-2">
@@ -68,7 +71,7 @@ export function Layout({ children }: LayoutProps) {
                     <li key={link.label}>
                       <Link
                         to={link.to}
-                        className="text-sm text-muted-foreground hover:text-primary"
+                        className="text-sm text-foreground/75 hover:text-primary"
                       >
                         {link.label}
                       </Link>
@@ -79,12 +82,7 @@ export function Layout({ children }: LayoutProps) {
             ))}
           </div>
           <div className="mt-8 flex flex-col items-start justify-between gap-3 border-t border-border pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center">
-            <div className="flex items-center gap-2">
-              <span className="font-display text-sm font-bold text-foreground">
-                GhanaCrimes
-              </span>
-              <span>© {new Date().getFullYear()} GhanaCrimes. All rights reserved.</span>
-            </div>
+            <span>© {new Date().getFullYear()} GhanaCrimes. All rights reserved.</span>
             <Link to="/about" className="hover:text-primary">
               About Us & Editorial Policy
             </Link>

@@ -77,29 +77,27 @@ export function MostReadArticles() {
 
   return (
     <section>
-      <SectionHeading title="Most Read" />
-      <ol className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
-        {articles.map((article, index) => (
+      <SectionHeading title="Most popular" />
+      <ol className="grid grid-cols-1 gap-x-10 md:grid-cols-3">
+        {articles.slice(0, 9).map((article, index) => (
           <li
             key={article.id}
-            className="flex items-start gap-5 border-b border-border py-6"
+            className="flex items-start gap-4 border-b border-border py-5"
           >
-            <span className="most-read-number shrink-0 w-10 text-left">
+            <span className="most-read-number shrink-0 w-8 text-left">
               {index + 1}
             </span>
             <div className="min-w-0 flex-1">
               <Link
                 to={`/${article.category_slug}/${article.article_slug}`}
-                className="story-title block text-[19px] leading-[1.25] hover:text-primary hover:underline"
+                className="story-title block text-[17px] leading-[1.2] hover:text-primary"
               >
                 {article.title}
               </Link>
               <div className="mt-1.5 meta-text">
-                <span>{getRelativeTime(article.published_at)}</span>
+                <span className="cat">{getCategoryLabel(article.category_slug)}</span>
                 <span className="mx-1.5">|</span>
-                <span className="uppercase tracking-wide font-semibold text-primary">
-                  {getCategoryLabel(article.category_slug)}
-                </span>
+                <span>{getRelativeTime(article.published_at)}</span>
               </div>
             </div>
           </li>

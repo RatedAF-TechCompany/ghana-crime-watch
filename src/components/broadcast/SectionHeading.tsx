@@ -7,17 +7,17 @@ interface SectionHeadingProps {
   moreLabel?: string;
 }
 
-export function SectionHeading({ title, moreHref, moreLabel = "More" }: SectionHeadingProps) {
+export function SectionHeading({ title, moreHref, moreLabel = "See all" }: SectionHeadingProps) {
   return (
-    <div className="mb-5 mt-2 flex items-end justify-between border-t-[3px] border-foreground pt-3">
+    <div className="mb-5 mt-2 flex items-end justify-between section-rule pt-3">
       <h2 className="section-heading">{title}</h2>
       {moreHref && (
         <Link
           to={moreHref}
-          className="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-foreground hover:text-primary"
+          className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary hover:opacity-80"
         >
           {moreLabel}
-          <ArrowRight className="h-3.5 w-3.5" />
+          <ArrowRight className="h-3 w-3" />
         </Link>
       )}
     </div>
