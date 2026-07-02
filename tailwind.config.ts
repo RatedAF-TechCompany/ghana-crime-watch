@@ -15,7 +15,8 @@ export default {
     extend: {
       fontFamily: {
         serif: ['Lora', 'Georgia', 'Times New Roman', 'serif'],
-        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Arial', 'sans-serif'],
+        display: ['Oswald', 'Arial Narrow', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",

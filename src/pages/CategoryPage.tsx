@@ -5,18 +5,20 @@ import { HeroArticle } from "@/components/HeroArticle";
 import { ArticleCard } from "@/components/ArticleCard";
 import { Button } from "@/components/ui/button";
 import { AdBanner } from "@/components/AdBanner";
+import { SectionHeading } from "@/components/broadcast/SectionHeading";
+import { StoryGrid } from "@/components/broadcast/StoryGrid";
 import { useState } from "react";
 import { getCategoryLabel } from "@/lib/categories";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const ARTICLES_PER_PAGE = 10;
+const ARTICLES_PER_PAGE = 17; // 1 lead + 4 + 4 + 8 compact
 
 export default function CategoryPage() {
   const { categorySlug } = useParams<{ categorySlug: string }>();
   const [page, setPage] = useState(0);
 
   const { data: articles, isLoading } = useQuery({
-    queryKey: ["articles", categorySlug, page],
+    queryKey: ["articles-cat", categorySlug, page],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("articles")
@@ -25,29 +27,24 @@ export default function CategoryPage() {
         .eq("category_slug", categorySlug!)
         .order("published_at", { ascending: false })
         .range(page * ARTICLES_PER_PAGE, (page + 1) * ARTICLES_PER_PAGE);
-
       if (error) throw error;
       return data;
     },
     enabled: !!categorySlug,
   });
 
+  const label = getCategoryLabel(categorySlug!);
+
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <Skeleton className="h-10 w-64" />
-        <div className="space-y-4">
-          <Skeleton className="aspect-[16/9] w-full" />
-          <Skeleton className="h-8 w-3/4" />
-          <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-12 w-64" />
+        <Skeleton className="aspect-[16/9] w-full" />
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {[...Array(8)].map((_, i) => (
+            <Skeleton key={i} className="aspect-[16/9] w-full" />
+          ))}
         </div>
-        {[...Array(5)].map((_, i) => (
-          <div key={i} className="space-y-2 border-b border-border py-4">
-            <Skeleton className="h-6 w-3/4" />
-            <Skeleton className="h-3 w-1/4" />
-            <Skeleton className="h-4 w-full" />
-          </div>
-        ))}
       </div>
     );
   }
@@ -55,49 +52,69 @@ export default function CategoryPage() {
   if (!articles || articles.length === 0) {
     return (
       <div className="py-12 text-center">
-        <h2 className="mb-2 text-2xl font-bold">No Articles in {getCategoryLabel(categorySlug!)}</h2>
-        <p className="text-muted-foreground">Check back soon for updates.</p>
+        <SectionHeading title={label} />
+        <p className="text-muted-foreground">No articles in this section yet.</p>
       </div>
     );
   }
 
-  const [heroArticle, ...restArticles] = articles;
+  const lead = articles[0];
+  const grid1 = articles.slice(1, 5);
+  const grid2 = articles.slice(5, 9);
+  const rest = articles.slice(9);
 
   return (
-    <div>
-      <h1 className="mb-6 text-3xl font-bold">{getCategoryLabel(categorySlug!)}</h1>
-      
-      {heroArticle && <HeroArticle article={heroArticle} />}
+    <div className="space-y-10">
+      <SectionHeading title={label} />
 
-      {/* Ad Banner - after hero */}
-      <div className="my-6">
+      {lead && <HeroArticle article={lead} />}
+
+      <div className="mx-auto max-w-3xl">
         <AdBanner slotId={4} probability={0.5} />
       </div>
-      
-      <div className="space-y-0">
-        {restArticles.map((article, index) => (
-          <ArticleCard
-            key={article.id}
-            article={article}
-            showImage={(index + 2) % 5 === 0}
-          />
-        ))}
-      </div>
 
-      {articles.length === ARTICLES_PER_PAGE + 1 && (
-        <div className="mt-8 flex justify-center gap-4">
-          {page > 0 && (
-            <Button variant="outline" onClick={() => setPage(page - 1)}>
-              Previous
-            </Button>
-          )}
-          {articles.length === ARTICLES_PER_PAGE + 1 && (
-            <Button variant="outline" onClick={() => setPage(page + 1)}>
-              Next
-            </Button>
-          )}
-        </div>
+      {grid1.length > 0 && (
+        <StoryGrid>
+          {grid1.map((a) => (
+            <ArticleCard key={a.id} article={a} variant="grid" />
+          ))}
+        </StoryGrid>
       )}
+
+      {grid2.length > 0 && (
+        <>
+          <SectionHeading title="More in this section" />
+          <StoryGrid>
+            {grid2.map((a) => (
+              <ArticleCard key={a.id} article={a} variant="grid" />
+            ))}
+          </StoryGrid>
+        </>
+      )}
+
+      {rest.length > 0 && (
+        <>
+          <SectionHeading title="More Headlines" />
+          <div>
+            {rest.map((a) => (
+              <ArticleCard key={a.id} article={a} variant="compact" />
+            ))}
+          </div>
+        </>
+      )}
+
+      <div className="flex justify-center gap-4 pt-4">
+        {page > 0 && (
+          <Button variant="outline" onClick={() => setPage(page - 1)} className="border-foreground/20">
+            Previous
+          </Button>
+        )}
+        {articles.length >= ARTICLES_PER_PAGE && (
+          <Button variant="outline" onClick={() => setPage(page + 1)} className="border-foreground/20">
+            Next
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
