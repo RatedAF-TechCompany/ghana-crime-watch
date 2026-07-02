@@ -172,7 +172,7 @@ serve(async (req) => {
     const isUrlTweet = totalPosted !== null && (totalPosted % 3 === 2); // 0-indexed: every 3rd tweet includes URL
 
     // Build article URL
-    const articleUrl = `https://ghana-crime-watch.lovable.app/${article.category_slug}/${article.article_slug}`;
+    const articleUrl = `https://ghanacrimes.com/${article.category_slug}/${article.article_slug}`;
 
     // Build tweet text — use AI to craft engaging, shareable crime tweet
     const rawText = article.twitter_post || article.title;
