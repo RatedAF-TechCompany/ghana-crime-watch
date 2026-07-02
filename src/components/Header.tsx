@@ -65,7 +65,7 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
             <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-primary font-display text-sm font-bold tracking-tight">
               GC
             </span>
-            <span className="font-display text-xl font-bold uppercase tracking-wide">
+            <span className="font-display text-xl font-bold tracking-tight normal-case">
               GhanaCrimes
             </span>
           </Link>
