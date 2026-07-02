@@ -33,22 +33,22 @@ export function HeroArticle({ article }: HeroArticleProps) {
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-black text-white">
-              <span className="font-display text-4xl tracking-tight">GhanaCrimes</span>
+            <div className="flex h-full w-full items-center justify-center bg-foreground text-background">
+              <span className="masthead-word text-4xl" style={{ color: "hsl(var(--background))" }}>GhanaCrimes</span>
             </div>
           )}
         </div>
         <div className="pt-4">
-          <h2 className="story-title text-2xl leading-[1.15] sm:text-[28px] lg:text-[32px] group-hover:text-primary">
+          <h2 className="story-title text-[28px] leading-[1.08] sm:text-[34px] lg:text-[40px] group-hover:text-primary">
             {article.title}
           </h2>
           <div className="mt-3 meta-text">
-            <span>{relativeTime}</span>
+            <span className="cat">{categoryLabel}</span>
             <span className="mx-1.5">|</span>
-            <span className="uppercase tracking-wide font-semibold text-primary">{categoryLabel}</span>
+            <span>{relativeTime}</span>
           </div>
           {article.summary && (
-            <p className="mt-3 text-base leading-relaxed text-muted-foreground">
+            <p className="mt-3 font-body text-[17px] leading-[1.55] text-foreground/80">
               {article.summary}
             </p>
           )}

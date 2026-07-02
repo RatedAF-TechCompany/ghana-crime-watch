@@ -14,9 +14,14 @@ export default {
     },
     extend: {
       fontFamily: {
-        serif: ['Lora', 'Georgia', 'Times New Roman', 'serif'],
+        serif: ['Playfair Display', 'Libre Baskerville', 'Georgia', 'Times New Roman', 'serif'],
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Arial', 'sans-serif'],
-        display: ['Oswald', 'Arial Narrow', 'sans-serif'],
+        display: ['Playfair Display', 'Georgia', 'serif'],
+        body: ['Lora', 'Georgia', 'serif'],
+      },
+      maxWidth: {
+        editorial: '1180px',
+        prose: '760px',
       },
       colors: {
         border: "hsl(var(--border))",
