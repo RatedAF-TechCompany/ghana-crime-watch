@@ -80,8 +80,8 @@ export function Layout({ children }: LayoutProps) {
           </div>
           <div className="mt-8 flex flex-col items-start justify-between gap-3 border-t border-border pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center">
             <div className="flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-black bg-primary font-display text-[10px] font-bold text-white">
-                GC
+              <span className="font-display text-sm font-bold text-foreground">
+                GhanaCrimes
               </span>
               <span>© {new Date().getFullYear()} GhanaCrimes. All rights reserved.</span>
             </div>
