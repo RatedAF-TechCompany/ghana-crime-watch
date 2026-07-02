@@ -129,22 +129,27 @@ export default function ArticlePage() {
   });
 
   return (
-    <article>
-      {article.hero_image && (
-        <div className="mb-6 aspect-[16/9] w-full overflow-hidden rounded">
-          <img
-            src={article.hero_image}
-            alt={article.title}
-            className="h-full w-full object-cover"
-          />
-        </div>
+    <article className="mx-auto max-w-[760px]">
+      <p className="author-italic-red mb-3 text-center">{categoryLabel}</p>
+      <h1 className="mx-auto mb-5 max-w-[760px] text-center font-headline text-[34px] font-bold leading-[1.08] tracking-[-0.005em] text-foreground md:text-[52px] lg:text-[58px]">
+        {article.title}
+      </h1>
+
+      {article.subtitle && (
+        <p className="mx-auto mb-6 max-w-[720px] text-center font-body text-[19px] leading-[1.5] text-foreground/80 md:text-[21px]">
+          {article.subtitle}
+        </p>
       )}
 
-      <div className="mb-4 flex items-center justify-between">
-        <p className="text-sm font-medium text-primary">
-          {categoryLabel} • {relativeTime} • {readingTime}
+      <div className="mb-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-y border-border py-3 text-center">
+        <p className="font-sans text-[12px] uppercase tracking-[0.14em] text-muted-fg">
+          By <span className="not-italic text-foreground">{article.author_name || "GhanaCrimes Newsroom"}</span>
+          <span className="mx-2">·</span>
+          {relativeTime}
+          <span className="mx-2">·</span>
+          {readingTime}
         </p>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-1">
           {isSupported && (
             <Button
               variant="ghost"
@@ -155,32 +160,17 @@ export default function ArticlePage() {
             >
               {isPlaying ? (
                 isPaused ? (
-                  <>
-                    <Volume2 className="h-4 w-4" />
-                    <span className="text-xs font-medium">Resume</span>
-                  </>
+                  <><Volume2 className="h-4 w-4" /><span className="text-xs font-medium">Resume</span></>
                 ) : (
-                  <>
-                    <Pause className="h-4 w-4" />
-                    <span className="text-xs font-medium">Pause</span>
-                  </>
+                  <><Pause className="h-4 w-4" /><span className="text-xs font-medium">Pause</span></>
                 )
               ) : (
-                <>
-                  <Volume2 className="h-4 w-4" />
-                  <span className="text-xs font-medium">Listen</span>
-                </>
+                <><Volume2 className="h-4 w-4" /><span className="text-xs font-medium">Listen</span></>
               )}
             </Button>
           )}
           {isPlaying && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={stop}
-              className="text-muted-foreground hover:text-primary"
-              aria-label="Stop"
-            >
+            <Button variant="ghost" size="icon" onClick={stop} className="text-muted-foreground hover:text-primary" aria-label="Stop">
               <Square className="h-4 w-4" />
             </Button>
           )}
@@ -188,29 +178,21 @@ export default function ArticlePage() {
         </div>
       </div>
 
-      <h1 className="mb-4 max-w-[780px] text-[30px] font-bold leading-[1.1] tracking-tight text-foreground md:text-[46px]">
-        {article.title}
-      </h1>
-
-
-      {article.subtitle && (
-        <h2 className="mb-4 text-xl font-semibold text-muted-foreground">
-          {article.subtitle}
-        </h2>
+      {article.hero_image && (
+        <div className="mb-8 w-full overflow-hidden">
+          <img src={article.hero_image} alt={article.title} className="h-full w-full object-cover" />
+        </div>
       )}
 
-      <p className="mb-2 text-sm text-muted-foreground">
-        By {article.author_name || "GhanaCrimes Staff"}
-      </p>
-
-      <div className="my-6 border-y border-border py-4">
+      <div className="my-6 border-y border-border py-3">
         <SocialShareButtons title={article.title} summary={article.summary} />
       </div>
 
       <div
-        className="article-body prose prose-lg max-w-none py-6 dark:prose-invert"
+        className="article-body max-w-none py-4"
         dangerouslySetInnerHTML={{ __html: sanitizedBody }}
       />
+
 
       {/* Calabashe Ad - always shown if enabled */}
       <div className="my-8">

@@ -1,93 +1,60 @@
+## GhanaCrimes editorial redesign
 
-# GhanaCrimes Broadcast-News Redesign
+Apply the provided design spec across the site without touching CMS data, routes, article URLs, or SEO metadata. Brand always written exactly as `GhanaCrimes`.
 
-Transform the site into a Sky-News-style broadcast layout using the supplied spec, keeping all existing branding, data, routing, SEO, and functionality intact.
+### 1. Design tokens and fonts (`src/index.css`, `tailwind.config.ts`)
+- Load fonts from Google Fonts: Cormorant Garamond (masthead), Libre Baskerville (headlines + body serif), Inter (nav/meta).
+- Update HSL tokens to the spec palette:
+  - background `#fffdf8`, panel `#ffffff`, primary/masthead red `#b20d18`, deep red `#9f151f`, body `#161616`, muted `#6f6a64`, hairline `#e5ded6`, pale rule `#d8cfc4`, blue `#174b73`, subscribe yellow `#ffd800`, dark video `#1f1f1f`.
+- Border radius set to 0 globally for editorial blocks.
+- Utility classes: `.masthead-word` (Cormorant, red, tight tracking), `.headline-serif`, `.author-italic-red`, `.meta-sans`, `.nav-slash` separator, `.red-double-rule`, `.hairline`, `.hatched-rule`, `.section-title-serif`, `.pale-rank-number`.
 
-## Scope
+### 2. Header (`src/components/Header.tsx`)
+- Row 1: `GhanaCrimes` masthead left in Cormorant red (44-56px), hamburger icon beside it, then nav links (`Crime / Court / Police / Politics / Economy / World / Culture / Life / Magazine`) with diagonal slash separators. Right side: search icon, `SIGN IN` white pill with black border, `SUBSCRIBE` yellow pill.
+- Row 2: Blue full-width strip (`#174b73`) for editorial/membership message.
+- Row 3: White "Data hub" style strip with centred short message and small red chevron marks on both sides.
+- Thin beige hairline below.
+- Mobile: masthead left, hamburger right, nav collapses into sheet.
 
-**In scope (visual/presentation only):**
-- Global design tokens (colors, typography, radii, shadows)
-- Header (black bar, nav links, mobile menu)
-- Breaking bar (orange strip under header)
-- Homepage: TOP STORIES asymmetric lead, GHANA CRIME STORIES 4-col grid, MORE GHANA STORIES grid, MOST READ numbered two-column list
-- Category page grid
-- Article page typography/layout polish
-- Search results styling
-- Footer (4-column, white, thin top border)
-- Reusable `ArticleCard` variants (lead / grid / numbered)
-- Badge components (BREAKING yellow, LIVE red-dot, EXCLUSIVE black, video duration)
+### 3. Homepage (`src/pages/Index.tsx` and components)
+Three-column hero (27% / 46% / 27%):
+- Left column: stacked secondary stories with italic red author, serif headline, image, beige hairlines between.
+- Centre column: large cover-style lead story, 4:5 image, italic red author, big serif headline.
+- Right column: "Latest from GhanaCrimes" panel with red double rule top, small red serif title with a red circular arrow, list of items (italic red author + serif headline + beige divider).
 
-**Out of scope (untouched):**
-- Supabase schema, edge functions, RSS pipeline, auto-tweet kill switch
-- Routing, article slugs, SEO meta generation, JSON-LD
-- Admin dashboard, newsroom, fraud watch admin
-- Auth, RLS, bookmarks, comments, analytics logic
-- AdBanner placement logic, WhatsApp CTA, Newsletter component internals (only restyled to fit)
+Then in order down the page:
+- `Most popular` + `Writers` two-column section separated by vertical hairline, with a long diagonal hatch rule on top. Popular items: pale grey serif number left, italic red author, black serif headline, small 120x74 thumbnail right. Writers items: italic red author, serif headline, circular initials mark (portrait fallback).
+- `GhanaCrimes TV`: one large dark video block left, two smaller stacked right, red play dot.
+- `Magazine`: white panel with cover placeholder left, main headline centre, supporting links right.
+- `Columns`: two-column opinion section, serif headlines, short excerpts.
+- `Podcasts`: dark editorial block.
+- `Cartoon`: three-column quote/cartoon section.
 
-## Design Tokens (index.css + tailwind.config.ts)
+All existing article data (top stories, most read, category grids) is remapped into these new components — no backend changes.
 
-```
---background: 0 0% 100%          /* #ffffff */
---foreground: 0 0% 12%           /* #1f1f1f */
---muted: 0 0% 96%                /* #f5f5f5 */
---muted-foreground: 0 0% 42%     /* #6b6b6b */
---border: 0 0% 85%               /* #d9d9d9 */
---primary: 21 89% 54%            /* #f36b21 GhanaCrimes orange */
---primary-foreground: 0 0% 100%
---secondary: 0 0% 0%             /* #000000 nav bar */
---accent-yellow: 51 100% 50%     /* #ffd800 breaking badge */
---accent-red: 0 100% 45%         /* #e60000 live */
---radius: 2px
-```
+### 4. Article page (`src/pages/Article.tsx`)
+- Cream background, headline in Libre Baskerville 46-64px desktop, italic red author, serif standfirst, body serif 18-20px with 700-760px reading column.
+- Right sidebar on desktop: "Most popular" list reusing homepage component.
+- No rounded corners on images.
 
-Fonts: keep Inter for body; add **Oswald** (condensed 900) for section headings and MOST READ numbers via Google Fonts. Retire Lora on marketing surfaces (keep only inside `.article-body` for reading comfort — confirm below).
+### 5. Footer (`src/components/Layout.tsx`)
+- Beige background `#f5f1ea`, top border `#d8cfc4`.
+- Five small columns: `GhanaCrimes`, `About us`, `Sections`, `Newsletters`, `Contact`. Small grey sans-serif links.
 
-## Files to change
+### 6. Reusable components
+- `ArticleCard`: variants for `stacked-secondary`, `cover-lead`, `list-item`, `grid-standard`. Each uses serif headline, italic red author, sharp rectangular image, beige hairline. Brand casing preserved.
+- `SectionHeading`: centred serif variant with optional red circular arrow, plus red-double-rule variant.
+- New `MostPopularAndWriters`, `GhanaCrimesTV`, `MagazinePanel`, `ColumnsSection`, `PodcastsPanel`, `CartoonSection`.
 
-```
-src/index.css                          tokens, font imports, .section-heading, .story-title utilities
-tailwind.config.ts                     font families (display: Oswald), extend colors
-src/components/Header.tsx              black bar, inline nav links, mobile menu
-src/components/NavigationDrawer.tsx    restyle to match
-src/components/BreakingNewsTicker.tsx  orange strip, "BREAKING" label chip
-src/components/HeroArticle.tsx         asymmetric lead card (16:9, 32px headline)
-src/components/ArticleCard.tsx         add `variant`: "grid" | "lead" | "secondary" | "numbered"
-src/components/MostReadArticles.tsx    numbered two-column list, huge orange numerals
-src/components/Layout.tsx              new 4-column footer
-src/pages/Index.tsx                    new section structure: TOP STORIES / GHANA CRIME STORIES / MORE GHANA STORIES / MOST READ
-src/pages/CategoryPage.tsx             4-col grid + section heading
-src/pages/ArticlePage.tsx              typography polish (line-length, byline, meta)
-src/pages/FraudWatch* + Search overlay minor restyle to match tokens
-```
+### 7. Guardrails
+- Preserve all routes, slugs, SEO/meta, CMS data, view tracking, admin, auth-tweet kill-switch (paused).
+- Never write `GHANACRIMES`, `Ghana Crimes`, `Ghanacrimes`, or `ghana crimes`.
+- No em/en dashes in any new copy or placeholders.
+- No shadows except the faint magazine-cover shadow on the magazine cover image.
+- No rounded corners on story blocks.
 
-New small components:
-```
-src/components/broadcast/SectionHeading.tsx   uppercase Oswald 42/30
-src/components/broadcast/Badge.tsx            breaking/live/exclusive/duration variants
-src/components/broadcast/StoryGrid.tsx        4/2/1 responsive grid wrapper
-```
-
-## Component behavior
-
-- `ArticleCard variant="grid"`: 16:9 image on top, headline 18–21px, meta below, thin `border-b` divider, 28px gap via parent grid.
-- `variant="lead"`: 16:9 image, 32px headline, meta, optional video badge slot.
-- `MostReadArticles`: fetch top 10 by view count (existing query), render `<ol>` split into two columns on `lg:`, each row `py-6 border-b`, numeral in Oswald 44px `text-primary`.
-- Header: dark mode toggle + notification bell + search stay, all restyled white-on-black; admin link kept for staff.
-- Dark mode: keep working, but recolor to a neutral dark (not warm brown) to match broadcast aesthetic.
-
-## Data / functionality preserved
-
-- All Supabase queries unchanged.
-- Article URLs `/{category_slug}/{article_slug}` unchanged.
-- SEO tags, sitemap, RSS untouched.
-- AdBanner and WhatsAppChannelCTA still render in the same slots (restyled containers only).
-- Newsletter signup kept in sidebar/mobile block.
-
-## Questions before I build
-
-1. **Fonts**: OK to add **Oswald** (Google Fonts) for section headings + numerals, keep Inter for body, and retain Lora only inside article body copy? Or drop Lora entirely?
-2. **Sidebar**: Spec shows a full-width single-column homepage (no right sidebar). Should I remove the desktop sidebar (Most Read, Crime Dashboard, Newsletter, Ad, WhatsApp CTA move into full-width sections between grids), or keep the current 8/4 sidebar layout?
-3. **Fraud Watch banner**: Keep the red banner on the homepage above TOP STORIES, or move it lower / restyle it into a compact orange strip to fit the broadcast aesthetic?
-4. **Dark mode**: Keep the dark-mode toggle, or drop it (broadcast-news sites are typically light-only)?
-
-Once you answer these four I'll implement in a single pass.
+### Technical notes
+- Fonts loaded via `<link>` in `index.html` for performance rather than `@import` in CSS.
+- All colors go through HSL semantic tokens in `index.css` + `tailwind.config.ts`; no hardcoded hex in components.
+- Reuse existing Supabase queries in components; only presentation changes.
+- Fallback content for empty video / magazine / columns / podcasts / cartoon sections uses neutral GhanaCrimes-branded placeholders (no random stock faces).

@@ -14,14 +14,16 @@ export default {
     },
     extend: {
       fontFamily: {
-        serif: ['Playfair Display', 'Libre Baskerville', 'Georgia', 'Times New Roman', 'serif'],
+        serif: ['Libre Baskerville', 'Georgia', 'Times New Roman', 'serif'],
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Arial', 'sans-serif'],
-        display: ['Playfair Display', 'Georgia', 'serif'],
+        display: ['Cormorant Garamond', 'Playfair Display', 'Georgia', 'serif'],
+        headline: ['Libre Baskerville', 'Georgia', 'serif'],
         body: ['Lora', 'Georgia', 'serif'],
       },
       maxWidth: {
-        editorial: '1180px',
-        prose: '760px',
+        editorial: '1260px',
+        outer: '1440px',
+        prose: '740px',
       },
       colors: {
         border: "hsl(var(--border))",

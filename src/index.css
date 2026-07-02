@@ -1,18 +1,19 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800;900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* GhanaCrimes editorial magazine design system. HSL tokens. */
+/* GhanaCrimes editorial magazine design system. Spectator-inspired. HSL tokens only. */
 
 @layer base {
   :root {
     --background: 44 60% 98%;             /* #fffdf8 cream */
-    --foreground: 0 0% 9%;                /* #171717 */
+    --foreground: 0 0% 9%;                /* #161616 */
 
     --card: 0 0% 100%;                    /* #ffffff paper */
     --card-foreground: 0 0% 9%;
@@ -20,30 +21,34 @@
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 9%;
 
-    --primary: 355 86% 37%;               /* #b20d18 editorial red */
+    --primary: 355 86% 37%;               /* #b20d18 masthead red */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 0%;                 /* black */
+    --primary-deep: 355 76% 35%;          /* #9f151f deep red */
+
+    --secondary: 0 0% 0%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 40 25% 95%;                  /* soft warm grey */
-    --muted-foreground: 0 0% 40%;         /* #666 */
+    --muted: 40 25% 95%;
+    --muted-foreground: 32 6% 42%;        /* #6f6a64 */
 
-    --accent: 19 89% 54%;                 /* #f36b21 orange accent */
+    --accent: 355 86% 37%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 355 86% 37%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 33 22% 80%;                 /* #d8cfc4 beige divider */
-    --input: 33 22% 80%;
+    --border: 33 26% 87%;                 /* #e5ded6 hairline */
+    --input: 33 26% 87%;
     --ring: 355 86% 37%;
 
-    --breaking-yellow: 51 100% 50%;       /* #ffd800 */
-    --live-red: 355 86% 37%;
-    --dark-panel: 0 0% 11%;               /* #1d1d1d */
+    --pale-rule: 33 22% 80%;              /* #d8cfc4 */
+    --info-blue: 206 63% 27%;             /* #174b73 */
+    --subscribe-yellow: 51 100% 50%;      /* #ffd800 */
+    --dark-panel: 0 0% 12%;               /* #1f1f1f */
+    --footer-cream: 39 33% 94%;           /* #f5f1ea */
 
-    --radius: 0.125rem;                   /* 2px */
+    --radius: 0rem;
 
     --sidebar-background: 44 60% 98%;
     --sidebar-foreground: 0 0% 9%;
@@ -51,39 +56,32 @@
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 40 25% 95%;
     --sidebar-accent-foreground: 0 0% 9%;
-    --sidebar-border: 33 22% 80%;
+    --sidebar-border: 33 26% 87%;
     --sidebar-ring: 355 86% 37%;
   }
 
   .dark {
     --background: 0 0% 8%;
     --foreground: 40 30% 94%;
-
     --card: 0 0% 11%;
     --card-foreground: 40 30% 94%;
-
     --popover: 0 0% 11%;
     --popover-foreground: 40 30% 94%;
-
     --primary: 355 86% 55%;
     --primary-foreground: 0 0% 100%;
-
     --secondary: 0 0% 0%;
     --secondary-foreground: 0 0% 100%;
-
     --muted: 0 0% 15%;
     --muted-foreground: 40 15% 70%;
-
-    --accent: 19 89% 56%;
+    --accent: 355 86% 55%;
     --accent-foreground: 0 0% 100%;
-
     --destructive: 355 86% 55%;
     --destructive-foreground: 0 0% 100%;
-
     --border: 0 0% 22%;
     --input: 0 0% 22%;
     --ring: 355 86% 55%;
-
+    --pale-rule: 0 0% 25%;
+    --footer-cream: 0 0% 10%;
     --sidebar-background: 0 0% 8%;
     --sidebar-foreground: 40 30% 94%;
     --sidebar-primary: 355 86% 55%;
@@ -96,63 +94,75 @@
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
+  * { @apply border-border; }
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, Arial, Helvetica, sans-serif;
+    font-family: 'Lora', Georgia, 'Times New Roman', serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Playfair Display', 'Libre Baskerville', Georgia, 'Times New Roman', serif;
+    font-family: 'Libre Baskerville', Georgia, 'Times New Roman', serif;
     font-weight: 700;
     letter-spacing: -0.005em;
     color: hsl(var(--foreground));
   }
 
-  a {
-    @apply transition-colors duration-150;
-  }
+  a { @apply transition-colors duration-150; }
 }
 
 @layer components {
-  /* Masthead — centred serif brand */
+  /* Masthead — elegant high-contrast serif */
   .masthead-word {
-    font-family: 'Playfair Display', Georgia, serif;
-    font-weight: 800;
+    font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+    font-weight: 600;
     color: hsl(var(--primary));
-    letter-spacing: -0.015em;
-    line-height: 1;
+    letter-spacing: -0.03em;
+    line-height: 0.9;
   }
 
-  /* Section label — small red kicker with rule */
+  /* Small red serif label with optional arrow icon */
   .section-heading {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Libre Baskerville', Georgia, serif;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
     line-height: 1;
     color: hsl(var(--primary));
-    font-size: 13px;
+    font-size: 15px;
+    letter-spacing: 0.01em;
   }
 
-  .section-rule {
-    border-top: 1px solid hsl(var(--primary));
+  /* Centred serif section title, Spectator-style */
+  .section-title-serif {
+    font-family: 'Libre Baskerville', Georgia, serif;
+    font-weight: 400;
+    font-size: 28px;
+    line-height: 1;
+    color: hsl(var(--foreground));
+    letter-spacing: -0.005em;
   }
 
+  /* Story headline */
   .story-title {
-    font-family: 'Playfair Display', 'Libre Baskerville', Georgia, serif;
+    font-family: 'Libre Baskerville', Georgia, serif;
     font-weight: 700;
     line-height: 1.15;
     color: hsl(var(--foreground));
     letter-spacing: -0.005em;
   }
 
-  .meta-text {
+  /* Italic red author/category kicker */
+  .author-italic-red {
+    font-family: 'Libre Baskerville', 'Playfair Display', Georgia, serif;
+    font-style: italic;
+    font-weight: 400;
+    color: hsl(var(--primary));
+    font-size: 15px;
+    line-height: 1.2;
+  }
+
+  .meta-sans {
     font-family: 'Inter', sans-serif;
     font-size: 12px;
     color: hsl(var(--muted-foreground));
@@ -160,92 +170,130 @@
     letter-spacing: 0.02em;
   }
 
+  .meta-text { @apply meta-sans; }
   .meta-text .cat {
     color: hsl(var(--primary));
     text-transform: uppercase;
     letter-spacing: 0.08em;
     font-weight: 700;
+    font-size: 11px;
   }
 
-  .most-read-number {
-    font-family: 'Playfair Display', Georgia, serif;
+  .pale-rank-number {
+    font-family: 'Libre Baskerville', 'Playfair Display', Georgia, serif;
     font-weight: 400;
-    color: hsl(var(--muted-foreground));
-    font-size: 30px;
+    color: hsl(0 0% 78%);
+    font-size: 36px;
     line-height: 1;
-    letter-spacing: -0.5px;
+    letter-spacing: -0.02em;
+  }
+  .most-read-number { @apply pale-rank-number; }
+
+  /* Nav diagonal slash separator */
+  .nav-slash + .nav-slash::before {
+    content: "/";
+    display: inline-block;
+    color: hsl(var(--foreground) / 0.35);
+    margin: 0 0.75rem 0 0.5rem;
+    transform: skewX(-16deg);
+    font-weight: 300;
   }
 
-  /* Centred serif section title, Spectator-style */
-  .section-title-serif {
-    font-family: 'Playfair Display', Georgia, serif;
-    font-weight: 500;
-    font-size: 28px;
-    line-height: 1;
-    color: hsl(var(--foreground));
-    letter-spacing: -0.01em;
-  }
-
-  /* Decorative hatched rule */
+  /* Decorative long hatched rule above sections */
   .hatched-rule {
-    height: 18px;
+    height: 14px;
     background-image: repeating-linear-gradient(
       -60deg,
-      hsl(var(--foreground) / 0.55) 0,
-      hsl(var(--foreground) / 0.55) 1px,
+      hsl(var(--foreground) / 0.6) 0,
+      hsl(var(--foreground) / 0.6) 1px,
       transparent 1px,
       transparent 7px
     );
   }
 
-  /* Red italic byline kicker used above list items */
-  .kicker-italic {
-    font-family: 'Playfair Display', Georgia, serif;
-    font-style: italic;
-    color: hsl(var(--primary));
-    font-size: 14px;
-    line-height: 1.2;
+  /* Red double rule */
+  .red-double-rule {
+    border-top: 3px double hsl(var(--primary));
   }
 
-  .thin-divider {
-    border-top: 1px solid hsl(var(--border));
+  .hairline { border-top: 1px solid hsl(var(--border)); }
+  .thin-divider { border-top: 1px solid hsl(var(--border)); }
+  .pale-divider { border-top: 1px solid hsl(var(--pale-rule)); }
+
+  /* Kept for legacy usage in older components */
+  .kicker-italic { @apply author-italic-red; }
+  .section-rule { border-top: 1px solid hsl(var(--primary)); }
+
+  /* Pill buttons in header */
+  .pill-outline-black {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.4rem 1rem;
+    border: 1px solid hsl(var(--foreground));
+    border-radius: 9999px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: hsl(var(--foreground));
+    background: hsl(var(--card));
+    transition: background 0.15s ease;
   }
+  .pill-outline-black:hover { background: hsl(var(--muted)); }
+
+  .pill-yellow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.4rem 1rem;
+    border-radius: 9999px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: hsl(var(--foreground));
+    background: hsl(var(--subscribe-yellow));
+    transition: filter 0.15s ease;
+  }
+  .pill-yellow:hover { filter: brightness(0.95); }
 }
 
 @layer utilities {
-  .section-divider {
-    border-top: 1px solid hsl(var(--primary));
-  }
+  .bg-info-blue { background-color: hsl(var(--info-blue)); }
+  .bg-dark-panel { background-color: hsl(var(--dark-panel)); }
+  .bg-footer-cream { background-color: hsl(var(--footer-cream)); }
+  .text-muted-fg { color: hsl(var(--muted-foreground)); }
+  .border-pale-rule { border-color: hsl(var(--pale-rule)); }
 
-  /* Article body typography — classic magazine reading */
+  .section-divider { border-top: 1px solid hsl(var(--primary)); }
+
+  /* Article body typography */
   .article-body {
     font-family: 'Lora', Georgia, 'Times New Roman', serif;
+    font-size: 19px;
+    line-height: 1.65;
   }
-
-  .article-body mark {
-    background: linear-gradient(180deg, transparent 60%, hsl(var(--primary) / 0.2) 60%);
-    padding: 0 2px;
-    color: inherit;
-  }
-
-  .article-body p {
-    margin-bottom: 1.25em;
-    line-height: 1.7;
-  }
+  .article-body p { margin-bottom: 1.15em; }
   .article-body p:last-child { margin-bottom: 0; }
-
   .article-body h2,
   .article-body h3,
   .article-body h4 {
-    font-family: 'Playfair Display', Georgia, serif;
-    margin-top: 1.5em;
-    margin-bottom: 0.75em;
+    font-family: 'Libre Baskerville', Georgia, serif;
+    margin-top: 1.6em;
+    margin-bottom: 0.6em;
   }
-
   .article-body ul,
   .article-body ol {
     margin-bottom: 1.25em;
     padding-left: 1.5em;
   }
   .article-body li { margin-bottom: 0.5em; }
+  .article-body mark {
+    background: linear-gradient(180deg, transparent 60%, hsl(var(--primary) / 0.2) 60%);
+    padding: 0 2px;
+    color: inherit;
+  }
 }
