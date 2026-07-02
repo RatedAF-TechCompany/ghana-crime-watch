@@ -169,11 +169,42 @@
 
   .most-read-number {
     font-family: 'Playfair Display', Georgia, serif;
-    font-weight: 700;
+    font-weight: 400;
+    color: hsl(var(--muted-foreground));
+    font-size: 30px;
+    line-height: 1;
+    letter-spacing: -0.5px;
+  }
+
+  /* Centred serif section title, Spectator-style */
+  .section-title-serif {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 500;
+    font-size: 28px;
+    line-height: 1;
+    color: hsl(var(--foreground));
+    letter-spacing: -0.01em;
+  }
+
+  /* Decorative hatched rule */
+  .hatched-rule {
+    height: 18px;
+    background-image: repeating-linear-gradient(
+      -60deg,
+      hsl(var(--foreground) / 0.55) 0,
+      hsl(var(--foreground) / 0.55) 1px,
+      transparent 1px,
+      transparent 7px
+    );
+  }
+
+  /* Red italic byline kicker used above list items */
+  .kicker-italic {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-style: italic;
     color: hsl(var(--primary));
-    font-size: 34px;
-    line-height: 0.9;
-    letter-spacing: -1px;
+    font-size: 14px;
+    line-height: 1.2;
   }
 
   .thin-divider {
