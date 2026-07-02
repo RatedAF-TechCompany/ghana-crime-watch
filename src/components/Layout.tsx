@@ -33,9 +33,10 @@ const FOOTER_COLUMNS: { title: string; links: { label: string; to: string }[] }[
     links: CATEGORIES.slice(0, 6).map((c) => ({ label: c.label, to: `/${c.slug}` })),
   },
   {
-    title: "More",
+    title: "More Sites",
     links: CATEGORIES.slice(6, 12).map((c) => ({ label: c.label, to: `/${c.slug}` })),
   },
+
 ];
 
 export function Layout({ children }: LayoutProps) {

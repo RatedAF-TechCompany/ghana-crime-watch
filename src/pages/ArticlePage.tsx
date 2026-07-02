@@ -188,9 +188,10 @@ export default function ArticlePage() {
         </div>
       </div>
 
-      <h1 className="mb-4 text-3xl font-bold leading-tight md:text-4xl">
+      <h1 className="mb-4 max-w-[780px] text-[30px] font-bold leading-[1.1] tracking-tight text-foreground md:text-[46px]">
         {article.title}
       </h1>
+
 
       {article.subtitle && (
         <h2 className="mb-4 text-xl font-semibold text-muted-foreground">
@@ -240,9 +241,10 @@ export default function ArticlePage() {
 
       {relatedArticles && relatedArticles.length > 0 && (
         <section className="mt-10 border-t border-border pt-8">
-          <h3 className="mb-6 font-serif text-xl font-bold text-foreground">
+          <h3 className="mb-6 text-xl font-bold text-foreground">
             Read More in {categoryLabel}
           </h3>
+
           <div className="space-y-4">
             {relatedArticles.map((related) => (
               <Link
@@ -251,9 +253,10 @@ export default function ArticlePage() {
                 className="group flex items-start gap-4 border-b border-border py-3 last:border-b-0"
               >
                 <div className="min-w-0 flex-1">
-                  <h4 className="font-serif text-base font-bold leading-snug text-foreground transition-colors group-hover:text-primary">
+                  <h4 className="story-title text-base leading-snug group-hover:text-primary">
                     {related.title}
                   </h4>
+
                   <p className="mt-1 text-xs text-muted-foreground">
                     {getRelativeTime(related.published_at!)}
                   </p>
