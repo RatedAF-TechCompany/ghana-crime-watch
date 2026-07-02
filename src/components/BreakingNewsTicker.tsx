@@ -18,7 +18,6 @@ export function BreakingNewsTicker() {
   const { data: breakingNews } = useQuery({
     queryKey: ["breaking-news"],
     queryFn: async () => {
-      // Get articles from the last 24 hours marked as top-stories
       const oneDayAgo = new Date();
       oneDayAgo.setHours(oneDayAgo.getHours() - 24);
 
@@ -34,58 +33,42 @@ export function BreakingNewsTicker() {
       if (error) throw error;
       return data as BreakingArticle[];
     },
-    refetchInterval: 60000, // Refetch every minute
+    refetchInterval: 60000,
   });
 
-  // Auto-rotate through breaking news
   useEffect(() => {
     if (!breakingNews || breakingNews.length <= 1) return;
-
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % breakingNews.length);
-    }, 5000); // Rotate every 5 seconds
-
+    }, 5000);
     return () => clearInterval(interval);
   }, [breakingNews]);
 
-  if (!breakingNews || breakingNews.length === 0) {
-    return null;
-  }
+  if (!breakingNews || breakingNews.length === 0) return null;
 
   const currentArticle = breakingNews[currentIndex];
 
   return (
-    <div className="relative overflow-hidden bg-primary text-primary-foreground">
+    <div className="w-full bg-primary text-primary-foreground">
       <div className="container mx-auto max-w-7xl px-4">
         <div className="flex items-center gap-3 py-2">
-          {/* Breaking Badge */}
-          <div className="flex shrink-0 items-center gap-1.5 rounded bg-primary-foreground/20 px-2 py-0.5">
-            <AlertTriangle className="h-3.5 w-3.5 animate-pulse" />
-            <span className="text-xs font-bold uppercase tracking-wider">
+          <div className="flex shrink-0 items-center gap-1.5">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            <span className="text-[11px] font-extrabold uppercase tracking-widest">
               Breaking
             </span>
           </div>
-
-          {/* News Ticker */}
-          <div className="relative min-w-0 flex-1 overflow-hidden">
-            <div
-              className="transition-transform duration-500 ease-in-out"
-              style={{
-                transform: `translateY(0)`,
-              }}
+          <div className="h-4 w-px bg-primary-foreground/40" />
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <Link
+              to={`/${currentArticle.category_slug}/${currentArticle.article_slug}`}
+              className="block truncate text-sm font-semibold hover:underline"
             >
-              <Link
-                to={`/${currentArticle.category_slug}/${currentArticle.article_slug}`}
-                className="block truncate font-serif text-sm font-medium hover:underline"
-              >
-                {currentArticle.title}
-              </Link>
-            </div>
+              {currentArticle.title}
+            </Link>
           </div>
-
-          {/* Dots indicator */}
           {breakingNews.length > 1 && (
-            <div className="flex shrink-0 gap-1">
+            <div className="hidden shrink-0 gap-1 sm:flex">
               {breakingNews.map((_, index) => (
                 <button
                   key={index}
@@ -101,17 +84,6 @@ export function BreakingNewsTicker() {
             </div>
           )}
         </div>
-      </div>
-
-      {/* Animated line at bottom */}
-      <div className="absolute bottom-0 left-0 h-0.5 w-full overflow-hidden bg-primary-foreground/20">
-        <div
-          className="h-full bg-primary-foreground/60 transition-all duration-[5000ms] ease-linear"
-          style={{
-            width: "100%",
-            transform: `translateX(-${100 - ((currentIndex + 1) / breakingNews.length) * 100}%)`,
-          }}
-        />
       </div>
     </div>
   );

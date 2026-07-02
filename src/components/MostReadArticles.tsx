@@ -2,6 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SectionHeading } from "@/components/broadcast/SectionHeading";
+import { getCategoryLabel } from "@/lib/categories";
+import { getRelativeTime } from "@/lib/time";
 
 interface Article {
   id: string;
@@ -9,101 +12,99 @@ interface Article {
   category_slug: string;
   article_slug: string;
   view_count: number;
+  published_at: string;
 }
 
 export function MostReadArticles() {
   const { data: articles, isLoading } = useQuery({
-    queryKey: ["most-read-articles"],
+    queryKey: ["most-read-articles-10"],
     queryFn: async () => {
       const now = new Date();
-
-      // Try last 24 hours first
       const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
-      const { data: day, error: e1 } = await supabase
+
+      const { data: day } = await supabase
         .from("articles")
-        .select("id, title, category_slug, article_slug, view_count")
+        .select("id, title, category_slug, article_slug, view_count, published_at")
         .eq("is_published", true)
         .gte("published_at", last24h)
         .order("view_count", { ascending: false })
-        .limit(5);
-      if (e1) throw e1;
-      if (day && day.length >= 3 && day.some(a => (a.view_count || 0) > 0)) {
+        .limit(10);
+
+      if (day && day.length >= 6 && day.some(a => (a.view_count || 0) > 0)) {
         return day as Article[];
       }
 
-      // Fall back to last 72 hours
       const last72h = new Date(now.getTime() - 72 * 60 * 60 * 1000).toISOString();
-      const { data: week, error: e2 } = await supabase
+      const { data: week } = await supabase
         .from("articles")
-        .select("id, title, category_slug, article_slug, view_count")
+        .select("id, title, category_slug, article_slug, view_count, published_at")
         .eq("is_published", true)
         .gte("published_at", last72h)
         .order("view_count", { ascending: false })
-        .limit(5);
-      if (e2) throw e2;
-      if (week && week.length >= 3 && week.some(a => (a.view_count || 0) > 0)) {
+        .limit(10);
+      if (week && week.length >= 6 && week.some(a => (a.view_count || 0) > 0)) {
         return week as Article[];
       }
 
-      // Final fallback: most recent articles
-      const { data: recent, error: e3 } = await supabase
+      const { data: recent } = await supabase
         .from("articles")
-        .select("id, title, category_slug, article_slug, view_count")
+        .select("id, title, category_slug, article_slug, view_count, published_at")
         .eq("is_published", true)
         .order("published_at", { ascending: false })
-        .limit(5);
-      if (e3) throw e3;
+        .limit(10);
       return (recent || []) as Article[];
     },
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-border/50 bg-card p-4 sm:p-5">
-        <div className="mb-4 border-b-2 border-primary pb-2">
-          <h2 className="font-serif text-lg font-semibold text-foreground sm:text-xl">
-            Most Read Today
-          </h2>
-        </div>
-        <div className="space-y-4">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="flex items-start gap-3">
-              <Skeleton className="h-7 w-7 shrink-0" />
-              <Skeleton className="h-5 w-full" />
+      <section>
+        <SectionHeading title="Most Read" />
+        <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
+          {[...Array(10)].map((_, i) => (
+            <div key={i} className="flex items-start gap-4 border-b border-border py-6">
+              <Skeleton className="h-10 w-10" />
+              <Skeleton className="h-6 w-full" />
             </div>
           ))}
         </div>
-      </div>
+      </section>
     );
   }
 
-  if (!articles || articles.length === 0) {
-    return null;
-  }
+  if (!articles || articles.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-border/50 bg-card p-4 transition-colors hover:border-primary/50 sm:p-5">
-      <div className="mb-4 border-b-2 border-primary pb-2">
-        <h2 className="font-serif text-lg font-semibold text-foreground sm:text-xl">
-          Most Read Today
-        </h2>
-      </div>
-      <ol className="space-y-4">
+    <section>
+      <SectionHeading title="Most Read" />
+      <ol className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
         {articles.map((article, index) => (
-          <li key={article.id} className="flex items-start gap-3 border-b border-border pb-3 last:border-0 last:pb-0">
-            <span className="font-serif text-lg font-bold text-primary shrink-0 w-7 text-center leading-tight">
+          <li
+            key={article.id}
+            className="flex items-start gap-5 border-b border-border py-6"
+          >
+            <span className="most-read-number shrink-0 w-10 text-left">
               {index + 1}
             </span>
-            <Link
-              to={`/${article.category_slug}/${article.article_slug}`}
-              className="font-serif text-sm font-medium leading-snug text-foreground transition-colors hover:text-primary hover:underline sm:text-base"
-            >
-              {article.title}
-            </Link>
+            <div className="min-w-0 flex-1">
+              <Link
+                to={`/${article.category_slug}/${article.article_slug}`}
+                className="story-title block text-[19px] leading-[1.25] hover:text-primary hover:underline"
+              >
+                {article.title}
+              </Link>
+              <div className="mt-1.5 meta-text">
+                <span>{getRelativeTime(article.published_at)}</span>
+                <span className="mx-1.5">|</span>
+                <span className="uppercase tracking-wide font-semibold text-primary">
+                  {getCategoryLabel(article.category_slug)}
+                </span>
+              </div>
+            </div>
           </li>
         ))}
       </ol>
-    </div>
+    </section>
   );
 }

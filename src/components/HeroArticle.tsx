@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { getCategoryLabel } from "@/lib/categories";
-import { getRelativeTime, getReadingTime } from "@/lib/time";
+import { getRelativeTime } from "@/lib/time";
 
 interface HeroArticleProps {
   article: {
@@ -18,40 +18,41 @@ interface HeroArticleProps {
 export function HeroArticle({ article }: HeroArticleProps) {
   const categoryLabel = getCategoryLabel(article.category_slug);
   const relativeTime = getRelativeTime(article.published_at);
-  const readingTime = article.body ? getReadingTime(article.body) : null;
 
   return (
     <Link
       to={`/${article.category_slug}/${article.article_slug}`}
-      className="group block border-b-2 border-primary pb-6"
+      className="group block"
     >
       <article>
-        {article.hero_image && (
-          <div className="mb-4 aspect-[16/9] w-full overflow-hidden rounded-lg">
+        <div className="aspect-[16/9] w-full overflow-hidden bg-muted">
+          {article.hero_image ? (
             <img
               src={article.hero_image}
               alt={article.title}
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
             />
-          </div>
-        )}
-        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide">
-          <span className="text-primary">{categoryLabel}</span>
-          <span className="text-muted-foreground">•</span>
-          <span className="text-muted-foreground">{relativeTime}</span>
-          {readingTime && (
-            <>
-              <span className="text-muted-foreground">•</span>
-              <span className="text-muted-foreground">{readingTime}</span>
-            </>
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-black text-white">
+              <span className="font-display text-4xl tracking-wider">GHANACRIMES</span>
+            </div>
           )}
         </div>
-        <h1 className="mt-3 font-serif text-2xl font-bold leading-tight text-foreground transition-colors group-hover:text-primary sm:text-3xl lg:text-4xl">
-          {article.title}
-        </h1>
-        <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
-          {article.summary}
-        </p>
+        <div className="pt-4">
+          <h2 className="story-title text-2xl leading-[1.15] sm:text-[28px] lg:text-[32px] group-hover:text-primary">
+            {article.title}
+          </h2>
+          <div className="mt-3 meta-text">
+            <span>{relativeTime}</span>
+            <span className="mx-1.5">|</span>
+            <span className="uppercase tracking-wide font-semibold text-primary">{categoryLabel}</span>
+          </div>
+          {article.summary && (
+            <p className="mt-3 text-base leading-relaxed text-muted-foreground">
+              {article.summary}
+            </p>
+          )}
+        </div>
       </article>
     </Link>
   );
