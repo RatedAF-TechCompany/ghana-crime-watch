@@ -61,10 +61,7 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <Link to="/" className="flex items-center gap-2 shrink-0">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-primary font-display text-sm font-bold tracking-tight">
-              GC
-            </span>
+          <Link to="/" className="shrink-0">
             <span className="font-display text-xl font-bold tracking-tight normal-case">
               GhanaCrimes
             </span>
