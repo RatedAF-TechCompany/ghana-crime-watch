@@ -69,7 +69,7 @@ export function ArticleCard({ article, variant, showImage, className }: ArticleC
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-black text-white">
-              <span className="font-display text-3xl tracking-wider">GHANACRIMES</span>
+              <span className="font-display text-3xl tracking-tight">GhanaCrimes</span>
             </div>
           )}
         </div>
