@@ -12,20 +12,21 @@ interface LayoutProps {
 
 const FOOTER_COLUMNS: { title: string; links: { label: string; to: string }[] }[] = [
   {
-    title: "About GhanaCrimes",
+    title: "GhanaCrimes",
     links: [
-      { label: "About Us", to: "/about" },
-      { label: "Editorial Policy", to: "/about" },
-      { label: "Contact", to: "/about" },
+      { label: "Homepage", to: "/" },
+      { label: "Top Stories", to: "/top-stories" },
+      { label: "Fraud Watch", to: "/fraud-watch" },
+      { label: "RSS Feed", to: "/functions/v1/rss-feed" },
     ],
   },
   {
-    title: "GhanaCrimes Services",
+    title: "About us",
     links: [
-      { label: "Fraud Watch", to: "/fraud-watch" },
-      { label: "Report a Scam", to: "/fraud-watch/report" },
-      { label: "Newsletter", to: "/" },
-      { label: "RSS Feed", to: "/functions/v1/rss-feed" },
+      { label: "About GhanaCrimes", to: "/about" },
+      { label: "Editorial Policy", to: "/about" },
+      { label: "Corrections", to: "/about" },
+      { label: "Careers", to: "/about" },
     ],
   },
   {
@@ -33,10 +34,21 @@ const FOOTER_COLUMNS: { title: string; links: { label: string; to: string }[] }[
     links: CATEGORIES.slice(0, 6).map((c) => ({ label: c.label, to: `/${c.slug}` })),
   },
   {
-    title: "More Sites",
-    links: CATEGORIES.slice(6, 12).map((c) => ({ label: c.label, to: `/${c.slug}` })),
+    title: "Newsletters",
+    links: [
+      { label: "Daily briefing", to: "/" },
+      { label: "Weekly investigations", to: "/" },
+      { label: "Court diary", to: "/" },
+    ],
   },
-
+  {
+    title: "Contact",
+    links: [
+      { label: "Contact GhanaCrimes", to: "/about" },
+      { label: "Report a scam", to: "/fraud-watch/report" },
+      { label: "Send a tip", to: "/about" },
+    ],
+  },
 ];
 
 export function Layout({ children }: LayoutProps) {
@@ -44,7 +56,7 @@ export function Layout({ children }: LayoutProps) {
   const [searchOpen, setSearchOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="flex min-h-screen flex-col bg-background">
       <Header
         onMenuClick={() => setMenuOpen(true)}
         onSearchClick={() => setSearchOpen(true)}
@@ -52,26 +64,28 @@ export function Layout({ children }: LayoutProps) {
       <BreakingNewsTicker />
       <NavigationDrawer open={menuOpen} onClose={() => setMenuOpen(false)} />
       <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
-      <main className="mx-auto w-full max-w-editorial px-4 py-8 md:px-6 md:py-10 flex-1">
+      <main className="mx-auto w-full max-w-editorial flex-1 bg-card px-4 py-8 md:px-12 md:py-12">
         {children}
       </main>
-      <footer className="mt-12 border-t border-border bg-[hsl(40_25%_94%)]">
-        <div className="mx-auto max-w-editorial px-4 py-10 md:px-6">
-          <div className="mb-8 text-center">
-            <span className="masthead-word text-3xl md:text-4xl">GhanaCrimes</span>
+      <footer className="mt-12 border-t border-pale-rule bg-footer-cream">
+        <div className="mx-auto max-w-editorial px-4 py-12 md:px-12">
+          <div className="mb-10 text-center">
+            <Link to="/" className="inline-block">
+              <span className="masthead-word text-3xl md:text-4xl">GhanaCrimes</span>
+            </Link>
           </div>
-          <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-8 md:grid-cols-5">
             {FOOTER_COLUMNS.map((col) => (
               <div key={col.title}>
-                <h3 className="mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-primary">
+                <h3 className="mb-4 font-sans text-[11px] font-bold uppercase tracking-[0.16em] text-foreground">
                   {col.title}
                 </h3>
-                <ul className="space-y-2">
+                <ul className="space-y-2.5">
                   {col.links.map((link) => (
                     <li key={link.label}>
                       <Link
                         to={link.to}
-                        className="text-sm text-foreground/75 hover:text-primary"
+                        className="font-sans text-[13px] text-muted-fg hover:text-primary"
                       >
                         {link.label}
                       </Link>
@@ -81,10 +95,10 @@ export function Layout({ children }: LayoutProps) {
               </div>
             ))}
           </div>
-          <div className="mt-8 flex flex-col items-start justify-between gap-3 border-t border-border pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center">
+          <div className="mt-10 flex flex-col items-start justify-between gap-3 border-t border-pale-rule pt-6 font-sans text-xs text-muted-fg sm:flex-row sm:items-center">
             <span>© {new Date().getFullYear()} GhanaCrimes. All rights reserved.</span>
             <Link to="/about" className="hover:text-primary">
-              About Us & Editorial Policy
+              About GhanaCrimes and Editorial Policy
             </Link>
           </div>
         </div>

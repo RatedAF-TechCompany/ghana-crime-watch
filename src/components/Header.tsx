@@ -13,15 +13,15 @@ interface HeaderProps {
 }
 
 const PRIMARY_NAV: { label: string; to: string }[] = [
-  { label: "Home", to: "/" },
-  { label: "Top Stories", to: "/top-stories" },
   { label: "Crime", to: "/violent-crime" },
   { label: "Court", to: "/court-cases" },
   { label: "Police", to: "/police-reports" },
-  { label: "Fraud", to: "/fraud-scams" },
-  { label: "Cybercrime", to: "/cybercrime" },
-  { label: "Investigations", to: "/investigations" },
-  { label: "Most Wanted", to: "/most-wanted" },
+  { label: "Politics", to: "/politics" },
+  { label: "Economy", to: "/economy" },
+  { label: "World", to: "/world" },
+  { label: "Culture", to: "/culture" },
+  { label: "Life", to: "/lifestyle" },
+  { label: "Magazine", to: "/magazine" },
 ];
 
 export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
@@ -49,37 +49,48 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
 
   return (
     <header className="w-full bg-background">
-      {/* Top ad placeholder strip */}
-      <div className="border-b border-border bg-muted/40">
-        <div className="mx-auto flex h-[70px] max-w-editorial items-center justify-center px-4 text-[10px] uppercase tracking-[0.2em] text-muted-foreground md:h-[90px]">
-          Advertisement
-        </div>
-      </div>
-
-      {/* Masthead */}
+      {/* Main header row */}
       <div className="border-b border-border">
-        <div className="relative mx-auto flex max-w-editorial items-center justify-between px-4 py-5 md:py-7">
-          {/* Left: mobile menu */}
-          <div className="flex w-24 items-center">
+        <div className="mx-auto flex max-w-editorial items-center justify-between gap-6 px-4 py-5 md:px-8 md:py-7">
+          {/* Left cluster: masthead + hamburger */}
+          <div className="flex items-center gap-4">
+            <Link to="/" className="block">
+              <span className="masthead-word text-[32px] md:text-[48px]">GhanaCrimes</span>
+            </Link>
             <Button
               variant="ghost"
               size="icon"
               onClick={onMenuClick}
-              className="h-9 w-9 lg:hidden"
+              className="h-9 w-9"
               aria-label="Open menu"
             >
-              <Menu className="h-5 w-5" />
+              <Menu className="h-5 w-5" strokeWidth={1.5} />
             </Button>
           </div>
 
-          {/* Centred masthead */}
-          <Link to="/" className="absolute left-1/2 -translate-x-1/2 text-center">
-            <h1 className="masthead-word text-[34px] md:text-[54px]">GhanaCrimes</h1>
-          </Link>
+          {/* Centre nav (desktop) */}
+          <nav className="hidden flex-1 items-center justify-center lg:flex">
+            <ul className="flex items-center">
+              {PRIMARY_NAV.map((item) => (
+                <li key={item.to} className="nav-slash">
+                  <NavLink
+                    to={item.to}
+                    className={({ isActive }) =>
+                      cn(
+                        "whitespace-nowrap font-sans text-[13px] font-medium tracking-[0.02em] text-foreground/85 hover:text-primary",
+                        isActive && "text-primary",
+                      )
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </nav>
 
           {/* Right cluster */}
-          <div className="flex w-24 items-center justify-end gap-1">
-            <NotificationBell />
+          <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="icon"
@@ -87,8 +98,9 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
               className="h-9 w-9"
               aria-label="Search"
             >
-              <Search className="h-5 w-5" />
+              <Search className="h-5 w-5" strokeWidth={1.4} />
             </Button>
+            <NotificationBell />
             {mounted && (
               <Button
                 variant="ghost"
@@ -100,6 +112,12 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
                 {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
               </Button>
             )}
+            <Link to="/auth" className="pill-outline-black hidden sm:inline-flex">
+              Sign in
+            </Link>
+            <Link to="/fraud-watch" className="pill-yellow hidden sm:inline-flex">
+              Subscribe
+            </Link>
             {isAdmin && (
               <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
                 <Link to="/admin" className="text-[11px] font-bold uppercase tracking-widest">
@@ -111,32 +129,28 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
         </div>
       </div>
 
-      {/* Thin nav below masthead */}
-      <nav className="hidden border-b border-border bg-background lg:block">
-        <div className="mx-auto flex max-w-editorial items-center justify-center gap-6 px-4 py-3">
-          {PRIMARY_NAV.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === "/"}
-              className={({ isActive }) =>
-                cn(
-                  "whitespace-nowrap text-[13px] font-semibold uppercase tracking-[0.1em] text-foreground/85 hover:text-primary",
-                  isActive && "text-primary",
-                )
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
-          <Link
-            to="/fraud-watch"
-            className="ml-2 rounded-full bg-[hsl(51_100%_50%)] px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-black hover:opacity-90"
-          >
-            Subscribe
-          </Link>
+      {/* Blue announcement strip */}
+      <div className="bg-info-blue">
+        <div className="mx-auto flex max-w-editorial items-center justify-center px-4 py-4 md:py-[18px]">
+          <p className="font-sans text-[13px] font-medium tracking-[0.02em] text-white md:text-[14px]">
+            Support independent investigative journalism in Ghana.
+            <Link to="/fraud-watch" className="ml-2 underline decoration-white/40 underline-offset-4 hover:decoration-white">
+              Become a GhanaCrimes member
+            </Link>
+          </p>
         </div>
-      </nav>
+      </div>
+
+      {/* Data hub strip */}
+      <div className="border-b border-border bg-card">
+        <div className="mx-auto flex max-w-editorial items-center justify-center gap-4 px-4 py-3">
+          <span className="hidden text-primary sm:inline" aria-hidden="true">&gt;&gt;</span>
+          <p className="font-sans text-[12px] uppercase tracking-[0.18em] text-foreground/80">
+            The GhanaCrimes Data Hub. Track every case, every court, every conviction.
+          </p>
+          <span className="hidden text-primary sm:inline" aria-hidden="true">&lt;&lt;</span>
+        </div>
+      </div>
     </header>
   );
 }
