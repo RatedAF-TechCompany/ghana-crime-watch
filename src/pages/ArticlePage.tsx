@@ -248,11 +248,13 @@ export default function ArticlePage() {
                   </p>
                 </div>
                 <div className="h-16 w-24 flex-shrink-0 overflow-hidden">
-                  <img
-                    src={related.hero_image || FALLBACK_IMAGE_URL}
-                    alt={related.hero_image ? related.title : FALLBACK_IMAGE_ALT}
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                  />
+                  {related.hero_image && (
+                    <img
+                      src={related.hero_image}
+                      alt={related.title}
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                    />
+                  )}
                 </div>
               </Link>
             ))}
