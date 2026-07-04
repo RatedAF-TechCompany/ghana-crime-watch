@@ -55,12 +55,14 @@ export function ArticleCard({ article, variant, showImage, className }: ArticleC
             {article.title}
           </h3>
           <div className="mt-3 aspect-[4/3] w-full overflow-hidden bg-muted">
-            <img
-              src={article.hero_image || FALLBACK_IMAGE_URL}
-              alt={article.hero_image ? "" : FALLBACK_IMAGE_ALT}
-              loading="lazy"
-              className="h-full w-full object-cover"
-            />
+            {article.hero_image && (
+              <img
+                src={article.hero_image}
+                alt=""
+                loading="lazy"
+                className="h-full w-full object-cover"
+              />
+            )}
           </div>
         </Link>
       </article>
