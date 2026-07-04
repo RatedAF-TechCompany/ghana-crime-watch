@@ -129,17 +129,6 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
         </div>
       </div>
 
-      {/* Blue announcement strip */}
-      <div className="bg-info-blue">
-        <div className="mx-auto flex max-w-editorial items-center justify-center px-4 py-4 md:py-[18px]">
-          <p className="font-sans text-[13px] font-medium tracking-[0.02em] text-white md:text-[14px]">
-            Support independent investigative journalism in Ghana.
-            <Link to="/fraud-watch" className="ml-2 underline decoration-white/40 underline-offset-4 hover:decoration-white">
-              Become a GhanaCrimes member
-            </Link>
-          </p>
-        </div>
-      </div>
 
       {/* Data hub strip */}
       <div className="border-b border-border bg-card">
