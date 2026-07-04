@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { EditorialSectionHeading } from "./EditorialSectionHeading";
 import { getCategoryLabel } from "@/lib/categories";
+import { getArticleImage } from "@/lib/article-image";
 
 interface Article {
   id: string;
@@ -29,14 +30,14 @@ export function MagazinePanel({ articles }: { articles: Article[] }) {
             className="w-full overflow-hidden bg-muted"
             style={{ aspectRatio: "3 / 4", boxShadow: "0 6px 24px hsl(0 0% 0% / 0.08)" }}
           >
-            {cover.hero_image && (
+            {(() => { const img = getArticleImage(cover); return img && (
               <img
-                src={cover.hero_image}
+                src={img}
                 alt=""
                 loading="lazy"
                 className="h-full w-full object-cover"
               />
-            )}
+            ); })()}
           </div>
         </Link>
 

@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { getCategoryLabel } from "@/lib/categories";
 import { getRelativeTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
+import { getArticleImage } from "@/lib/article-image";
 
 type Variant = "grid" | "lead" | "secondary" | "compact" | "stacked" | "list-item";
 
@@ -26,6 +27,8 @@ export function ArticleCard({ article, variant, showImage, className }: ArticleC
   const relativeTime = getRelativeTime(article.published_at);
   const v: Variant = variant ?? (showImage ? "grid" : "compact");
   const href = `/${article.category_slug}/${article.article_slug}`;
+  const imageUrl = getArticleImage(article);
+
 
   // Bylines: italic red kicker (category label acting as author byline)
   const kicker = <p className="author-italic-red mb-1.5">{categoryLabel}</p>;
@@ -55,9 +58,9 @@ export function ArticleCard({ article, variant, showImage, className }: ArticleC
             {article.title}
           </h3>
           <div className="mt-3 aspect-[4/3] w-full overflow-hidden bg-muted">
-            {article.hero_image && (
+            {imageUrl && (
               <img
-                src={article.hero_image}
+                src={imageUrl}
                 alt=""
                 loading="lazy"
                 className="h-full w-full object-cover"
@@ -77,9 +80,9 @@ export function ArticleCard({ article, variant, showImage, className }: ArticleC
     <article className={cn("group flex flex-col", className)}>
       <Link to={href} className="flex flex-col">
         <div className="aspect-[4/3] w-full overflow-hidden bg-muted">
-          {article.hero_image && (
+          {imageUrl && (
             <img
-              src={article.hero_image}
+              src={imageUrl}
               alt={article.title}
               loading="lazy"
               className="h-full w-full object-cover"

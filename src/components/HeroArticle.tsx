@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { getCategoryLabel } from "@/lib/categories";
 import { getRelativeTime } from "@/lib/time";
+import { getArticleImage } from "@/lib/article-image";
 
 interface HeroArticleProps {
   article: {
@@ -33,13 +34,13 @@ export function HeroArticle({ article }: HeroArticleProps) {
         </h2>
 
         <div className="mt-4 aspect-[4/5] w-full overflow-hidden bg-muted">
-          {article.hero_image && (
+          {(() => { const img = getArticleImage(article); return img && (
             <img
-              src={article.hero_image}
+              src={img}
               alt={article.title}
               className="h-full w-full object-cover"
             />
-          )}
+          ); })()}
         </div>
 
         <div className="mt-4 meta-text">
