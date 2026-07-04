@@ -13,8 +13,6 @@ import { BookmarkButton } from "@/components/BookmarkButton";
 import { WhatsAppChannelCTA, useShouldShowWhatsAppCTA } from "@/components/WhatsAppChannelCTA";
 import { AdBanner } from "@/components/AdBanner";
 import DOMPurify from "dompurify";
-import { useEffect, useRef, useMemo } from "react";
-import { FALLBACK_IMAGE_URL, FALLBACK_IMAGE_ALT } from "@/lib/fallback-image";
 
 export default function ArticlePage() {
   const { categorySlug, articleSlug } = useParams<{
