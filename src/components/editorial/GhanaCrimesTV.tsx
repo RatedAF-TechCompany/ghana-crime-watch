@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import { Play } from "lucide-react";
 import { EditorialSectionHeading } from "./EditorialSectionHeading";
-import { FALLBACK_IMAGE_URL, FALLBACK_IMAGE_ALT } from "@/lib/fallback-image";
 
 interface Article {
   id: string;
