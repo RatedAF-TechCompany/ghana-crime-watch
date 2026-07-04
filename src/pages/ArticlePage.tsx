@@ -13,6 +13,7 @@ import { BookmarkButton } from "@/components/BookmarkButton";
 import { WhatsAppChannelCTA, useShouldShowWhatsAppCTA } from "@/components/WhatsAppChannelCTA";
 import { AdBanner } from "@/components/AdBanner";
 import DOMPurify from "dompurify";
+import { useEffect, useRef, useMemo } from "react";
 
 export default function ArticlePage() {
   const { categorySlug, articleSlug } = useParams<{
