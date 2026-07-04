@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getCategoryLabel } from "@/lib/categories";
+import { getArticleImage } from "@/lib/article-image";
 
 interface Article {
   id: string;
@@ -103,14 +104,14 @@ export function MostReadArticles() {
                   tabIndex={-1}
                 >
                   <div className="h-[74px] w-[120px] overflow-hidden bg-muted">
-                    {a.hero_image && (
+                    {(() => { const img = getArticleImage(a); return img && (
                       <img
-                        src={a.hero_image}
+                        src={img}
                         alt=""
                         loading="lazy"
                         className="h-full w-full object-cover"
                       />
-                    )}
+                    ); })()}
                   </div>
                 </Link>
               </li>
