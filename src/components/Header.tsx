@@ -115,9 +115,6 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
             <Link to="/auth" className="pill-outline-black hidden sm:inline-flex">
               Sign in
             </Link>
-            <Link to="/fraud-watch" className="pill-yellow hidden sm:inline-flex">
-              Subscribe
-            </Link>
             {isAdmin && (
               <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
                 <Link to="/admin" className="text-[11px] font-bold uppercase tracking-widest">

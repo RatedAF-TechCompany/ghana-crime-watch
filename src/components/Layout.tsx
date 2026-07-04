@@ -37,7 +37,7 @@ const FOOTER_COLUMNS: { title: string; links: { label: string; to: string }[] }[
     title: "Newsletters",
     links: [
       { label: "Daily briefing", to: "/" },
-      { label: "Weekly investigations", to: "/" },
+      { label: "Weekly roundup", to: "/" },
       { label: "Court diary", to: "/" },
     ],
   },
