@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import { getCategoryLabel } from "@/lib/categories";
 import { getRelativeTime } from "@/lib/time";
-import { FALLBACK_IMAGE_URL, FALLBACK_IMAGE_ALT } from "@/lib/fallback-image";
 
 interface HeroArticleProps {
   article: {
@@ -34,11 +33,13 @@ export function HeroArticle({ article }: HeroArticleProps) {
         </h2>
 
         <div className="mt-4 aspect-[4/5] w-full overflow-hidden bg-muted">
-          <img
-            src={article.hero_image || FALLBACK_IMAGE_URL}
-            alt={article.hero_image ? article.title : FALLBACK_IMAGE_ALT}
-            className="h-full w-full object-cover"
-          />
+          {article.hero_image && (
+            <img
+              src={article.hero_image}
+              alt={article.title}
+              className="h-full w-full object-cover"
+            />
+          )}
         </div>
 
         <div className="mt-4 meta-text">

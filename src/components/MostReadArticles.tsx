@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getCategoryLabel } from "@/lib/categories";
-import { FALLBACK_IMAGE_URL, FALLBACK_IMAGE_ALT } from "@/lib/fallback-image";
 
 interface Article {
   id: string;
@@ -104,12 +103,14 @@ export function MostReadArticles() {
                   tabIndex={-1}
                 >
                   <div className="h-[74px] w-[120px] overflow-hidden bg-muted">
-                    <img
-                      src={a.hero_image || FALLBACK_IMAGE_URL}
-                      alt={a.hero_image ? "" : FALLBACK_IMAGE_ALT}
-                      loading="lazy"
-                      className="h-full w-full object-cover"
-                    />
+                    {a.hero_image && (
+                      <img
+                        src={a.hero_image}
+                        alt=""
+                        loading="lazy"
+                        className="h-full w-full object-cover"
+                      />
+                    )}
                   </div>
                 </Link>
               </li>

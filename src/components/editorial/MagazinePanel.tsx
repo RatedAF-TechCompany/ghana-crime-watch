@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import { EditorialSectionHeading } from "./EditorialSectionHeading";
 import { getCategoryLabel } from "@/lib/categories";
-import { FALLBACK_IMAGE_URL, FALLBACK_IMAGE_ALT } from "@/lib/fallback-image";
 
 interface Article {
   id: string;
@@ -30,12 +29,14 @@ export function MagazinePanel({ articles }: { articles: Article[] }) {
             className="w-full overflow-hidden bg-muted"
             style={{ aspectRatio: "3 / 4", boxShadow: "0 6px 24px hsl(0 0% 0% / 0.08)" }}
           >
-            <img
-              src={cover.hero_image || FALLBACK_IMAGE_URL}
-              alt={cover.hero_image ? "" : FALLBACK_IMAGE_ALT}
-              loading="lazy"
-              className="h-full w-full object-cover"
-            />
+            {cover.hero_image && (
+              <img
+                src={cover.hero_image}
+                alt=""
+                loading="lazy"
+                className="h-full w-full object-cover"
+              />
+            )}
           </div>
         </Link>
 
