@@ -2,7 +2,6 @@ import { Link } from "react-router-dom";
 import { getCategoryLabel } from "@/lib/categories";
 import { getRelativeTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
-import { FALLBACK_IMAGE_URL, FALLBACK_IMAGE_ALT } from "@/lib/fallback-image";
 
 type Variant = "grid" | "lead" | "secondary" | "compact" | "stacked" | "list-item";
 
