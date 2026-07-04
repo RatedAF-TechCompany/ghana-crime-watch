@@ -178,13 +178,15 @@ export default function ArticlePage() {
         </div>
       </div>
 
-      <div className="mb-8 w-full overflow-hidden">
-        <img
-          src={article.hero_image || FALLBACK_IMAGE_URL}
-          alt={article.hero_image ? article.title : FALLBACK_IMAGE_ALT}
-          className="h-full w-full object-cover"
-        />
-      </div>
+      {article.hero_image && (
+        <div className="mb-8 w-full overflow-hidden">
+          <img
+            src={article.hero_image}
+            alt={article.title}
+            className="h-full w-full object-cover"
+          />
+        </div>
+      )}
 
       <div className="my-6 border-y border-border py-3">
         <SocialShareButtons title={article.title} summary={article.summary} />
