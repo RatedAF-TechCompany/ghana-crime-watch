@@ -77,12 +77,14 @@ export function ArticleCard({ article, variant, showImage, className }: ArticleC
     <article className={cn("group flex flex-col", className)}>
       <Link to={href} className="flex flex-col">
         <div className="aspect-[4/3] w-full overflow-hidden bg-muted">
-          <img
-            src={article.hero_image || FALLBACK_IMAGE_URL}
-            alt={article.hero_image ? article.title : FALLBACK_IMAGE_ALT}
-            loading="lazy"
-            className="h-full w-full object-cover"
-          />
+          {article.hero_image && (
+            <img
+              src={article.hero_image}
+              alt={article.title}
+              loading="lazy"
+              className="h-full w-full object-cover"
+            />
+          )}
         </div>
         <div className="pt-3 pb-4">
           {kicker}
