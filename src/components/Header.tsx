@@ -125,18 +125,7 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
           </div>
         </div>
       </div>
-
-
-      {/* Data hub strip */}
-      <div className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-editorial items-center justify-center gap-4 px-4 py-3">
-          <span className="hidden text-primary sm:inline" aria-hidden="true">&gt;&gt;</span>
-          <p className="font-sans text-[12px] uppercase tracking-[0.18em] text-foreground/80">
-            The GhanaCrimes Data Hub. Track every case, every court, every conviction.
-          </p>
-          <span className="hidden text-primary sm:inline" aria-hidden="true">&lt;&lt;</span>
-        </div>
-      </div>
     </header>
   );
 }
+
