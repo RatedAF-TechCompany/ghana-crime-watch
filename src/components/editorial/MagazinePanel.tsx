@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import { EditorialSectionHeading } from "./EditorialSectionHeading";
 import { getCategoryLabel } from "@/lib/categories";
-import { FALLBACK_IMAGE_URL, FALLBACK_IMAGE_ALT } from "@/lib/fallback-image";
 
 interface Article {
   id: string;
