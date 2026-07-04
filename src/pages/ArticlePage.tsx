@@ -14,6 +14,7 @@ import { WhatsAppChannelCTA, useShouldShowWhatsAppCTA } from "@/components/Whats
 import { AdBanner } from "@/components/AdBanner";
 import DOMPurify from "dompurify";
 import { useEffect, useRef, useMemo } from "react";
+import { getArticleImage } from "@/lib/article-image";
 
 export default function ArticlePage() {
   const { categorySlug, articleSlug } = useParams<{
@@ -178,15 +179,15 @@ export default function ArticlePage() {
         </div>
       </div>
 
-      {article.hero_image && (
+      {(() => { const img = getArticleImage(article); return img && (
         <div className="mb-8 w-full overflow-hidden">
           <img
-            src={article.hero_image}
+            src={img}
             alt={article.title}
             className="h-full w-full object-cover"
           />
         </div>
-      )}
+      ); })()}
 
       <div className="my-6 border-y border-border py-3">
         <SocialShareButtons title={article.title} summary={article.summary} />
@@ -248,13 +249,13 @@ export default function ArticlePage() {
                   </p>
                 </div>
                 <div className="h-16 w-24 flex-shrink-0 overflow-hidden">
-                  {related.hero_image && (
+                  {(() => { const img = getArticleImage(related); return img && (
                     <img
-                      src={related.hero_image}
+                      src={img}
                       alt={related.title}
                       className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
                     />
-                  )}
+                  ); })()}
                 </div>
               </Link>
             ))}
