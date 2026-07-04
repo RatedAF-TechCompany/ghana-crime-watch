@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import { getCategoryLabel } from "@/lib/categories";
 import { getRelativeTime } from "@/lib/time";
-import { FALLBACK_IMAGE_URL, FALLBACK_IMAGE_ALT } from "@/lib/fallback-image";
 
 interface HeroArticleProps {
   article: {
