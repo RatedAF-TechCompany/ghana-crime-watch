@@ -1298,40 +1298,28 @@ Return ONLY valid JSON with exactly these keys:
 
         const articleSlug = `${slugBase}-${Date.now()}`;
 
-        // SOURCE IMAGE EXTRACTION — use original images from RSS feeds (zero AI cost)
+        // SOURCE IMAGE EXTRACTION — shared waterfall (RSS → source URL og:image),
+        // validates and re-hosts to storage. Never blocks publishing on failure.
         let heroImageUrl: string | null = null;
         let imageSourceType: string = 'none';
-
-        // Try to use the source image from RSS feed metadata
-        const sourceImageUrl = newsItem.image_style || null;
-        if (sourceImageUrl) {
-          console.log(`Attempting to download source image: ${sourceImageUrl}`);
-          const uploadedUrl = await downloadAndUploadImage(sourceImageUrl, articleSlug, supabase);
-          if (uploadedUrl) {
-            heroImageUrl = uploadedUrl;
-            imageSourceType = 'source';
-            console.log(`Source image uploaded: ${uploadedUrl}`);
-          }
-        }
-
-        // Fallback: fetch og:image from the source article URL
-        if (!heroImageUrl && newsItem.source_url) {
-          console.log(`Trying og:image from source URL: ${newsItem.source_url}`);
-          const ogImage = await extractOgImage(newsItem.source_url);
-          if (ogImage) {
-            const uploadedUrl = await downloadAndUploadImage(ogImage, articleSlug, supabase);
-            if (uploadedUrl) {
-              heroImageUrl = uploadedUrl;
-              imageSourceType = 'og_image';
-              console.log(`OG image uploaded: ${uploadedUrl}`);
-            }
-          }
-        }
-
-        // No placeholder — articles without images simply have no hero image
-        if (!heroImageUrl) {
-          imageSourceType = 'none';
-          console.log("No source image found — article will have no hero image");
+        try {
+          const { extractHeroImage } = await import("../_shared/extract-image.ts");
+          const rssImg = newsItem.image_style || null;
+          const result = await extractHeroImage(
+            {
+              articleUrl: newsItem.source_url || null,
+              extraUrls: rssImg ? [rssImg] : [],
+              base: newsItem.source_url || null,
+            },
+            articleSlug,
+            supabase,
+          );
+          heroImageUrl = result.url;
+          imageSourceType = result.source;
+          if (heroImageUrl) console.log(`Hero image (${imageSourceType}): ${heroImageUrl}`);
+          else console.log("No source image found in waterfall");
+        } catch (imgErr) {
+          console.error("Hero extraction error (non-blocking):", imgErr);
         }
 
         // Update newsroom article with image source type
