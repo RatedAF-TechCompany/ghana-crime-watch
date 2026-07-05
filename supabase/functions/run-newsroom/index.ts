@@ -775,10 +775,19 @@ Return ONLY a valid JSON array, no other text.`;
     }
     const carryOverItems = (carryOverRaw || []).filter(item => !isStale(item));
 
-    // Process carry-over items FIRST (they've been waiting longest), then new items
-    // CAP: Maximum 3 articles per run to reduce AI credit usage
+    // Prefer stories with a real source image so the homepage is not dominated by image-less articles.
+    // Then process newer items first to avoid stale no-image carry-over blocking fresh RSS stories.
     const MAX_ARTICLES_PER_RUN = 3;
-    const pendingItems = [...carryOverItems, ...newPendingItems].slice(0, MAX_ARTICLES_PER_RUN);
+    const pendingItems = [...newPendingItems, ...carryOverItems]
+      .sort((a, b) => {
+        const aHasImage = !!a.image_style;
+        const bHasImage = !!b.image_style;
+        if (aHasImage !== bHasImage) return aHasImage ? -1 : 1;
+        const aTime = new Date(a.source_published_at || a.created_at || 0).getTime();
+        const bTime = new Date(b.source_published_at || b.created_at || 0).getTime();
+        return bTime - aTime;
+      })
+      .slice(0, MAX_ARTICLES_PER_RUN);
     console.log(`Processing ${pendingItems.length} pending items (capped at ${MAX_ARTICLES_PER_RUN}) from ${carryOverItems.length} carry-over + ${newPendingItems.length} new`);
 
     for (const newsItem of pendingItems) {
