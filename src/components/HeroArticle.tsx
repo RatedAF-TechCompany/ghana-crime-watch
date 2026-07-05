@@ -33,15 +33,14 @@ export function HeroArticle({ article }: HeroArticleProps) {
           {article.title}
         </h2>
 
-        <div className="mt-4 aspect-[4/5] w-full overflow-hidden bg-muted">
-          {(() => { const img = getArticleImage(article); return img && (
-            <img
-              src={img}
-              alt={article.title}
-              className="h-full w-full object-cover"
-            />
-          ); })()}
-        </div>
+        {(() => {
+          const img = getArticleImage(article);
+          return img ? (
+            <div className="mt-4 aspect-[4/5] w-full overflow-hidden">
+              <img src={img} alt={article.title} className="h-full w-full object-cover" />
+            </div>
+          ) : null;
+        })()}
 
         <div className="mt-4 meta-text">
           <span className="cat">{categoryLabel}</span>

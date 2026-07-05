@@ -57,16 +57,16 @@ export function ArticleCard({ article, variant, showImage, className }: ArticleC
           <h3 className="story-title text-[19px] leading-[1.18] group-hover:text-primary sm:text-[21px]">
             {article.title}
           </h3>
-          <div className="mt-3 aspect-[4/3] w-full overflow-hidden bg-muted">
-            {imageUrl && (
+          {imageUrl && (
+            <div className="mt-3 aspect-[4/3] w-full overflow-hidden">
               <img
                 src={imageUrl}
                 alt=""
                 loading="lazy"
                 className="h-full w-full object-cover"
               />
-            )}
-          </div>
+            </div>
+          )}
         </Link>
       </article>
     );
@@ -79,16 +79,16 @@ export function ArticleCard({ article, variant, showImage, className }: ArticleC
   return (
     <article className={cn("group flex flex-col", className)}>
       <Link to={href} className="flex flex-col">
-        <div className="aspect-[4/3] w-full overflow-hidden bg-muted">
-          {imageUrl && (
+        {imageUrl && (
+          <div className="aspect-[4/3] w-full overflow-hidden">
             <img
               src={imageUrl}
               alt={article.title}
               loading="lazy"
               className="h-full w-full object-cover"
             />
-          )}
-        </div>
+          </div>
+        )}
         <div className="pt-3 pb-4">
           {kicker}
           <h3 className={cn("story-title group-hover:text-primary", titleSize)}>
