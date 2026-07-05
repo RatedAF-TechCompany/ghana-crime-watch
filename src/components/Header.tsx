@@ -112,9 +112,6 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
                 {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
               </Button>
             )}
-            <Link to="/auth" className="pill-outline-black hidden sm:inline-flex">
-              Sign in
-            </Link>
             {isAdmin && (
               <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
                 <Link to="/admin" className="text-[11px] font-bold uppercase tracking-widest">
