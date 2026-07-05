@@ -747,8 +747,9 @@ Return ONLY a valid JSON array, no other text.`;
     let articlesCreated = 0;
     const STALE_CUTOFF_MS = MAX_AGE_HOURS * 60 * 60 * 1000;
     const isStale = (item: any) => {
-      if (!item.source_published_at) return false; // unknown — let downstream decide
-      const ageMs = Date.now() - new Date(item.source_published_at).getTime();
+      const dateToCheck = item.source_published_at || item.created_at;
+      if (!dateToCheck) return false;
+      const ageMs = Date.now() - new Date(dateToCheck).getTime();
       return ageMs > STALE_CUTOFF_MS;
     };
 
