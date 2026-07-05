@@ -16,7 +16,15 @@ const JUNK_PATTERNS = [
   /emoji/i,
   /sprite/i,
   /avatar/i,
-  /\/logo[-_./]/i,
+  /(?:^|[\/_-])logo(?:[\/_-]|\.|$)/i,
+  /(?:^|[\/_-])logos?(?:[\/_-]|\.|$)/i,
+  /main_logo/i,
+  /site-logo/i,
+  /default[_-]featured/i,
+  /graphiconline/i,
+  /body-container-top-line/i,
+  /categories-images/i,
+  /placeholder/i,
   /\.svg(\?|$)/i,
 ];
 
@@ -71,8 +79,10 @@ async function validateImageUrl(url: string): Promise<{ ok: boolean; contentType
     const head = await fetchWithTimeout(url, { method: "HEAD", headers: { "User-Agent": UA } }, 6000);
     if (head.ok) {
       const ct = head.headers.get("content-type") || "";
+      const len = parseInt(head.headers.get("content-length") || "0", 10) || 0;
       if (ct.startsWith("image/") && !ct.includes("svg")) {
-        return { ok: true, contentType: ct };
+        if (len >= 5000) return { ok: true, contentType: ct };
+        if (len > 0 && len < 5000) return { ok: false };
       }
     }
   } catch {
@@ -84,7 +94,7 @@ async function validateImageUrl(url: string): Promise<{ ok: boolean; contentType
     const ct = res.headers.get("content-type") || "";
     if (!ct.startsWith("image/") || ct.includes("svg")) return { ok: false };
     const buf = new Uint8Array(await res.arrayBuffer());
-    if (buf.byteLength < 2000) return { ok: false }; // < ~2KB is almost certainly a pixel/icon
+    if (buf.byteLength < 5000) return { ok: false }; // tiny files are almost always pixels, logos, icons, or rules
     return { ok: true, contentType: ct, bytes: buf };
   } catch {
     return { ok: false };

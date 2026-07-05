@@ -29,6 +29,7 @@ export type Database = {
           seo_description: string | null
           seo_title: string | null
           source_published_at: string | null
+          source_url: string | null
           subtitle: string | null
           summary: string
           tags: string[] | null
@@ -51,6 +52,7 @@ export type Database = {
           seo_description?: string | null
           seo_title?: string | null
           source_published_at?: string | null
+          source_url?: string | null
           subtitle?: string | null
           summary: string
           tags?: string[] | null
@@ -73,6 +75,7 @@ export type Database = {
           seo_description?: string | null
           seo_title?: string | null
           source_published_at?: string | null
+          source_url?: string | null
           subtitle?: string | null
           summary?: string
           tags?: string[] | null
