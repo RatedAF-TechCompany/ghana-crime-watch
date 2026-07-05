@@ -558,7 +558,17 @@ Rules:
             console.error("Tweet image download failed:", imgErr);
           }
         }
-        // No placeholder — leave hero_image null if no tweet media available
+        // Fallback: run shared image extractor on URLs found in tweet text
+        if (!heroImage) {
+          try {
+            const { extractHeroImage, extractUrls } = await import("../_shared/extract-image.ts");
+            const urls = extractUrls(tweetText);
+            for (const u of urls) {
+              const r = await extractHeroImage({ articleUrl: u }, finalSlug, supabase);
+              if (r.url) { heroImage = r.url; console.log(`Hero via link (${r.source}): ${r.url}`); break; }
+            }
+          } catch (e) { console.error("Shared extractor failed:", e); }
+        }
 
         // Insert article
         const { data: article, error: insertErr } = await supabase
