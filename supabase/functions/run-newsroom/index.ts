@@ -1086,6 +1086,7 @@ Return ONLY valid JSON with exactly these keys:
             seo_title: articleJson.headline,
             seo_description: articleJson.seo_description,
             hero_image: heroImageUrl,
+            source_url: newsItem.source_url || null,
             twitter_post: articleJson.twitter_post || null,
             is_published: true,
             published_at: new Date().toISOString(),
