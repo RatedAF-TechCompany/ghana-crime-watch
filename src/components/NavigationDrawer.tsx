@@ -1,8 +1,9 @@
+'use client';
 import { X, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { CATEGORIES } from "@/lib/categories";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 
 interface NavigationDrawerProps {
   open: boolean;
@@ -26,7 +27,7 @@ export function NavigationDrawer({ open, onClose }: NavigationDrawerProps) {
         </div>
         <nav className="flex flex-col py-2">
           <Link
-            to="/fraud-watch"
+            href="/fraud-watch"
             onClick={onClose}
             className="flex items-center gap-2 border-b border-border bg-primary/10 px-4 py-3.5 text-sm font-bold uppercase tracking-wide text-primary transition-colors hover:bg-primary/20"
           >
@@ -36,7 +37,7 @@ export function NavigationDrawer({ open, onClose }: NavigationDrawerProps) {
           {CATEGORIES.map((category) => (
             <Link
               key={category.slug}
-              to={`/${category.slug}`}
+              href={`/${category.slug}`}
               onClick={onClose}
               className="border-b border-border/60 px-4 py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted hover:text-primary"
             >
@@ -45,7 +46,7 @@ export function NavigationDrawer({ open, onClose }: NavigationDrawerProps) {
           ))}
           <div className="border-t border-border mt-2 pt-2">
             <Link
-              to="/about"
+              href="/about"
               onClick={onClose}
               className="flex items-center px-4 py-3.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
             >

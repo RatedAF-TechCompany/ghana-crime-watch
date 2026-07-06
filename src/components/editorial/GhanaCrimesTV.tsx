@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { Play } from "lucide-react";
 import { EditorialSectionHeading } from "./EditorialSectionHeading";
 import { getArticleImage } from "@/lib/article-image";
@@ -32,7 +32,7 @@ export function GhanaCrimesTV({ articles }: { articles: Article[] }) {
 function VideoBlock({ article, large = false }: { article: Article; large?: boolean }) {
   return (
     <Link
-      to={`/${article.category_slug}/${article.article_slug}`}
+      href={`/${article.category_slug}/${article.article_slug}`}
       className="group relative block overflow-hidden bg-dark-panel"
       style={{ aspectRatio: large ? "16 / 11" : "16 / 9" }}
     >

@@ -1,5 +1,6 @@
+'use client';
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { Header } from "./Header";
 import { NavigationDrawer } from "./NavigationDrawer";
 import { SearchOverlay } from "./SearchOverlay";
@@ -70,7 +71,7 @@ export function Layout({ children }: LayoutProps) {
       <footer className="mt-12 border-t border-pale-rule bg-footer-cream">
         <div className="mx-auto max-w-editorial px-4 py-12 md:px-12">
           <div className="mb-10 text-center">
-            <Link to="/" className="inline-block">
+            <Link href="/" className="inline-block">
               <span className="masthead-word text-3xl md:text-4xl">GhanaCrimes</span>
             </Link>
           </div>
@@ -84,7 +85,7 @@ export function Layout({ children }: LayoutProps) {
                   {col.links.map((link) => (
                     <li key={link.label}>
                       <Link
-                        to={link.to}
+                        href={link.to}
                         className="font-sans text-[13px] text-muted-fg hover:text-primary"
                       >
                         {link.label}
@@ -97,7 +98,7 @@ export function Layout({ children }: LayoutProps) {
           </div>
           <div className="mt-10 flex flex-col items-start justify-between gap-3 border-t border-pale-rule pt-6 font-sans text-xs text-muted-fg sm:flex-row sm:items-center">
             <span>© {new Date().getFullYear()} GhanaCrimes. All rights reserved.</span>
-            <Link to="/about" className="hover:text-primary">
+            <Link href="/about" className="hover:text-primary">
               About GhanaCrimes and Editorial Policy
             </Link>
           </div>

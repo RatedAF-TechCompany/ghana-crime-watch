@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { EditorialSectionHeading } from "./EditorialSectionHeading";
 import { getCategoryLabel } from "@/lib/categories";
 import { getArticleImage } from "@/lib/article-image";
@@ -23,7 +23,7 @@ export function MagazinePanel({ articles }: { articles: Article[] }) {
       <div className="grid grid-cols-1 gap-8 border-t border-border pt-8 md:grid-cols-12 md:gap-10">
         {/* Cover */}
         <Link
-          to={`/${cover.category_slug}/${cover.article_slug}`}
+          href={`/${cover.category_slug}/${cover.article_slug}`}
           className="group block md:col-span-3"
         >
           <div
@@ -42,7 +42,7 @@ export function MagazinePanel({ articles }: { articles: Article[] }) {
         </Link>
 
         {/* Main headline */}
-        <Link to={`/${cover.category_slug}/${cover.article_slug}`} className="group block md:col-span-5">
+        <Link href={`/${cover.category_slug}/${cover.article_slug}`} className="group block md:col-span-5">
           <p className="author-italic-red mb-3">GhanaCrimes Magazine</p>
           <h3 className="story-title text-[26px] leading-[1.1] group-hover:text-primary sm:text-[32px]">
             {cover.title}
@@ -59,7 +59,7 @@ export function MagazinePanel({ articles }: { articles: Article[] }) {
           <ul>
             {links.map((a) => (
               <li key={a.id} className="border-b border-border py-3 last:border-b-0">
-                <Link to={`/${a.category_slug}/${a.article_slug}`} className="group block">
+                <Link href={`/${a.category_slug}/${a.article_slug}`} className="group block">
                   <p className="author-italic-red mb-1 text-[14px]">{getCategoryLabel(a.category_slug)}</p>
                   <h4 className="story-title text-[16px] leading-[1.2] group-hover:text-primary">
                     {a.title}

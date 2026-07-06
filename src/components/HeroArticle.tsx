@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { getCategoryLabel } from "@/lib/categories";
 import { getRelativeTime } from "@/lib/time";
 import { getArticleImage } from "@/lib/article-image";
@@ -22,7 +22,7 @@ export function HeroArticle({ article }: HeroArticleProps) {
 
   return (
     <Link
-      to={`/${article.category_slug}/${article.article_slug}`}
+      href={`/${article.category_slug}/${article.article_slug}`}
       className="group block"
     >
       <article className="text-center">

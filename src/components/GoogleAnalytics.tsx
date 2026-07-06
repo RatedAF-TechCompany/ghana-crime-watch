@@ -1,3 +1,4 @@
+'use client';
 import { useEffect } from 'react';
 
 declare global {
@@ -8,7 +9,7 @@ declare global {
 }
 
 export function GoogleAnalytics() {
-  const measurementId = import.meta.env.VITE_GA_MEASUREMENT_ID;
+  const measurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
   useEffect(() => {
     if (!measurementId) return;
@@ -21,8 +22,8 @@ export function GoogleAnalytics() {
 
     // Initialize gtag
     window.dataLayer = window.dataLayer || [];
-    window.gtag = function gtag() {
-      window.dataLayer.push(arguments);
+    window.gtag = function gtag(...args: any[]) {
+      window.dataLayer.push(args);
     };
     window.gtag('js', new Date());
     window.gtag('config', measurementId);

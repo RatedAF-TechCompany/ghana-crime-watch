@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { Mic } from "lucide-react";
 import { EditorialSectionHeading } from "./EditorialSectionHeading";
 
@@ -33,7 +33,7 @@ export function PodcastsPanel({ articles }: { articles: Article[] }) {
 function PodcastBlock({ article, large = false }: { article: Article; large?: boolean }) {
   return (
     <Link
-      to={`/${article.category_slug}/${article.article_slug}`}
+      href={`/${article.category_slug}/${article.article_slug}`}
       className="group flex items-start gap-4"
     >
       <div
