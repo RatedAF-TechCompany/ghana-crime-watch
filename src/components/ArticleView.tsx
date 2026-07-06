@@ -20,8 +20,8 @@ import { getArticleImage } from "@/lib/article-image";
 export default function ArticleView({ categorySlug, articleSlug }: { categorySlug: string; articleSlug: string }) {
   const { isPlaying, isPaused, isSupported, speak, stop, togglePlayPause } = useTextToSpeech();
 
-  // Determine if WhatsApp CTA should be shown (25% probability)
-  const showWhatsAppCTA = useShouldShowWhatsAppCTA();
+  // Determine if WhatsApp CTA should be shown (25% probability, memoized per article)
+  const showWhatsAppCTA = useShouldShowWhatsAppCTA(articleSlug);
 
   const { data: article, isLoading } = useQuery({
     queryKey: ["article", categorySlug, articleSlug],

@@ -1,5 +1,10 @@
+import { Layout } from '@/components/Layout';
 import NotFoundView from '@/components/NotFoundView';
 
 export default function NotFound() {
-  return <NotFoundView />;
+  return (
+    <Layout>
+      <NotFoundView />
+    </Layout>
+  );
 }

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useAdSettings } from "@/hooks/use-ad-settings";
 import whatsappBanner from "@/assets/whatsapp-channel-banner.png";
 
@@ -38,10 +39,14 @@ export function WhatsAppChannelCTA({ className = "", variant = "banner" }: Whats
 /**
  * Hook to determine if the WhatsApp CTA should be shown on an article page.
  * Returns true for approximately 25% of article views.
+ * Memoize against a stable key (e.g. articleSlug) so the decision does not
+ * flip while the user is reading the article.
  */
-export function useShouldShowWhatsAppCTA(): boolean {
-  // Generate a random number between 1 and 100
-  // Show CTA if number is 25 or below (25% probability)
-  const randomValue = Math.floor(Math.random() * 100) + 1;
-  return randomValue <= 30;
+export function useShouldShowWhatsAppCTA(key?: string): boolean {
+  return useMemo(() => {
+    // Generate a random number between 1 and 100
+    // Show CTA if number is 30 or below (30% probability)
+    const randomValue = Math.floor(Math.random() * 100) + 1;
+    return randomValue <= 30;
+  }, [key]);
 }

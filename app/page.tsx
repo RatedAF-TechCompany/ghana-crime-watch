@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Layout } from '@/components/Layout';
 import HomeView from '@/components/HomeView';
 
 export const metadata: Metadata = {
@@ -15,5 +16,9 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <HomeView />;
+  return (
+    <Layout>
+      <HomeView />
+    </Layout>
+  );
 }

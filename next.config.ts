@@ -2,6 +2,7 @@ import type { NextConfig } from 'next';
 import withPWA from '@ducanh2912/next-pwa';
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: process.cwd(),
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'zninjnjujptjxdikehun.supabase.co' },
