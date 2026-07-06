@@ -9,13 +9,26 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
+const DISMISSAL_KEY = "pwa-install-dismissed";
+const DISMISSAL_TTL_MS = 3 * 24 * 60 * 60 * 1000;
+
+function isRecentlyDismissed(): boolean {
+  if (typeof window === "undefined") return false;
+  const dismissed = localStorage.getItem(DISMISSAL_KEY);
+  if (!dismissed) return false;
+  const dismissedTime = parseInt(dismissed, 10);
+  return Date.now() - dismissedTime < DISMISSAL_TTL_MS;
+}
+
 export function usePWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [isDismissed, setIsDismissed] = useState(false);
 
   useEffect(() => {
-    // Check if already installed
+    setIsDismissed(isRecentlyDismissed());
+
     if (window.matchMedia("(display-mode: standalone)").matches) {
       setIsInstalled(true);
       return;
@@ -48,12 +61,12 @@ export function usePWAInstall() {
     try {
       await deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
-      
+
       if (outcome === "accepted") {
         setIsInstalled(true);
         setIsInstallable(false);
       }
-      
+
       setDeferredPrompt(null);
       return outcome === "accepted";
     } catch (error) {
@@ -64,22 +77,14 @@ export function usePWAInstall() {
 
   const dismissPrompt = () => {
     setIsInstallable(false);
-    // Store dismissal in localStorage
-    localStorage.setItem("pwa-install-dismissed", Date.now().toString());
-  };
-
-  // Check if prompt was recently dismissed
-  const isDismissed = () => {
-    const dismissed = localStorage.getItem("pwa-install-dismissed");
-    if (!dismissed) return false;
-    
-    const dismissedTime = parseInt(dismissed, 10);
-    const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
-    return Date.now() - dismissedTime < threeDaysMs;
+    setIsDismissed(true);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(DISMISSAL_KEY, Date.now().toString());
+    }
   };
 
   return {
-    isInstallable: isInstallable && !isDismissed(),
+    isInstallable: isInstallable && !isDismissed,
     isInstalled,
     promptInstall,
     dismissPrompt,

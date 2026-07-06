@@ -23,7 +23,7 @@ export function WhatsAppChannelCTA({ className = "", variant = "banner" }: Whats
       className={`block transition-opacity hover:opacity-95 ${className}`}
     >
       <img
-        src={whatsappBanner}
+        src={whatsappBanner.src}
         alt="Follow GhanaCrimes on WhatsApp"
         className={
           variant === "banner"

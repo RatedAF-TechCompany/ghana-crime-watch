@@ -11,7 +11,7 @@ interface Ad {
 const ADS: Ad[] = [
   {
     id: "calabashe-doctor-review",
-    image: calabasheReviewBanner,
+    image: calabasheReviewBanner.src,
     url: "https://calabashe.com",
     alt: "Calabashe – Review your Ghanaian doctor to help others",
   },

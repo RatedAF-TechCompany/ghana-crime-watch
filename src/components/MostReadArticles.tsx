@@ -1,6 +1,7 @@
+'use client';
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getCategoryLabel } from "@/lib/categories";
 import { getArticleImage } from "@/lib/article-image";
@@ -90,7 +91,7 @@ export function MostReadArticles() {
               <li key={a.id} className="flex items-start gap-5 border-b border-border py-5">
                 <span className="pale-rank-number w-8 shrink-0 pt-1">{i + 1}</span>
                 <div className="min-w-0 flex-1">
-                  <Link to={`/${a.category_slug}/${a.article_slug}`} className="group block">
+                  <Link href={`/${a.category_slug}/${a.article_slug}`} className="group block">
                     <p className="author-italic-red mb-1">{getCategoryLabel(a.category_slug)}</p>
                     <h4 className="story-title text-[19px] leading-[1.15] group-hover:text-primary sm:text-[22px]">
                       {a.title}
@@ -98,7 +99,7 @@ export function MostReadArticles() {
                   </Link>
                 </div>
                 <Link
-                  to={`/${a.category_slug}/${a.article_slug}`}
+                  href={`/${a.category_slug}/${a.article_slug}`}
                   className="shrink-0"
                   aria-hidden="true"
                   tabIndex={-1}
@@ -128,7 +129,7 @@ export function MostReadArticles() {
               return (
                 <li key={a.id} className="flex items-start gap-5 border-b border-border py-5">
                   <div className="min-w-0 flex-1">
-                    <Link to={`/${a.category_slug}/${a.article_slug}`} className="group block">
+                    <Link href={`/${a.category_slug}/${a.article_slug}`} className="group block">
                       <p className="author-italic-red mb-1">{cat}</p>
                       <h4 className="story-title text-[19px] leading-[1.15] group-hover:text-primary sm:text-[22px]">
                         {a.title}
