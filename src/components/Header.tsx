@@ -1,7 +1,9 @@
+'use client';
 import { Menu, Search, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link, NavLink } from "react-router-dom";
+import Link from "next/link";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { supabase } from "@/integrations/supabase/client";
 import { useTheme } from "next-themes";
 import { NotificationBell } from "./NotificationBell";
@@ -28,6 +30,7 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
   const [isAdmin, setIsAdmin] = useState(false);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     setMounted(true);
@@ -54,7 +57,7 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
         <div className="mx-auto flex max-w-editorial items-center justify-between gap-6 px-4 py-5 md:px-8 md:py-7">
           {/* Left cluster: masthead + hamburger */}
           <div className="flex items-center gap-4">
-            <Link to="/" className="block">
+            <Link href="/" className="block">
               <span className="masthead-word text-[32px] md:text-[48px]">GhanaCrimes</span>
             </Link>
             <Button
@@ -73,17 +76,15 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
             <ul className="flex items-center">
               {PRIMARY_NAV.map((item) => (
                 <li key={item.to} className="nav-slash">
-                  <NavLink
-                    to={item.to}
-                    className={({ isActive }) =>
-                      cn(
-                        "whitespace-nowrap font-sans text-[13px] font-medium tracking-[0.02em] text-foreground/85 hover:text-primary",
-                        isActive && "text-primary",
-                      )
-                    }
+                  <Link
+                    href={item.to}
+                    className={cn(
+                      "whitespace-nowrap font-sans text-[13px] font-medium tracking-[0.02em] text-foreground/85 hover:text-primary",
+                      pathname === item.to && "text-primary",
+                    )}
                   >
                     {item.label}
-                  </NavLink>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -114,7 +115,7 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
             )}
             {isAdmin && (
               <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
-                <Link to="/admin" className="text-[11px] font-bold uppercase tracking-widest">
+                <Link href="/admin" className="text-[11px] font-bold uppercase tracking-widest">
                   Admin
                 </Link>
               </Button>
@@ -125,4 +126,3 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
     </header>
   );
 }
-

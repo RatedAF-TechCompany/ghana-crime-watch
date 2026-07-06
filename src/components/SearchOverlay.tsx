@@ -1,3 +1,4 @@
+'use client';
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -5,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { getCategoryLabel } from "@/lib/categories";
 import { getRelativeTime } from "@/lib/time";
 
@@ -82,7 +83,7 @@ export function SearchOverlay({ open, onClose }: SearchOverlayProps) {
                   {results.map((article) => (
                     <Link
                       key={article.id}
-                      to={`/${article.category_slug}/${article.article_slug}`}
+                      href={`/${article.category_slug}/${article.article_slug}`}
                       onClick={onClose}
                       className="block rounded border border-border p-3 transition-colors hover:bg-muted"
                     >

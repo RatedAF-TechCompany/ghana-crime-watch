@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { getCategoryLabel } from "@/lib/categories";
 import { getRelativeTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -36,7 +36,7 @@ export function ArticleCard({ article, variant, showImage, className }: ArticleC
   if (v === "compact" || v === "list-item") {
     return (
       <article className={cn("group border-b border-border py-4", className)}>
-        <Link to={href} className="block">
+        <Link href={href} className="block">
           {kicker}
           <h3 className="story-title text-[18px] leading-[1.2] group-hover:text-primary">
             {article.title}
@@ -52,7 +52,7 @@ export function ArticleCard({ article, variant, showImage, className }: ArticleC
   if (v === "stacked" || v === "secondary") {
     return (
       <article className={cn("group border-b border-border pb-5 last:border-b-0", className)}>
-        <Link to={href} className="block">
+        <Link href={href} className="block">
           {kicker}
           <h3 className="story-title text-[19px] leading-[1.18] group-hover:text-primary sm:text-[21px]">
             {article.title}
@@ -78,7 +78,7 @@ export function ArticleCard({ article, variant, showImage, className }: ArticleC
 
   return (
     <article className={cn("group flex flex-col", className)}>
-      <Link to={href} className="flex flex-col">
+      <Link href={href} className="flex flex-col">
         {imageUrl && (
           <div className="aspect-[4/3] w-full overflow-hidden">
             <img

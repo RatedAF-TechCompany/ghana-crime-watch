@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 
 interface EditorialSectionHeadingProps {
@@ -36,7 +36,7 @@ export function EditorialSectionHeading({
       <h3 className="section-heading">{title}</h3>
       {moreHref && (
         <Link
-          to={moreHref}
+          href={moreHref}
           aria-label={`More from ${title}`}
           className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-primary text-primary hover:bg-primary hover:text-primary-foreground"
         >

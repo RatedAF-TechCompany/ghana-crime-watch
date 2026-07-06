@@ -1,6 +1,7 @@
+'use client';
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -61,7 +62,7 @@ export function BreakingNewsTicker() {
           <div className="h-4 w-px bg-primary-foreground/40" />
           <div className="min-w-0 flex-1 overflow-hidden">
             <Link
-              to={`/${currentArticle.category_slug}/${currentArticle.article_slug}`}
+              href={`/${currentArticle.category_slug}/${currentArticle.article_slug}`}
               className="block truncate text-sm font-semibold hover:underline"
             >
               {currentArticle.title}

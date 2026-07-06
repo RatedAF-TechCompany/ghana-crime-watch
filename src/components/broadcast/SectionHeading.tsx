@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 interface SectionHeadingProps {
@@ -13,7 +13,7 @@ export function SectionHeading({ title, moreHref, moreLabel = "See all" }: Secti
       <h2 className="section-heading">{title}</h2>
       {moreHref && (
         <Link
-          to={moreHref}
+          href={moreHref}
           className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary hover:opacity-80"
         >
           {moreLabel}
