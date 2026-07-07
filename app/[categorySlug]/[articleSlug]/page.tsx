@@ -23,7 +23,9 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
   const title = article.seo_title || article.title;
   const description = article.seo_description || article.summary || '';
-  const socialImage = article.hero_image || `${BASE_URL}/og-image.png`;
+  const socialImage = article.hero_image
+    ? `${BASE_URL}/api/og-image?url=${encodeURIComponent(article.hero_image)}`
+    : `${BASE_URL}/og-image.png`;
   const canonical = `${BASE_URL}/${categorySlug}/${articleSlug}`;
 
   return {
