@@ -23,10 +23,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
   const title = article.seo_title || article.title;
   const description = article.seo_description || article.summary || '';
-  // Hero images are hosted on Supabase Storage, which serves `X-Robots-Tag: none`.
-  // Meta/WhatsApp crawlers refuse to use those images in link previews, so we
-  // use the site's fallback OG image for social metadata instead.
-  const socialImage = `${BASE_URL}/og-image.png`;
+  const socialImage = article.hero_image || `${BASE_URL}/og-image.png`;
   const canonical = `${BASE_URL}/${categorySlug}/${articleSlug}`;
 
   return {
