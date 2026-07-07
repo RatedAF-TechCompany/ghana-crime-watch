@@ -1,8 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { createServerClient } from '@/lib/supabase/server';
+import { BASE_URL } from '@/lib/utils';
 import { CATEGORIES } from '@/lib/categories';
-
-const BASE_URL = 'https://ghanacrimes.com';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createServerClient();

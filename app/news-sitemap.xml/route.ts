@@ -1,6 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server';
-
-const BASE_URL = 'https://ghanacrimes.com';
+import { BASE_URL } from '@/lib/utils';
 
 export async function GET() {
   const supabase = createServerClient();

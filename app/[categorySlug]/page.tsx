@@ -1,9 +1,8 @@
 import type { Metadata } from 'next';
 import { Layout } from '@/components/Layout';
+import { BASE_URL } from '@/lib/utils';
 import CategoryView from '@/components/CategoryView';
 import { getCategoryLabel } from '@/lib/categories';
-
-const BASE_URL = 'https://ghanacrimes.com';
 
 type Params = Promise<{ categorySlug: string }>;
 

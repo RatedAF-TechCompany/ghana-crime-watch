@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { GoogleAnalytics } from '@/components/GoogleAnalytics';
 import { Providers } from './providers';
+import { BASE_URL } from '@/lib/utils';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
   },
   description:
     'Stay informed with the latest crime news, police reports, court cases, and crime statistics from Ghana. Comprehensive coverage of violent crime, fraud, cybercrime, and more.',
-  metadataBase: new URL('https://ghanacrimes.com'),
+  metadataBase: new URL(BASE_URL),
   openGraph: {
     siteName: 'GhanaCrimes',
     type: 'website',
