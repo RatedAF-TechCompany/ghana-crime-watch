@@ -12,6 +12,15 @@ export const metadata: Metadata = {
     description: 'Stay informed with the latest crime news from Ghana.',
     url: 'https://ghanacrimes.com',
     type: 'website',
+    siteName: 'GhanaCrimes',
+    images: [{ url: '/og-image.png' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    site: '@GhanaCrimes',
+    title: 'GhanaCrimes - Ghana Crime News & Reports',
+    description: 'Stay informed with the latest crime news from Ghana.',
+    images: ['/og-image.png'],
   },
 };
 
