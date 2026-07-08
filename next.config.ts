@@ -1,6 +1,19 @@
 import type { NextConfig } from 'next';
 import withPWA from '@ducanh2912/next-pwa';
 
+// Ensure NEXT_PUBLIC_* vars exist in process.env (for SSG/server runtime),
+// falling back to legacy VITE_* vars from .env.
+process.env.NEXT_PUBLIC_SUPABASE_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  process.env.VITE_SUPABASE_URL ||
+  '';
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.VITE_SUPABASE_ANON_KEY ||
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  '';
+
+
 const nextConfig: NextConfig = {
   outputFileTracingRoot: process.cwd(),
   env: {
