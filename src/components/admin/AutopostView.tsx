@@ -58,14 +58,6 @@ export default function AutopostView() {
     })();
   }, [router]);
 
-  const load = useCallback(async () => {
-    const [{ data: p }, { data: l }, { data: s }] = await Promise.all([
-      supabase.from('posted_articles').select('*').order('created_at', { ascending: false }).limit(50),
-      supabase.from('run_logs').select('*').order('run_time', { ascending: false }).limit: 20 ? undefined : undefined,
-    ] as never);
-    // Above trick unused; do it properly:
-  }, []);
-
   const fetchAll = useCallback(async () => {
     const postsRes = await supabase
       .from('posted_articles').select('*').order('created_at', { ascending: false }).limit(50);
