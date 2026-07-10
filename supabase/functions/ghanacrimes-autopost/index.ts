@@ -93,31 +93,99 @@ function buildArticleUrl(cat: string, slug: string) {
 }
 
 // ---------- Post generation ----------
+type StoryType = "breaking" | "arrest" | "court" | "investigation" | "followup" | "sensitive" | "generic";
+
+const CITY_TAGS: Array<[RegExp, string]> = [
+  [/\baccra\b/i, "#Accra"], [/\bkumasi\b/i, "#Kumasi"], [/\bcape coast\b/i, "#CapeCoast"],
+  [/\btamale\b/i, "#Tamale"], [/\btakoradi\b/i, "#Takoradi"], [/\btema\b/i, "#Tema"],
+  [/\bkoforidua\b/i, "#Koforidua"], [/\bsunyani\b/i, "#Sunyani"], [/\bho\b/i, "#Ho"],
+  [/\bbolgatanga\b/i, "#Bolgatanga"], [/\bobuasi\b/i, "#Obuasi"], [/\bsekondi\b/i, "#Sekondi"],
+];
+function pickLocationTag(text: string): string {
+  for (const [re, tag] of CITY_TAGS) if (re.test(text)) return tag;
+  return "";
+}
+
+function classifyStory(text: string, publishedAt: string | null): StoryType {
+  const t = text.toLowerCase();
+  if (/\b(child|minor|underage|8-year|10-year|12-year|defiled|defilement|rape|raped|sexual assault|deceased|died|killed)\b/.test(t)
+      && /\b(victim|girl|boy|child|minor|woman|man)\b/.test(t)) {
+    // Sensitive if child victim OR sexual offence OR deceased victim families
+    if (/\b(child|minor|defile|rape|sexual)\b/.test(t) || /\b(deceased|died|dead|killed|fatal)\b/.test(t)) {
+      return "sensitive";
+    }
+  }
+  if (/\bupdate\b|\bfollow[- ]?up\b|\blatest on\b/.test(t)) return "followup";
+  if (/\b(investigation|expose|exposed|revealed|uncovered|our probe|documents show)\b/.test(t)) return "investigation";
+  if (/\b(court|judge|verdict|sentenc|acquit|convict|habeas|prosecut|hearing|remand|bail|plea)\b/.test(t)) return "court";
+  if (/\b(arrest|arrested|charged|detained|nabbed|apprehended|in custody)\b/.test(t)) return "arrest";
+  if (publishedAt) {
+    const ageHrs = (Date.now() - new Date(publishedAt).getTime()) / 36e5;
+    if (ageHrs <= 2 && /\b(breaking|just in|moments ago|now|ongoing|developing)\b/.test(t)) return "breaking";
+  }
+  return "generic";
+}
+
+const CTAS = ["Full story:", "What we know:", "Details:", "The full report:"];
+function pickCta(seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return CTAS[h % CTAS.length];
+}
+
+function formulaFor(type: StoryType): string {
+  switch (type) {
+    case "breaking":
+      return `TYPE: BREAKING. Format: "🚨 BREAKING: [most dramatic verifiable fact, under 15 words]. [One line of essential context]." Withhold the outcome. End marker line will be "Developing story:".`;
+    case "arrest":
+      return `TYPE: ARREST/CHARGE. Format: "[Role or identity of suspect] arrested over [crime], [one detail that raises a question]." Withhold exactly how they were caught or the specific act.`;
+    case "court":
+      return `TYPE: COURT/LEGAL. Format: "[Unexpected legal development] in [case name] case. [Why it matters or what nobody expected]." Withhold the underlying reason. Optional single ⚖ only if a verdict was delivered.`;
+    case "investigation":
+      return `TYPE: INVESTIGATION. Format: "[Number or scale]. [Revelation]." Lead with the numeric scale. No emoji.`;
+    case "followup":
+      return `TYPE: FOLLOW-UP. Format: "UPDATE: [what changed]. [Brief reference to the earlier development]." No emoji.`;
+    case "sensitive":
+      return `TYPE: SENSITIVE. Straight, factual, dignified single sentence. No curiosity gap. No emoji. No hashtag. Do not name minors. Do not pair a child's age with graphic crime terms in the same sentence.`;
+    default:
+      return `TYPE: GENERIC. Lead first 8 words with the most shocking specific element (number, title, place, unusual detail). One or two short sentences. Withhold the outcome or the how.`;
+  }
+}
+
 async function generatePost(
   lovableKey: string,
   title: string,
   summary: string,
   body: string,
   articleUrl: string,
+  publishedAt: string | null,
 ): Promise<string> {
   const excerpt = (body || "").slice(0, 1500);
-  const system = `You write short social posts for GhanaCrimes, a serious Ghanaian crime and public-safety publication.
+  const combined = `${title} ${summary} ${excerpt}`;
+  const storyType = classifyStory(combined, publishedAt);
+  const locationTag = storyType === "sensitive" ? "" : pickLocationTag(combined);
+  const cta = storyType === "breaking" ? "Developing story:" : pickCta(articleUrl);
+  const formula = formulaFor(storyType);
 
-STYLE:
-- Plain prose. One or two short sentences. No headline fragments.
-- Lead with the clearest verified crime fact. Make the location clear. Make human impact clear without drama.
-- Simple English. Serious, calm, human, fair tone. Not tabloid, not sensational.
+  const system = `You write X posts for GhanaCrimes, a serious Ghanaian crime and public-safety publication.
 
-HARD RULES (all must hold):
-- No emojis. No hashtags. No em dashes or en dashes (use commas or periods).
-- No bullet points. No line breaks inside the post text itself.
-- Do not glorify violence. Do not sensationalise. Do not include graphic details.
-- Do not name minors. Do not name victims of sexual offences.
-- Never state guilt as fact before conviction. Use "alleged", "police say", "prosecutors say", "court heard", or "according to the report" when describing accusations.
-- No tribal, ethnic, religious, or nationality labels unless central and verified.
-- No hate speech. No mocking of anyone.
+CORE GOAL: Create a curiosity gap. Give the hook. WITHHOLD at least one key element (the outcome, the how, the why, or the twist) so the article answers it. Never summarise the whole story.
 
-Return ONLY the post text, nothing else. No quotes around it. No URL (the URL is added separately).`;
+GLOBAL RULES (all must hold):
+- Active voice only. Banned phrases: "is reported to have occurred", "investigations are continuing", "it is alleged that", "according to reports". Use "Police say...", "The suspect...", "Court documents show...".
+- The first 8 words MUST contain the most shocking or specific element: a number, a title, a place, an unusual detail. Never open with a generic phrase like "Police in X have arrested".
+- Maximum 200 characters of body text before the CTA and link. Short sentences. One idea per sentence.
+- Numbers as digits: "8-year-old" not "eight-year-old", "GH₵2.4m" not "millions of cedis".
+- No em dashes or en dashes. Use commas or periods.
+- No hashtags in your output (a location hashtag is appended by the system).
+- Emoji policy: ONLY use 🚨 for genuine breaking news, ONLY ⚖ for a court verdict. Otherwise no emoji. Never more than one emoji.
+- Never state guilt as fact before conviction. Place "alleged"/"accused" naturally, not as a hedge-opener. Attribute claims: "Police say", "Prosecutors allege", "Court heard".
+- Do not name minors. Do not name victims of sexual offences. No graphic language. No tribal, ethnic, religious, or nationality labels unless central and verified.
+
+STORY-TYPE FORMULA TO FOLLOW:
+${formula}
+
+OUTPUT: Return ONLY the body text (no CTA, no URL, no hashtag, no surrounding quotes). Plain prose. No line breaks inside the body.`;
 
   const user = `TITLE: ${title}
 SUMMARY: ${summary || "(none)"}
@@ -129,22 +197,48 @@ BODY EXCERPT: ${excerpt}`;
     body: JSON.stringify({
       model: "google/gemini-2.5-flash-lite",
       messages: [{ role: "system", content: system }, { role: "user", content: user }],
-      temperature: 0.3,
-      max_tokens: 220,
+      temperature: 0.4,
+      max_tokens: 200,
     }),
   });
   if (!res.ok) throw new Error(`AI gateway ${res.status}: ${await res.text()}`);
   const data = await res.json();
   let text: string = (data.choices?.[0]?.message?.content || "").trim();
+
+  // Sanitize
   text = text
     .replace(/^["'`]+|["'`]+$/g, "")
     .replace(/[\u2014\u2013\u2012]/g, ",")           // em/en dashes
-    .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}\u{1F900}-\u{1F9FF}\u{2702}-\u{27B0}]/gu, "")
-    .replace(/\s*#\w+/g, "")                          // hashtags
+    .replace(/\s*#\w+/g, "")                          // any hashtag AI slipped in
     .replace(/\s+/g, " ")
     .trim();
+
+  // Strip disallowed emojis (keep only permitted ones per story type)
+  const allowedEmoji = storyType === "breaking" ? "🚨" : storyType === "court" ? "⚖" : "";
+  text = text.replace(
+    /[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}\u{1F900}-\u{1F9FF}\u{2702}-\u{27B0}]/gu,
+    (m) => (allowedEmoji && m === allowedEmoji ? m : ""),
+  ).replace(/\s+/g, " ").trim();
+
+  // Kill banned passive constructions
+  const banned = [
+    /\bis reported to have occurred\b/gi,
+    /\binvestigations are continuing\b/gi,
+    /\bit is alleged that\b/gi,
+    /\baccording to reports\b/gi,
+  ];
+  for (const b of banned) text = text.replace(b, "").trim();
+  text = text.replace(/\s+/g, " ").replace(/\s+([,.;:])/g, "$1").trim();
+
+  // Enforce 200-char body cap
+  if (text.length > 200) {
+    const cut = text.lastIndexOf(" ", 198);
+    text = text.slice(0, cut > 120 ? cut : 198).replace(/[.,;:!?\s]+$/, "") + ".";
+  }
   if (!text) throw new Error("AI returned empty post");
-  return `${text}\n\n${articleUrl}`;
+
+  const tagLine = locationTag ? ` ${locationTag}` : "";
+  return `${text}${tagLine}\n${cta} ${articleUrl}`;
 }
 
 // ---------- Main ----------
