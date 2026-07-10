@@ -307,7 +307,7 @@ serve(async (req) => {
     // 4. Generate post
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
     if (!lovableKey) throw new Error("LOVABLE_API_KEY not configured");
-    const postText = await generatePost(lovableKey, chosen.title, chosen.summary || "", chosen.body || "", chosenUrl);
+    const postText = await generatePost(lovableKey, chosen.title, chosen.summary || "", chosen.body || "", chosenUrl, chosen.published_at);
 
     // 5. Decide whether to post
     const { data: toggle } = await supabase
