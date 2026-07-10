@@ -596,6 +596,45 @@ export type Database = {
           },
         ]
       }
+      posted_articles: {
+        Row: {
+          article_title: string
+          article_url: string
+          created_at: string
+          error_message: string | null
+          id: string
+          post_text: string
+          posted_at: string | null
+          posted_to_x: boolean
+          status: string
+          x_post_id: string | null
+        }
+        Insert: {
+          article_title: string
+          article_url: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          post_text: string
+          posted_at?: string | null
+          posted_to_x?: boolean
+          status?: string
+          x_post_id?: string | null
+        }
+        Update: {
+          article_title?: string
+          article_url?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          post_text?: string
+          posted_at?: string | null
+          posted_to_x?: boolean
+          status?: string
+          x_post_id?: string | null
+        }
+        Relationships: []
+      }
       processed_tweets: {
         Row: {
           author_username: string
@@ -667,6 +706,33 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      run_logs: {
+        Row: {
+          created_at: string
+          id: string
+          message: string | null
+          run_time: string
+          selected_article_url: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          run_time?: string
+          selected_article_url?: string | null
+          status: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          run_time?: string
+          selected_article_url?: string | null
+          status?: string
         }
         Relationships: []
       }
