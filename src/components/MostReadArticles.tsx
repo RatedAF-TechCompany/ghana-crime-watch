@@ -76,8 +76,8 @@ export function MostReadArticles() {
 
   if (!articles || articles.length === 0) return null;
 
-  const popular = articles.slice(0, 5);
-  const writers = articles.slice(5, 10);
+  const popular = dedupBySimilarity(articles, 5);
+  const writers = articles.filter(a => !popular.some(p => p.id === a.id)).slice(0, 5);
 
   return (
     <section>
