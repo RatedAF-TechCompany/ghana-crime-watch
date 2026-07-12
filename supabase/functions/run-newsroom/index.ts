@@ -685,10 +685,108 @@ Return ONLY a valid JSON array, no other text.`;
     };
     
     // Filter out outdated stories
-    const currentNewsItems = newsItems.filter(item => !isOutdatedStory(item));
+    let currentNewsItems = newsItems.filter(item => !isOutdatedStory(item));
     const outdatedSkipped = newsItems.length - currentNewsItems.length;
     if (outdatedSkipped > 0) {
       console.log(`Filtered ${outdatedSkipped} outdated stories`);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // GATE: CRIME-RELEVANCE CLASSIFIER (before AI article generation)
+    // Rejected items log to public.rejected_items and never consume the
+    // article-generation budget below.
+    // ═══════════════════════════════════════════════════════════════════
+    if (currentNewsItems.length > 0) {
+      const classifications = await classifyBatchInScope(currentNewsItems, lovableApiKey);
+      const kept: any[] = [];
+      const rejectedRows: any[] = [];
+      for (let i = 0; i < currentNewsItems.length; i++) {
+        const item = currentNewsItems[i];
+        const c = classifications[i] || { in_scope: false, confidence: 0, reason: "no classification returned" };
+        if (c.in_scope && c.confidence >= 70) {
+          kept.push(item);
+        } else {
+          const reason = c.reason === "classifier_error" ? "classifier_error" : "out_of_scope";
+          rejectedRows.push({
+            source: item.source_name || null,
+            original_headline: item.original_headline || item.headline || "Untitled",
+            original_url: item.source_url || null,
+            reason,
+            confidence: c.confidence,
+            detail: c.reason,
+          });
+          console.log(`SCOPE_REJECT (${c.confidence}) ${c.reason}: ${(item.original_headline || "").substring(0, 80)}`);
+        }
+      }
+      if (rejectedRows.length > 0) {
+        await supabase.from("rejected_items").insert(rejectedRows);
+      }
+      console.log(`Scope gate: ${kept.length} in scope, ${rejectedRows.length} rejected`);
+      currentNewsItems = kept;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // GATE: TIGHTENED DUPLICATE CHECK (72h, title similarity ≥ 0.55 OR same source URL)
+    // Rejected items log to public.rejected_items with reason "duplicate".
+    // ═══════════════════════════════════════════════════════════════════
+    if (currentNewsItems.length > 0) {
+      const seventyTwoHoursAgo = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
+      const { data: recentTitles } = await supabase
+        .from("articles")
+        .select("title, source_url")
+        .gte("created_at", seventyTwoHoursAgo);
+      const { data: recentQueued } = await supabase
+        .from("newsroom_articles")
+        .select("original_headline, source_url")
+        .gte("created_at", seventyTwoHoursAgo)
+        .in("processing_status", ["pending", "processing", "completed"]);
+
+      const recent: Array<{ title: string; source_url: string | null }> = [
+        ...(recentTitles || []).map((r: any) => ({ title: r.title, source_url: r.source_url })),
+        ...(recentQueued || []).map((r: any) => ({ title: r.original_headline, source_url: r.source_url })),
+      ];
+      const urlSet = new Set(recent.map(r => (r.source_url || "").trim().toLowerCase()).filter(Boolean));
+
+      const kept: any[] = [];
+      const dupeRows: any[] = [];
+      for (const item of currentNewsItems) {
+        const url = (item.source_url || "").trim().toLowerCase();
+        const title = item.original_headline || item.headline || "";
+        let matched = false;
+        let matchReason = "";
+        if (url && urlSet.has(url)) {
+          matched = true;
+          matchReason = "same source URL";
+        } else {
+          for (const r of recent) {
+            if (titleSimilarity(title, r.title) >= 0.55) {
+              matched = true;
+              matchReason = `title sim ≥0.55 vs "${r.title.substring(0, 60)}"`;
+              break;
+            }
+          }
+        }
+        if (matched) {
+          dupeRows.push({
+            source: item.source_name || null,
+            original_headline: title || "Untitled",
+            original_url: item.source_url || null,
+            reason: "duplicate",
+            detail: matchReason,
+          });
+          console.log(`DUP_REJECT (${matchReason}): ${title.substring(0, 80)}`);
+        } else {
+          kept.push(item);
+          // Add to in-run set to catch duplicates within the same batch
+          if (url) urlSet.add(url);
+          recent.push({ title, source_url: item.source_url || null });
+        }
+      }
+      if (dupeRows.length > 0) {
+        await supabase.from("rejected_items").insert(dupeRows);
+      }
+      console.log(`72h dedup gate: ${kept.length} unique, ${dupeRows.length} duplicates`);
+      currentNewsItems = kept;
     }
 
     if (currentNewsItems.length === 0) {
