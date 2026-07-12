@@ -970,7 +970,7 @@ Return ONLY a valid JSON array, no other text.`;
 
     // Prefer stories with a real source image so the homepage is not dominated by image-less articles.
     // Then process newer items first to avoid stale no-image carry-over blocking fresh RSS stories.
-    const MAX_ARTICLES_PER_RUN = 3;
+    const MAX_ARTICLES_PER_RUN = 8;
     const pendingItems = [...newPendingItems, ...carryOverItems]
       .sort((a, b) => {
         const aHasImage = !!a.image_style;
