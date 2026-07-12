@@ -158,34 +158,22 @@ async function generatePost(
   summary: string,
   body: string,
   articleUrl: string,
-  publishedAt: string | null,
+  _publishedAt: string | null,
 ): Promise<string> {
   const excerpt = (body || "").slice(0, 1500);
-  const combined = `${title} ${summary} ${excerpt}`;
-  const storyType = classifyStory(combined, publishedAt);
-  const locationTag = storyType === "sensitive" ? "" : pickLocationTag(combined);
-  const cta = storyType === "breaking" ? "Developing story:" : pickCta(articleUrl);
-  const formula = formulaFor(storyType);
 
   const system = `You write X posts for GhanaCrimes, a serious Ghanaian crime and public-safety publication.
 
-CORE GOAL: Create a curiosity gap. Give the hook. WITHHOLD at least one key element (the outcome, the how, the why, or the twist) so the article answers it. Never summarise the whole story.
+TWEET GENERATION RULES (all must hold):
+- Hook format only: ONE sentence, maximum 150 characters, sentence case.
+- No hashtags. No emojis. No exclamation marks. No "BREAKING:" or similar labels. No quotes around the sentence.
+- Tone: calm, declarative, dry — New Yorker style. Plain British register, observational.
+- Create curiosity to drive the click. Do NOT summarise the story. Do NOT use "read more", "find out", "click to see", "here's what happened" or any preamble.
+- No em dashes or en dashes. Use commas or full stops.
+- Active voice. Never state guilt as fact before conviction.
+- Do not name minors. Do not name victims of sexual offences.
 
-GLOBAL RULES (all must hold):
-- Active voice only. Banned phrases: "is reported to have occurred", "investigations are continuing", "it is alleged that", "according to reports". Use "Police say...", "The suspect...", "Court documents show...".
-- The first 8 words MUST contain the most shocking or specific element: a number, a title, a place, an unusual detail. Never open with a generic phrase like "Police in X have arrested".
-- Maximum 200 characters of body text before the CTA and link. Short sentences. One idea per sentence.
-- Numbers as digits: "8-year-old" not "eight-year-old", "GH₵2.4m" not "millions of cedis".
-- No em dashes or en dashes. Use commas or periods.
-- No hashtags in your output (a location hashtag is appended by the system).
-- Emoji policy: ONLY use 🚨 for genuine breaking news, ONLY ⚖ for a court verdict. Otherwise no emoji. Never more than one emoji.
-- Never state guilt as fact before conviction. Place "alleged"/"accused" naturally, not as a hedge-opener. Attribute claims: "Police say", "Prosecutors allege", "Court heard".
-- Do not name minors. Do not name victims of sexual offences. No graphic language. No tribal, ethnic, religious, or nationality labels unless central and verified.
-
-STORY-TYPE FORMULA TO FOLLOW:
-${formula}
-
-OUTPUT: Return ONLY the body text (no CTA, no URL, no hashtag, no surrounding quotes). Plain prose. No line breaks inside the body.`;
+OUTPUT: Return ONLY the single hook sentence. No URL. No line breaks. No surrounding punctuation beyond a single closing full stop.`;
 
   const user = `TITLE: ${title}
 SUMMARY: ${summary || "(none)"}
@@ -198,7 +186,7 @@ BODY EXCERPT: ${excerpt}`;
       model: "google/gemini-2.5-flash-lite",
       messages: [{ role: "system", content: system }, { role: "user", content: user }],
       temperature: 0.4,
-      max_tokens: 200,
+      max_tokens: 120,
     }),
   });
   if (!res.ok) throw new Error(`AI gateway ${res.status}: ${await res.text()}`);
@@ -207,39 +195,31 @@ BODY EXCERPT: ${excerpt}`;
 
   // Sanitize
   text = text
-    .replace(/^["'`]+|["'`]+$/g, "")
+    .replace(/^["'`“”‘’]+|["'`“”‘’]+$/g, "")
     .replace(/[\u2014\u2013\u2012]/g, ",")           // em/en dashes
-    .replace(/\s*#\w+/g, "")                          // any hashtag AI slipped in
+    .replace(/\s*#\w+/g, "")                          // hashtags
+    .replace(/!+/g, ".")                              // exclamation marks
+    .replace(/^\s*(breaking|update|just in|developing)\s*:?\s*/i, "")
     .replace(/\s+/g, " ")
     .trim();
 
-  // Strip disallowed emojis (keep only permitted ones per story type)
-  const allowedEmoji = storyType === "breaking" ? "🚨" : storyType === "court" ? "⚖" : "";
+  // Strip all emoji
   text = text.replace(
     /[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}\u{1F900}-\u{1F9FF}\u{2702}-\u{27B0}]/gu,
-    (m) => (allowedEmoji && m === allowedEmoji ? m : ""),
+    "",
   ).replace(/\s+/g, " ").trim();
 
-  // Kill banned passive constructions
-  const banned = [
-    /\bis reported to have occurred\b/gi,
-    /\binvestigations are continuing\b/gi,
-    /\bit is alleged that\b/gi,
-    /\baccording to reports\b/gi,
-  ];
-  for (const b of banned) text = text.replace(b, "").trim();
-  text = text.replace(/\s+/g, " ").replace(/\s+([,.;:])/g, "$1").trim();
-
-  // Enforce 200-char body cap
-  if (text.length > 200) {
-    const cut = text.lastIndexOf(" ", 198);
-    text = text.slice(0, cut > 120 ? cut : 198).replace(/[.,;:!?\s]+$/, "") + ".";
+  // Enforce 150-char hook cap
+  if (text.length > 150) {
+    const cut = text.lastIndexOf(" ", 148);
+    text = text.slice(0, cut > 90 ? cut : 148).replace(/[.,;:!?\s]+$/, "") + ".";
   }
   if (!text) throw new Error("AI returned empty post");
+  if (!/[.?]$/.test(text)) text += ".";
 
-  const tagLine = locationTag ? ` ${locationTag}` : "";
-  return `${text}${tagLine}\n${cta} ${articleUrl}`;
+  return `${text}\n${articleUrl}`;
 }
+
 
 // ---------- Main ----------
 serve(async (req) => {
