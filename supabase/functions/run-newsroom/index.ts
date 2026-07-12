@@ -6,11 +6,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Source list — for sources that offer a section-specific crime/justice feed, we use it.
+// Sources without a section feed use the general feed and rely on the AI scope gate below.
+// The public.sources table mirrors this for reporting (requires_topic_gate flag).
 const NEWS_SOURCES = [
   { name: "GhanaWeb Crime", domain: "ghanaweb.com", rss: "https://www.ghanaweb.com/GhanaHomePage/crime/rss.xml" },
   { name: "GhanaWeb News", domain: "ghanaweb.com", rss: "https://www.ghanaweb.com/GhanaHomePage/NewsArchive/rss.xml" },
-  { name: "Citi Newsroom", domain: "citinewsroom.com", rss: "https://citinewsroom.com/feed/" },
-  { name: "MyJoyOnline", domain: "myjoyonline.com", rss: "https://www.myjoyonline.com/feed/" },
+  { name: "Citi Newsroom", domain: "citinewsroom.com", rss: "https://citinewsroom.com/category/general/crime/feed/" },
+  { name: "MyJoyOnline", domain: "myjoyonline.com", rss: "https://www.myjoyonline.com/category/news/crime/feed/" },
   { name: "Graphic Online", domain: "graphic.com.gh", rss: "https://www.graphic.com.gh/feed" },
   { name: "3News", domain: "3news.com", rss: "https://3news.com/feed/" },
   { name: "UTV Ghana", domain: "utvghana.com", rss: null },
@@ -29,6 +32,98 @@ const NEWS_SOURCES = [
   { name: "Asaase Radio", domain: "asaaseradio.com", rss: "https://asaaseradio.com/feed/" },
   { name: "Atinka Online", domain: "atinkaonline.com", rss: "https://atinkaonline.com/feed/" },
 ];
+
+// ═══════════════════════════════════════════════════════════════════
+// Title similarity (Dice coefficient on character bigrams — approximates pg_trgm)
+// Used for duplicate detection at ingestion.
+// ═══════════════════════════════════════════════════════════════════
+function normTitle(s: string): string {
+  return (s || "").toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+}
+function charBigrams(s: string): Set<string> {
+  const t = normTitle(s);
+  const set = new Set<string>();
+  if (t.length < 2) return set;
+  for (let i = 0; i < t.length - 1; i++) set.add(t.slice(i, i + 2));
+  return set;
+}
+function titleSimilarity(a: string, b: string): number {
+  const A = charBigrams(a), B = charBigrams(b);
+  if (!A.size || !B.size) return 0;
+  let inter = 0;
+  for (const x of A) if (B.has(x)) inter++;
+  return (2 * inter) / (A.size + B.size);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Crime-relevance classifier — batched Gemini call, defensive parsing.
+// Rejected items go to public.rejected_items and never consume the
+// article-generation budget below.
+// ═══════════════════════════════════════════════════════════════════
+async function classifyBatchInScope(
+  items: Array<{ original_headline?: string; headline?: string; original_summary?: string; summary?: string }>,
+  lovableApiKey: string,
+): Promise<Array<{ in_scope: boolean; confidence: number; reason: string }>> {
+  if (items.length === 0) return [];
+  const payload = items.map((it, i) => ({
+    i,
+    headline: String(it.original_headline || it.headline || "").slice(0, 300),
+    body: String(it.original_summary || it.summary || "").slice(0, 300),
+  }));
+  const user = `Classify whether each news item below is within scope for a crime and justice news site covering Ghana. IN SCOPE: crime, arrests, court cases, trials, sentencing, police and security services, prisons, fraud, corruption investigations, EOCO/OSP/NACOC actions, missing persons, road fatalities involving legal proceedings, public safety incidents, and crime policy or legislation. OUT OF SCOPE: entertainment, music, TV shows, talent competitions, sport, celebrity lifestyle, business stories with no criminal element, politics with no criminal element, and human-interest stories.
+
+Respond with valid JSON only: a single array in the same order and length as the input, each element: {"i": number, "in_scope": true/false, "confidence": 0-100, "reason": "one short sentence"}.
+
+Items:
+${JSON.stringify(payload)}`;
+
+  const doCall = async () => {
+    const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [
+          { role: "system", content: "You classify news items for a Ghanaian crime and justice site. Return only valid JSON — no prose." },
+          { role: "user", content: user },
+        ],
+      }),
+    });
+    if (!r.ok) throw new Error(`classifier http ${r.status}`);
+    const d = await r.json();
+    const c = d.choices?.[0]?.message?.content || "[]";
+    const m = c.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, c];
+    const parsed = JSON.parse(m[1] || c);
+    if (!Array.isArray(parsed)) throw new Error("classifier: not an array");
+    return parsed;
+  };
+
+  let parsed: any[] = [];
+  try {
+    parsed = await doCall();
+  } catch (e1) {
+    console.error("Classifier attempt 1 failed:", e1);
+    try {
+      parsed = await doCall();
+    } catch (e2) {
+      console.error("Classifier attempt 2 failed — treating all as out of scope:", e2);
+      return items.map(() => ({ in_scope: false, confidence: 0, reason: "classifier_error" }));
+    }
+  }
+
+  const out = items.map(() => ({ in_scope: false, confidence: 0, reason: "no classification returned" }));
+  for (const row of parsed) {
+    const idx = typeof row?.i === "number" ? row.i : -1;
+    if (idx >= 0 && idx < items.length) {
+      out[idx] = {
+        in_scope: !!row.in_scope,
+        confidence: Math.max(0, Math.min(100, Number(row.confidence) || 0)),
+        reason: String(row.reason || "").slice(0, 200),
+      };
+    }
+  }
+  return out;
+}
 
 // Strict crime-only keywords for RSS filtering
 // Story MUST involve a criminal act, formal allegation, police/court action, seizure, or investigation
