@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Edit, Trash2, ArrowLeft, Users, FileText, MessageSquare, BarChart3, Newspaper, Zap, Megaphone, Twitter, Shield } from 'lucide-react';
+import { Plus, Edit, Trash2, ArrowLeft, Users, FileText, MessageSquare, BarChart3, Newspaper, Zap, Megaphone, Twitter, Shield, ShieldAlert } from 'lucide-react';
 import { AdSettingsPanel } from '@/components/admin/AdSettingsPanel';
 import { useToast } from '@/hooks/use-toast';
 import { getRelativeTime } from '@/lib/time';
