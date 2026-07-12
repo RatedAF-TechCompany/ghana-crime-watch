@@ -291,6 +291,12 @@ export default function DashboardView() {
               Fraud Watch
             </Button>
           )}
+          {(userRole === 'admin' || userRole === 'editor') && (
+            <Button variant="outline" size="sm" onClick={() => router.push('/admin/scope-review')}>
+              <ShieldAlert className="h-4 w-4 mr-2" />
+              Scope Review
+            </Button>
+          )}
           {userRole === 'admin' && (
             <Button variant="outline" size="sm" onClick={() => router.push('/admin/analytics')}>
               <BarChart3 className="h-4 w-4 mr-2" />
