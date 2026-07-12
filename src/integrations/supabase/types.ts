@@ -709,6 +709,39 @@ export type Database = {
         }
         Relationships: []
       }
+      rejected_items: {
+        Row: {
+          confidence: number | null
+          detail: string | null
+          id: string
+          original_headline: string
+          original_url: string | null
+          reason: string
+          rejected_at: string
+          source: string | null
+        }
+        Insert: {
+          confidence?: number | null
+          detail?: string | null
+          id?: string
+          original_headline: string
+          original_url?: string | null
+          reason: string
+          rejected_at?: string
+          source?: string | null
+        }
+        Update: {
+          confidence?: number | null
+          detail?: string | null
+          id?: string
+          original_headline?: string
+          original_url?: string | null
+          reason?: string
+          rejected_at?: string
+          source?: string | null
+        }
+        Relationships: []
+      }
       run_logs: {
         Row: {
           created_at: string
@@ -760,6 +793,39 @@ export type Database = {
           label?: string | null
           updated_at?: string
           value?: Json
+        }
+        Relationships: []
+      }
+      sources: {
+        Row: {
+          active: boolean
+          created_at: string
+          domain: string
+          id: string
+          name: string
+          requires_topic_gate: boolean
+          rss_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          domain: string
+          id?: string
+          name: string
+          requires_topic_gate?: boolean
+          rss_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          domain?: string
+          id?: string
+          name?: string
+          requires_topic_gate?: boolean
+          rss_url?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -915,6 +981,8 @@ export type Database = {
         Returns: undefined
       }
       increment_view_count: { Args: { article_id: string }; Returns: undefined }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       submit_fraud_report: {
         Args: {
           p_account_handle?: string
