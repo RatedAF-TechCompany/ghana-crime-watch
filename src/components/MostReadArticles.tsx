@@ -21,6 +21,34 @@ function initialsFor(slug: string) {
   return (parts[0]?.[0] ?? "G").toUpperCase() + (parts[1]?.[0] ?? "C").toUpperCase();
 }
 
+// Char-bigram Dice similarity (approximates pg_trgm) for client-side dedup
+function normTitle(s: string) {
+  return (s || "").toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+}
+function bigrams(s: string): Set<string> {
+  const t = normTitle(s);
+  const set = new Set<string>();
+  if (t.length < 2) return set;
+  for (let i = 0; i < t.length - 1; i++) set.add(t.slice(i, i + 2));
+  return set;
+}
+function similarity(a: string, b: string): number {
+  const A = bigrams(a), B = bigrams(b);
+  if (!A.size || !B.size) return 0;
+  let inter = 0;
+  for (const x of A) if (B.has(x)) inter++;
+  return (2 * inter) / (A.size + B.size);
+}
+function dedupBySimilarity<T extends { title: string }>(list: T[], max: number, threshold = 0.55): T[] {
+  const kept: T[] = [];
+  for (const item of list) {
+    if (kept.some(k => similarity(k.title, item.title) >= threshold)) continue;
+    kept.push(item);
+    if (kept.length >= max) break;
+  }
+  return kept;
+}
+
 export function MostReadArticles() {
   const { data: articles, isLoading } = useQuery({
     queryKey: ["most-popular-writers"],
@@ -76,8 +104,8 @@ export function MostReadArticles() {
 
   if (!articles || articles.length === 0) return null;
 
-  const popular = articles.slice(0, 5);
-  const writers = articles.slice(5, 10);
+  const popular = dedupBySimilarity(articles, 5);
+  const writers = articles.filter(a => !popular.some(p => p.id === a.id)).slice(0, 5);
 
   return (
     <section>
