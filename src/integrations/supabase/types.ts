@@ -33,6 +33,7 @@ export type Database = {
           subtitle: string | null
           summary: string
           tags: string[] | null
+          thread_id: string | null
           title: string
           twitter_post: string | null
           updated_at: string
@@ -56,6 +57,7 @@ export type Database = {
           subtitle?: string | null
           summary: string
           tags?: string[] | null
+          thread_id?: string | null
           title: string
           twitter_post?: string | null
           updated_at?: string
@@ -79,12 +81,21 @@ export type Database = {
           subtitle?: string | null
           summary?: string
           tags?: string[] | null
+          thread_id?: string | null
           title?: string
           twitter_post?: string | null
           updated_at?: string
           view_count?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "articles_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "story_threads"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       audit_logs: {
         Row: {
@@ -828,6 +839,96 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      story_threads: {
+        Row: {
+          created_at: string
+          id: string
+          is_live: boolean
+          live_ended_at: string | null
+          live_started_at: string | null
+          summary: string | null
+          thread_slug: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_live?: boolean
+          live_ended_at?: string | null
+          live_started_at?: string | null
+          summary?: string | null
+          thread_slug: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_live?: boolean
+          live_ended_at?: string | null
+          live_started_at?: string | null
+          summary?: string | null
+          thread_slug?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      thread_updates: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          is_key_point: boolean
+          key_point_label: string | null
+          published_at: string
+          source_article_id: string | null
+          thread_id: string
+          title: string
+          twitter_post: string | null
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          is_key_point?: boolean
+          key_point_label?: string | null
+          published_at?: string
+          source_article_id?: string | null
+          thread_id: string
+          title: string
+          twitter_post?: string | null
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          is_key_point?: boolean
+          key_point_label?: string | null
+          published_at?: string
+          source_article_id?: string | null
+          thread_id?: string
+          title?: string
+          twitter_post?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thread_updates_source_article_id_fkey"
+            columns: ["source_article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "thread_updates_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "story_threads"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
