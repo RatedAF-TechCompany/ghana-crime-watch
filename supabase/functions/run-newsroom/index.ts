@@ -820,6 +820,15 @@ Return ONLY a valid JSON array, no other text.`;
       .gte("created_at", sevenDaysAgo)
       .neq("processing_status", "failed");
 
+    // Active developing-story threads — used below to auto-detect follow-ups
+    // to an already-live thread instead of publishing an unrelated standalone
+    // article. Fetched once per run (small table, no windowing needed).
+    const { data: activeThreads } = await supabase
+      .from("story_threads")
+      .select("id, thread_slug, title, summary")
+      .eq("is_live", true);
+    const activeThreadsBySlug = new Map<string, any>((activeThreads || []).map((t: any) => [t.thread_slug, t]));
+
     // Build sets for fast lookup
     const existingHeadlines = new Set<string>();
     const existingSlugs = new Set<string>();
@@ -1003,6 +1012,27 @@ Return ONLY a valid JSON array, no other text.`;
         // Build list of recently published slugs for duplicate suppression by AI
         const recentSlugsList = Array.from(existingSlugs).slice(0, 50).join(", ");
 
+        // Cheap pre-filter against active developing-story threads (Dice-bigram
+        // similarity, generous threshold — false positives just cost a few
+        // prompt tokens; false negatives fall back to today's unchanged
+        // behavior). The AI makes the real match decision below.
+        const headlineForMatch = newsItem.original_headline || "";
+        const candidateThreads = (activeThreads || [])
+          .map((t: any) => ({
+            ...t,
+            score: Math.max(
+              titleSimilarity(headlineForMatch, t.title),
+              titleSimilarity(headlineForMatch, t.summary || ""),
+            ),
+          }))
+          .filter((t: any) => t.score >= 0.15)
+          .sort((a: any, b: any) => b.score - a.score)
+          .slice(0, 5);
+
+        const activeThreadsBlock = candidateThreads.length > 0
+          ? `\nACTIVE DEVELOPING STORY THREADS (only shown if potentially relevant):\n${candidateThreads.map((t: any) => `${t.thread_slug}: ${t.title}`).join("\n")}\n\nIf this scanned item is clearly a follow-up development in one of the threads listed above (same ongoing case, same suspects/incident, a new development such as an arrest, court appearance, sentencing, or new detail in an already-covered story), set matched_thread_slug to that thread's slug exactly as shown above. Otherwise set matched_thread_slug to null. Do not guess — only match if you are confident this is the same real-world case/incident, not merely a similar crime type.\n\nIf matched_thread_slug is not null, also decide is_minor_update:\n- true: this is a short incremental development (e.g. a bail ruling, a new arrest in the same case, a court adjournment, an updated charge) that is not significant enough to justify a new full standalone article of its own, and would be better presented as a short update to the existing live coverage.\n- false: this is a major development (e.g. a verdict, a new major charge, a significant new suspect, a materially newsworthy escalation) substantial enough to warrant its own full article, IN ADDITION to being logged against the existing thread.\nIf matched_thread_slug is null, set is_minor_update to false.\n`
+          : "";
+
         // Generate full article using the GhanaCrimes Automated Newsroom Engine
         const articlePrompt = `You are running a GhanaCrimes automated newsroom cycle.
 
@@ -1019,7 +1049,7 @@ url: ${newsItem.source_url || "unknown"}
 
 PREVIOUSLY PUBLISHED SLUGS (last 7 days):
 ${recentSlugsList || "none"}
-
+${activeThreadsBlock}
 ---
 
 SOURCE HANDLING RULE
@@ -1154,6 +1184,12 @@ If it exceeds 150 characters, rewrite shorter until it fits. Must not end with t
 photo_description
 Describe a real world photograph. Maximum 50 words. No faces described. No illustrations.
 
+matched_thread_slug
+The slug of the matched active thread from the list above, or null if none matches.
+
+is_minor_update
+true or false. Only meaningful when matched_thread_slug is not null (see rules above). Otherwise false.
+
 ---
 
 Return ONLY valid JSON with exactly these keys:
@@ -1168,7 +1204,9 @@ Return ONLY valid JSON with exactly these keys:
   "section": "...",
   "tags": ["tag1", "tag2"],
   "twitter_post": "...",
-  "photo_description": "..."
+  "photo_description": "...",
+  "matched_thread_slug": null,
+  "is_minor_update": false
 }`;
 
         const articleResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -1225,6 +1263,55 @@ Return ONLY valid JSON with exactly these keys:
         // FACT-CHECK SKIPPED for speed — articles must publish within 10 minutes
         // Fact-checking was adding ~15s latency per article, causing timeout backlogs
         console.log(`Skipping fact-check for speed: ${articleJson.headline}`);
+
+        // Thread-match validation — never trust the AI's returned slug blindly.
+        // If it doesn't resolve to a real active thread (hallucination or a
+        // stale candidate list), treat as no match and fall through unchanged.
+        const rawMatchedSlug = typeof articleJson.matched_thread_slug === "string" ? articleJson.matched_thread_slug : null;
+        const matchedThread = rawMatchedSlug ? activeThreadsBySlug.get(rawMatchedSlug) : null;
+        const isMinorUpdate = matchedThread ? !!articleJson.is_minor_update : false;
+        if (matchedThread) {
+          console.log(`Thread match: "${newsItem.original_headline?.substring(0, 60)}" -> ${matchedThread.thread_slug} (minor_update=${isMinorUpdate})`);
+        }
+
+        // Case A: matched an active thread AND it's only a minor development —
+        // skip full article generation (no slug, no image extraction, no
+        // extract-cities/auto-tweet) and log it directly as a thread update
+        // instead. is_key_point is always hard-coded false for automated
+        // writes — this can never trigger an auto-tweet (auto-tweet/index.ts
+        // rejects non-key-point thread_update_id calls, and this code path
+        // never calls auto-tweet for thread updates anyway).
+        if (matchedThread && isMinorUpdate) {
+          if (isStale(newsItem)) {
+            console.log(`GATE 3 STALE_BEFORE_PUBLISH: skipping "${newsItem.original_headline?.substring(0, 60)}"`);
+            await supabase.from("newsroom_articles").update({
+              processing_status: "rejected",
+              error_message: "STALE_BEFORE_PUBLISH",
+            }).eq("id", newsItem.id);
+            continue;
+          }
+
+          const { error: threadUpdateError } = await supabase.from("thread_updates").insert({
+            thread_id: matchedThread.id,
+            title: articleJson.headline,
+            body: articleJson.summary,
+            is_key_point: false,
+            key_point_label: null,
+            source_article_id: null,
+          });
+
+          if (threadUpdateError) {
+            throw new Error(`Failed to save thread update: ${threadUpdateError.message}`);
+          }
+
+          await supabase.from("newsroom_articles").update({
+            processing_status: "thread_update",
+            matched_thread_id: matchedThread.id,
+          }).eq("id", newsItem.id);
+
+          console.log(`Logged minor update to thread ${matchedThread.thread_slug}: ${articleJson.headline}`);
+          continue;
+        }
 
         // Use AI-generated slug or create from headline
         const slugBase = (articleJson.slug || articleJson.headline || "article")
@@ -1294,6 +1381,7 @@ Return ONLY valid JSON with exactly these keys:
             is_published: true,
             published_at: new Date().toISOString(),
             source_published_at: newsItem.source_published_at || null,
+            thread_id: matchedThread ? matchedThread.id : null,
           })
           .select()
           .single();
@@ -1306,6 +1394,7 @@ Return ONLY valid JSON with exactly these keys:
         await supabase.from("newsroom_articles").update({
           processing_status: "completed",
           generated_article_id: newArticle.id,
+          matched_thread_id: matchedThread ? matchedThread.id : null,
         }).eq("id", newsItem.id);
 
         // Extract cities and update crime type stats from the article for the crime dashboard
@@ -1352,6 +1441,27 @@ Return ONLY valid JSON with exactly these keys:
           }
         } catch (tweetError) {
           console.error("Auto-tweet error:", tweetError);
+        }
+
+        // Case B companion log: this article is a major development in an
+        // active thread — link it into the live coverage timeline too.
+        // Non-blocking: never fails the already-successful article publish.
+        // is_key_point is always hard-coded false, same safety property as
+        // Case A — this can never trigger an auto-tweet.
+        if (matchedThread) {
+          try {
+            await supabase.from("thread_updates").insert({
+              thread_id: matchedThread.id,
+              title: newArticle.title,
+              body: newArticle.summary,
+              is_key_point: false,
+              key_point_label: null,
+              source_article_id: newArticle.id,
+            });
+            console.log(`Logged major development to thread ${matchedThread.thread_slug}: ${newArticle.title}`);
+          } catch (threadLogError) {
+            console.error("Thread update companion log failed (non-blocking):", threadLogError);
+          }
         }
 
         articlesCreated++;

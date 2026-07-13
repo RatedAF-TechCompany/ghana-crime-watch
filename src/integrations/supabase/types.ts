@@ -507,6 +507,7 @@ export type Database = {
           generated_article_id: string | null
           id: string
           image_style: string | null
+          matched_thread_id: string | null
           original_headline: string
           original_summary: string
           processing_status: string
@@ -521,6 +522,7 @@ export type Database = {
           generated_article_id?: string | null
           id?: string
           image_style?: string | null
+          matched_thread_id?: string | null
           original_headline: string
           original_summary: string
           processing_status?: string
@@ -535,6 +537,7 @@ export type Database = {
           generated_article_id?: string | null
           id?: string
           image_style?: string | null
+          matched_thread_id?: string | null
           original_headline?: string
           original_summary?: string
           processing_status?: string
@@ -549,6 +552,13 @@ export type Database = {
             columns: ["generated_article_id"]
             isOneToOne: false
             referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "newsroom_articles_matched_thread_id_fkey"
+            columns: ["matched_thread_id"]
+            isOneToOne: false
+            referencedRelation: "story_threads"
             referencedColumns: ["id"]
           },
           {

@@ -107,7 +107,7 @@ export default function LiveThreadsView() {
   const handleMarkLive = async (thread: StoryThread) => {
     const { error } = await supabase
       .from('story_threads')
-      .update({ is_live: true, live_started_at: new Date().toISOString() })
+      .update({ is_live: true, live_started_at: new Date().toISOString(), live_ended_at: null })
       .eq('id', thread.id);
 
     if (error) {

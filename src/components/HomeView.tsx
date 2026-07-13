@@ -12,6 +12,7 @@ import { PodcastsPanel } from "@/components/editorial/PodcastsPanel";
 import { CartoonSection } from "@/components/editorial/CartoonSection";
 import { NewsletterSignup } from "@/components/NewsletterSignup";
 import { AdBanner } from "@/components/AdBanner";
+import { LiveNowModule } from "@/components/LiveNowModule";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -124,6 +125,9 @@ export default function HomeView() {
           </div>
         </aside>
       </section>
+
+      {/* Live Now */}
+      <LiveNowModule />
 
       {/* Ad slot */}
       <div className="mx-auto max-w-3xl">
