@@ -13,6 +13,8 @@ import { SocialShareButtons } from "@/components/SocialShareButtons";
 import { BookmarkButton } from "@/components/BookmarkButton";
 import { WhatsAppChannelCTA, useShouldShowWhatsAppCTA } from "@/components/WhatsAppChannelCTA";
 import { AdBanner } from "@/components/AdBanner";
+import { LiveDevelopingPill } from "@/components/LiveDevelopingPill";
+import { CaseTimeline } from "@/components/CaseTimeline";
 import DOMPurify from "dompurify";
 import { useEffect, useRef } from "react";
 import { getArticleImage } from "@/lib/article-image";
@@ -89,6 +91,28 @@ export default function ArticleView({ categorySlug, articleSlug }: { categorySlu
     enabled: !!categorySlug && !!article?.id,
   });
 
+  const { data: threadData } = useQuery({
+    queryKey: ["article-thread", article?.thread_id],
+    queryFn: async () => {
+      const [{ data: thread }, { data: siblingArticles }] = await Promise.all([
+        supabase
+          .from("story_threads")
+          .select("id, thread_slug, title, is_live, live_ended_at")
+          .eq("id", article!.thread_id!)
+          .maybeSingle(),
+        supabase
+          .from("articles")
+          .select("id, title, article_slug, category_slug, published_at")
+          .eq("thread_id", article!.thread_id!)
+          .eq("is_published", true)
+          .order("published_at", { ascending: false }),
+      ]);
+
+      return { thread: thread ?? null, siblingArticles: siblingArticles ?? [] };
+    },
+    enabled: !!article?.thread_id,
+  });
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -137,6 +161,22 @@ export default function ArticleView({ categorySlug, articleSlug }: { categorySlu
         <p className="mx-auto mb-6 max-w-[720px] text-center font-body text-[19px] leading-[1.5] text-foreground/80 md:text-[21px]">
           {article.subtitle}
         </p>
+      )}
+
+      {threadData?.thread && (
+        threadData.thread.is_live && !threadData.thread.live_ended_at ? (
+          <Link
+            href={`/live/${threadData.thread.thread_slug}`}
+            className="mb-6 flex items-center gap-2 rounded-md border-l-4 border-primary bg-muted px-4 py-3 text-sm font-semibold text-foreground hover:bg-muted/70"
+          >
+            <LiveDevelopingPill />
+            <span>This is a developing story — follow live updates</span>
+          </Link>
+        ) : (
+          <div className="mb-6 rounded-md border-l-4 border-primary bg-muted px-4 py-3 text-sm text-foreground">
+            This story has been updated. See the full timeline below.
+          </div>
+        )
       )}
 
       <div className="mb-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-y border-border py-3 text-center">
@@ -221,6 +261,14 @@ export default function ArticleView({ categorySlug, articleSlug }: { categorySlu
             </span>
           ))}
         </div>
+      )}
+
+      {threadData && (
+        <CaseTimeline
+          currentArticleId={article.id}
+          articles={threadData.siblingArticles}
+          thread={threadData.thread}
+        />
       )}
 
       {relatedArticles && relatedArticles.length > 0 && (

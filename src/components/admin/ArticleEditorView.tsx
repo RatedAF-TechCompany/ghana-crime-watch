@@ -39,14 +39,25 @@ export default function ArticleEditorView({ id }: { id: string }) {
     seo_title: '',
     seo_description: '',
     is_published: true,
+    thread_id: null,
   });
+  const [threads, setThreads] = useState<{ id: string; title: string }[]>([]);
 
   useEffect(() => {
     checkAuth();
+    fetchThreads();
     if (id && id !== 'new') {
       fetchArticle();
     }
   }, [id]);
+
+  const fetchThreads = async () => {
+    const { data } = await supabase
+      .from('story_threads')
+      .select('id, title')
+      .order('created_at', { ascending: false });
+    setThreads(data || []);
+  };
 
   const checkAuth = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -286,6 +297,29 @@ export default function ArticleEditorView({ id }: { id: string }) {
               />
               <p className="text-xs text-muted-foreground">Leave empty to use default: {DEFAULT_AUTHOR}</p>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="thread">Story Thread</Label>
+            <Select
+              value={formData.thread_id || 'none'}
+              onValueChange={(value) => setFormData({ ...formData, thread_id: value === 'none' ? null : value })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {threads.map((thread) => (
+                  <SelectItem key={thread.id} value={thread.id}>
+                    {thread.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Link this article into a case timeline. Manage live coverage from Live Threads in the dashboard.
+            </p>
           </div>
 
         <div className="flex justify-end">

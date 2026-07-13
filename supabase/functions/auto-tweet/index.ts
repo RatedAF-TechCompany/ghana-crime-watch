@@ -98,11 +98,11 @@ serve(async (req) => {
   }
 
   try {
-    const { article_id } = await req.json();
+    const { article_id, thread_update_id } = await req.json();
 
-    if (!article_id) {
+    if (!article_id && !thread_update_id) {
       return new Response(
-        JSON.stringify({ error: "article_id is required" }),
+        JSON.stringify({ error: "article_id or thread_update_id is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -120,16 +120,23 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // --- Rate limit: max 1 tweet every 2 hours (audit step 13) ---
+    // --- Rate limit: max 1 tweet every 2 hours across BOTH sources (audit step 13) ---
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-    const { data: recentTweets } = await supabase
+    const { data: recentArticleTweets } = await supabase
       .from("articles")
       .select("id, twitter_post, published_at")
       .like("twitter_post", "POSTED:%")
       .gte("updated_at", twoHoursAgo)
       .limit(1);
 
-    if (recentTweets && recentTweets.length > 0) {
+    const { data: recentThreadTweets } = await supabase
+      .from("thread_updates")
+      .select("id, twitter_post, created_at")
+      .like("twitter_post", "POSTED:%")
+      .gte("created_at", twoHoursAgo)
+      .limit(1);
+
+    if ((recentArticleTweets && recentArticleTweets.length > 0) || (recentThreadTweets && recentThreadTweets.length > 0)) {
       console.log("TOO_SOON: a tweet was posted within the last 2 hours");
       return new Response(
         JSON.stringify({ error: "TOO_SOON: only 1 tweet allowed every 2 hours", rate_limited: true }),
@@ -137,55 +144,115 @@ serve(async (req) => {
       );
     }
 
-    // Fetch the article
-    const { data: article, error: fetchError } = await supabase
-      .from("articles")
-      .select("id, title, summary, twitter_post, category_slug, article_slug, is_published, source_published_at, published_at")
-      .eq("id", article_id)
-      .single();
+    // Fetch the source content — either an article or a live-thread key-point update
+    let sourceTable: "articles" | "thread_updates";
+    let sourceRow: { id: string; twitter_post: string | null };
+    let rawText: string;
+    let summary: string;
+    let contentUrl: string;
 
-    if (fetchError || !article) {
-      return new Response(
-        JSON.stringify({ error: "Article not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    if (article_id) {
+      sourceTable = "articles";
 
-    // GATE 5: skip tweeting if source is older than 3 hours
-    const sourceTs = article.source_published_at ? new Date(article.source_published_at).getTime() : null;
-    if (sourceTs !== null && !isNaN(sourceTs)) {
-      const ageHours = (Date.now() - sourceTs) / (1000 * 60 * 60);
+      const { data: article, error: fetchError } = await supabase
+        .from("articles")
+        .select("id, title, summary, twitter_post, category_slug, article_slug, is_published, source_published_at, published_at")
+        .eq("id", article_id)
+        .single();
+
+      if (fetchError || !article) {
+        return new Response(
+          JSON.stringify({ error: "Article not found" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // GATE 5: skip tweeting if source is older than 3 hours
+      const sourceTs = article.source_published_at ? new Date(article.source_published_at).getTime() : null;
+      if (sourceTs !== null && !isNaN(sourceTs)) {
+        const ageHours = (Date.now() - sourceTs) / (1000 * 60 * 60);
+        if (ageHours > 3) {
+          console.log(`SKIPPED_STALE_SOURCE: article ${article_id} source is ${ageHours.toFixed(1)}h old`);
+          return new Response(
+            JSON.stringify({ error: "SKIPPED_STALE_SOURCE", stale: true, age_hours: ageHours }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+
+      sourceRow = article;
+      rawText = article.twitter_post || article.title;
+      summary = article.summary || "";
+      contentUrl = `https://ghanacrimes.com/${article.category_slug}/${article.article_slug}`;
+    } else {
+      sourceTable = "thread_updates";
+
+      const { data: threadUpdate, error: fetchError } = await supabase
+        .from("thread_updates")
+        .select("id, title, body, twitter_post, is_key_point, published_at, story_threads(thread_slug)")
+        .eq("id", thread_update_id)
+        .single();
+
+      if (fetchError || !threadUpdate) {
+        return new Response(
+          JSON.stringify({ error: "Thread update not found" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (!threadUpdate.is_key_point) {
+        return new Response(
+          JSON.stringify({ error: "Only key-point updates are tweeted", not_key_point: true }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // GATE 5 equivalent: thread updates have no separate "source" timestamp,
+      // so published_at doubles as the staleness reference.
+      const ageHours = (Date.now() - new Date(threadUpdate.published_at).getTime()) / (1000 * 60 * 60);
       if (ageHours > 3) {
-        console.log(`SKIPPED_STALE_SOURCE: article ${article_id} source is ${ageHours.toFixed(1)}h old`);
+        console.log(`SKIPPED_STALE_SOURCE: thread update ${thread_update_id} is ${ageHours.toFixed(1)}h old`);
         return new Response(
           JSON.stringify({ error: "SKIPPED_STALE_SOURCE", stale: true, age_hours: ageHours }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+
+      const threadSlug = (threadUpdate as unknown as { story_threads: { thread_slug: string } | null }).story_threads?.thread_slug;
+      if (!threadSlug) {
+        return new Response(
+          JSON.stringify({ error: "Thread update has no parent thread slug" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      sourceRow = threadUpdate;
+      rawText = threadUpdate.twitter_post || threadUpdate.title;
+      summary = threadUpdate.body.slice(0, 500);
+      contentUrl = `https://ghanacrimes.com/live/${threadSlug}`;
     }
 
     // Check if already posted
-    if (article.twitter_post?.startsWith("POSTED:")) {
+    if (sourceRow.twitter_post?.startsWith("POSTED:")) {
       return new Response(
         JSON.stringify({ error: "Already tweeted", already_posted: true }),
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // --- Count total posted tweets to determine if this is the 6th ---
-    const { count: totalPosted } = await supabase
+    // --- Count total posted tweets across BOTH sources to determine cadence ---
+    const { count: articlesPosted } = await supabase
       .from("articles")
       .select("id", { count: "exact", head: true })
       .like("twitter_post", "POSTED:%");
 
-    const isUrlTweet = totalPosted !== null && (totalPosted % 3 === 2); // 0-indexed: every 3rd tweet includes URL
+    const { count: threadUpdatesPosted } = await supabase
+      .from("thread_updates")
+      .select("id", { count: "exact", head: true })
+      .like("twitter_post", "POSTED:%");
 
-    // Build article URL
-    const articleUrl = `https://ghanacrimes.com/${article.category_slug}/${article.article_slug}`;
-
-    // Build tweet text — use AI to craft engaging, shareable crime tweet
-    const rawText = article.twitter_post || article.title;
-    const summary = article.summary || "";
+    const totalPosted = (articlesPosted ?? 0) + (threadUpdatesPosted ?? 0);
+    const isUrlTweet = totalPosted % 3 === 2; // 0-indexed: every 3rd tweet includes URL
 
     const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
     let tweetText = rawText;
@@ -271,12 +338,12 @@ Return ONLY the tweet text, nothing else.`
     }
 
     if (isUrlTweet) {
-      tweetText = `${tweetText}\n${articleUrl}`;
+      tweetText = `${tweetText}\n${contentUrl}`;
     }
 
     const finalTweet = tweetText;
 
-    console.log(`Posting tweet for article ${article_id}: ${finalTweet.substring(0, 50)}...`);
+    console.log(`Posting tweet for ${sourceTable} ${sourceRow.id}: ${finalTweet.substring(0, 50)}...`);
 
     // Post to X/Twitter
     const twitterUrl = "https://api.x.com/2/tweets";
@@ -309,12 +376,12 @@ Return ONLY the tweet text, nothing else.`
 
     console.log(`Tweet posted successfully: ${tweetId}`);
 
-    // Mark as posted by prefixing twitter_post field
-    const originalText = article.twitter_post || article.title.substring(0, 200);
+    // Mark as posted by prefixing twitter_post field on whichever table sourced this tweet
+    const originalText = rawText.substring(0, 200);
     await supabase
-      .from("articles")
+      .from(sourceTable)
       .update({ twitter_post: `POSTED:${tweetId}|${originalText}` })
-      .eq("id", article_id);
+      .eq("id", sourceRow.id);
 
     return new Response(
       JSON.stringify({
