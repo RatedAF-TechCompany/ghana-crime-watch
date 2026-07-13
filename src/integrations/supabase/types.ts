@@ -915,17 +915,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "thread_updates_thread_id_fkey"
-            columns: ["thread_id"]
-            isOneToOne: false
-            referencedRelation: "story_threads"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "thread_updates_source_article_id_fkey"
             columns: ["source_article_id"]
             isOneToOne: false
             referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "thread_updates_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "story_threads"
             referencedColumns: ["id"]
           },
         ]
