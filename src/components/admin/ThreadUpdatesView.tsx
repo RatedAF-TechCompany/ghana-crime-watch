@@ -109,10 +109,14 @@ export default function ThreadUpdatesView({ threadId }: { threadId: string }) {
         body: JSON.stringify({ thread_update_id: threadUpdateId }),
       });
       const result = await resp.json();
-      if (!resp.ok) throw new Error(result.error || 'Tweet failed');
-      toast({ title: 'Tweeted!', description: `Posted to X: ${result.tweet_url}` });
+      if (result.success) {
+        toast({ title: 'Tweeted!', description: `Posted to X: ${result.tweet_url}` });
+      } else {
+        // Paused/rate-limited/stale/not-key-point/already-posted are expected
+        // non-error outcomes (HTTP 200 or 4xx), not failures to retry.
+        toast({ title: 'Tweet not posted', description: result.error || 'Unknown reason' });
+      }
     } catch (err: any) {
-      // A 429 (rate-limited) or stale-source skip is an expected non-error outcome, not a failure to retry.
       toast({ title: 'Tweet not posted', description: err.message, variant: 'destructive' });
     } finally {
       fetchUpdates();
