@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { getRelativeTime } from '@/lib/time';
-import { ArrowLeft, Send, Twitter } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Send, Twitter } from 'lucide-react';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 type StoryThread = Tables<'story_threads'>;
@@ -25,6 +25,7 @@ export default function ThreadUpdatesView({ threadId }: { threadId: string }) {
   const [thread, setThread] = useState<StoryThread | null>(null);
   const [updates, setUpdates] = useState<ThreadUpdate[]>([]);
   const [threadArticles, setThreadArticles] = useState<{ id: string; title: string }[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -249,20 +250,32 @@ export default function ThreadUpdatesView({ threadId }: { threadId: string }) {
         {updates.length === 0 ? (
           <p className="text-sm text-muted-foreground">No updates yet.</p>
         ) : (
-          updates.map((update) => (
-            <div key={update.id} className="rounded-lg border p-4">
-              <div className="mb-1 flex items-center justify-between gap-2">
-                <h3 className="font-medium">{update.title}</h3>
-                <div className="flex items-center gap-2">
-                  {update.is_key_point && <Badge variant="outline">Key point</Badge>}
-                  {update.twitter_post?.startsWith('POSTED:') && (
-                    <Twitter className="h-4 w-4 text-blue-500" aria-label="Tweeted" />
-                  )}
+          updates.map((update) => {
+            const isExpanded = expandedId === update.id;
+            return (
+              <button
+                key={update.id}
+                type="button"
+                onClick={() => setExpandedId(isExpanded ? null : update.id)}
+                className="w-full rounded-lg border p-4 text-left"
+              >
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <h3 className="font-medium">{update.title}</h3>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {update.is_key_point && <Badge variant="outline">Key point</Badge>}
+                    {update.twitter_post?.startsWith('POSTED:') && (
+                      <Twitter className="h-4 w-4 text-blue-500" aria-label="Tweeted" />
+                    )}
+                    <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                  </div>
                 </div>
-              </div>
-              <p className="text-xs text-muted-foreground">{getRelativeTime(update.published_at)}</p>
-            </div>
-          ))
+                <p className="text-xs text-muted-foreground">{getRelativeTime(update.published_at)}</p>
+                {isExpanded && (
+                  <p className="mt-3 whitespace-pre-wrap border-t pt-3 text-sm">{update.body}</p>
+                )}
+              </button>
+            );
+          })
         )}
       </div>
     </div>
