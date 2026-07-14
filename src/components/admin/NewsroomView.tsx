@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Play, RefreshCw, Newspaper, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Play, RefreshCw, Newspaper, Clock, CheckCircle, XCircle, AlertCircle, Radio } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getRelativeTime } from '@/lib/time';
 import type { Tables } from '@/integrations/supabase/types';
@@ -23,6 +23,8 @@ export default function NewsroomView() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [runThreadMatchCounts, setRunThreadMatchCounts] = useState<Map<string, number>>(new Map());
+  const [threadTitles, setThreadTitles] = useState<Map<string, { title: string; thread_slug: string }>>(new Map());
 
   useEffect(() => {
     checkAuth();
@@ -74,11 +76,26 @@ export default function NewsroomView() {
         description: error.message,
         variant: 'destructive',
       });
-    } else {
-      setRuns(data || []);
-      if (data && data.length > 0 && !selectedRunId) {
-        setSelectedRunId(data[0].id);
-      }
+      return;
+    }
+
+    setRuns(data || []);
+    if (data && data.length > 0 && !selectedRunId) {
+      setSelectedRunId(data[0].id);
+    }
+
+    if (data && data.length > 0) {
+      const { data: matchedRows } = await supabase
+        .from('newsroom_articles')
+        .select('run_id')
+        .in('run_id', data.map((r) => r.id))
+        .not('matched_thread_id', 'is', null);
+
+      const counts = new Map<string, number>();
+      (matchedRows || []).forEach((row) => {
+        counts.set(row.run_id, (counts.get(row.run_id) || 0) + 1);
+      });
+      setRunThreadMatchCounts(counts);
     }
   };
 
@@ -95,8 +112,20 @@ export default function NewsroomView() {
         description: error.message,
         variant: 'destructive',
       });
+      return;
+    }
+
+    setArticles(data || []);
+
+    const threadIds = [...new Set((data || []).map((a) => a.matched_thread_id).filter((id): id is string => !!id))];
+    if (threadIds.length > 0) {
+      const { data: threads } = await supabase
+        .from('story_threads')
+        .select('id, title, thread_slug')
+        .in('id', threadIds);
+      setThreadTitles(new Map((threads || []).map((t) => [t.id, { title: t.title, thread_slug: t.thread_slug }])));
     } else {
-      setArticles(data || []);
+      setThreadTitles(new Map());
     }
   };
 
@@ -153,6 +182,8 @@ export default function NewsroomView() {
         return <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" />;
       case 'no_news':
         return <AlertCircle className="h-4 w-4 text-yellow-500" />;
+      case 'thread_update':
+        return <Radio className="h-4 w-4 text-primary" />;
       default:
         return <Clock className="h-4 w-4 text-muted-foreground" />;
     }
@@ -167,6 +198,7 @@ export default function NewsroomView() {
       processing: 'secondary',
       duplicate: 'outline',
       no_news: 'outline',
+      thread_update: 'default',
     };
     return <Badge variant={variants[status] || 'outline'}>{status}</Badge>;
   };
@@ -261,13 +293,14 @@ export default function NewsroomView() {
                       <TableHead>Duration</TableHead>
                       <TableHead>Found</TableHead>
                       <TableHead>Created</TableHead>
+                      <TableHead>Thread Matches</TableHead>
                       <TableHead>Error</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {runs.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                           No runs yet. Click "Run Newsroom" to start scanning.
                         </TableCell>
                       </TableRow>
@@ -293,6 +326,16 @@ export default function NewsroomView() {
                           </TableCell>
                           <TableCell>{run.articles_found}</TableCell>
                           <TableCell>{run.articles_created}</TableCell>
+                          <TableCell>
+                            {runThreadMatchCounts.get(run.id) ? (
+                              <Badge variant="outline" className="gap-1">
+                                <Radio className="h-3 w-3" />
+                                {runThreadMatchCounts.get(run.id)}
+                              </Badge>
+                            ) : (
+                              '—'
+                            )}
+                          </TableCell>
                           <TableCell className="max-w-[200px] truncate text-red-500">
                             {run.error_message || '—'}
                           </TableCell>
@@ -323,46 +366,65 @@ export default function NewsroomView() {
                       <TableHead>Source</TableHead>
                       <TableHead>Original Headline</TableHead>
                       <TableHead>Generated Article</TableHead>
+                      <TableHead>Thread</TableHead>
                       <TableHead>Error</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {articles.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                           {selectedRunId ? 'No articles in this run' : 'Select a run to view articles'}
                         </TableCell>
                       </TableRow>
                     ) : (
-                      articles.map((article) => (
-                        <TableRow key={article.id}>
-                          <TableCell>{getStatusBadge(article.processing_status)}</TableCell>
-                          <TableCell>{article.source_name}</TableCell>
-                          <TableCell className="max-w-[250px]">
-                            <div className="truncate font-medium">{article.original_headline}</div>
-                            <div className="truncate text-sm text-muted-foreground">
-                              {article.original_summary}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {article.generated_article_id ? (
-                              <Button
-                                variant="link"
-                                size="sm"
-                                className="p-0 h-auto"
-                                onClick={() => router.push(`/admin/articles/${article.generated_article_id}`)}
-                              >
-                                View Article
-                              </Button>
-                            ) : (
-                              '—'
-                            )}
-                          </TableCell>
-                          <TableCell className="max-w-[150px] truncate text-red-500">
-                            {article.error_message || '—'}
-                          </TableCell>
-                        </TableRow>
-                      ))
+                      articles.map((article) => {
+                        const matchedThread = article.matched_thread_id ? threadTitles.get(article.matched_thread_id) : null;
+                        return (
+                          <TableRow key={article.id}>
+                            <TableCell>{getStatusBadge(article.processing_status)}</TableCell>
+                            <TableCell>{article.source_name}</TableCell>
+                            <TableCell className="max-w-[250px]">
+                              <div className="truncate font-medium">{article.original_headline}</div>
+                              <div className="truncate text-sm text-muted-foreground">
+                                {article.original_summary}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {article.generated_article_id ? (
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  className="p-0 h-auto"
+                                  onClick={() => router.push(`/admin/articles/${article.generated_article_id}`)}
+                                >
+                                  View Article
+                                </Button>
+                              ) : (
+                                '—'
+                              )}
+                            </TableCell>
+                            <TableCell className="max-w-[180px]">
+                              {matchedThread ? (
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  className="h-auto gap-1 p-0"
+                                  onClick={() => router.push(`/admin/live-threads/${article.matched_thread_id}`)}
+                                >
+                                  <Radio className="h-3 w-3 shrink-0" />
+                                  <span className="truncate">{matchedThread.title}</span>
+                                </Button>
+                              ) : (
+                                '—'
+                              )}
+                            </TableCell>
+                            <TableCell className="max-w-[150px] truncate text-red-500">
+                              {article.error_message || '—'}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>
