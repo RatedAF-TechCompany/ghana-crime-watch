@@ -471,14 +471,24 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get auth token from request
+    // Get auth token from request. created_by references profiles(id), which
+    // is a separate generated key from the auth user id (profiles.user_id is
+    // the actual FK to auth.users) — must resolve through profiles or the
+    // insert below violates newsroom_runs_created_by_fkey.
     const authHeader = req.headers.get("Authorization");
     let userId: string | null = null;
 
     if (authHeader) {
       const token = authHeader.replace("Bearer ", "");
       const { data: { user } } = await supabase.auth.getUser(token);
-      userId = user?.id || null;
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        userId = profile?.id || null;
+      }
     }
 
     const body = await req.json().catch(() => ({}));
