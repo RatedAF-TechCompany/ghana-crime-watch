@@ -11,12 +11,38 @@ import { LiveDevelopingPill } from "@/components/LiveDevelopingPill";
 import { useThreadUpdatesRealtime, type ThreadUpdateRow } from "@/hooks/use-thread-updates-realtime";
 
 const UPDATES_PER_PAGE = 20;
+const LONG_BODY_THRESHOLD = 320;
 
 const sanitizeBody = (body: string) =>
   DOMPurify.sanitize(body, {
     ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h2', 'h3', 'h4', 'ul', 'ol', 'li', 'a'],
     ALLOWED_ATTR: ['href', 'target', 'rel'],
   });
+
+const plainTextLength = (html: string) => html.replace(/<[^>]*>/g, '').trim().length;
+
+function UpdateBody({ body }: { body: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = plainTextLength(body) > LONG_BODY_THRESHOLD;
+  const sanitized = sanitizeBody(body);
+
+  return (
+    <div>
+      <div
+        className={`space-y-2 text-sm text-foreground/90 ${isLong && !expanded ? "line-clamp-3 overflow-hidden" : ""}`}
+        dangerouslySetInnerHTML={{ __html: sanitized }}
+      />
+      {isLong && (
+        <button
+          onClick={() => setExpanded((e) => !e)}
+          className="mt-1 text-sm font-semibold text-primary hover:underline"
+        >
+          {expanded ? "Show less" : "Read more"}
+        </button>
+      )}
+    </div>
+  );
+}
 
 export default function LiveThreadView({ threadSlug }: { threadSlug: string }) {
   const { data: thread, isLoading: threadLoading } = useQuery({
@@ -243,10 +269,7 @@ export default function LiveThreadView({ threadSlug }: { threadSlug: string }) {
                 )}
               </div>
               <h3 className="mb-2 text-lg font-bold text-foreground">{update.title}</h3>
-              <div
-                className="space-y-2 text-sm text-foreground/90"
-                dangerouslySetInnerHTML={{ __html: sanitizeBody(update.body) }}
-              />
+              <UpdateBody body={update.body} />
               {update.source_article_id && sourceArticleMap.has(update.source_article_id) && (
                 <Link
                   href={`/${sourceArticleMap.get(update.source_article_id)!.category_slug}/${sourceArticleMap.get(update.source_article_id)!.article_slug}`}
