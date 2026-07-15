@@ -56,6 +56,203 @@ function titleSimilarity(a: string, b: string): number {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// Automated developing-story detection — repurposes the 72h duplicate
+// signal above. Two independently-scraped items about the same real-world
+// event within a short window is the strongest "this is developing"
+// signal anywhere in this pipeline today; previously a duplicate match
+// was just logged to rejected_items and discarded. is_key_point is always
+// hard-coded false here (same safety property as the existing thread-match
+// branch below) so automation can never trigger an auto-tweet by itself.
+// Going live (is_live=true) additionally requires a 3rd independent
+// source to confirm — see maybePromoteThread().
+// ═══════════════════════════════════════════════════════════════════
+function generateThreadSlugBase(title: string): string {
+  return (title || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .trim()
+    .substring(0, 80);
+}
+
+async function generateUniqueThreadSlug(supabase: any, title: string): Promise<string> {
+  const base = generateThreadSlugBase(title) || "story";
+  let candidate = base;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data } = await supabase.from("story_threads").select("id").eq("thread_slug", candidate).maybeSingle();
+    if (!data) return candidate;
+    candidate = `${base}-${Date.now().toString(36)}${attempt > 0 ? `-${attempt}` : ""}`;
+  }
+  return `${base}-${Date.now()}`;
+}
+
+async function logThreadUpdateAudit(
+  supabase: any,
+  runId: string,
+  dupeItem: { source_name?: string; original_headline?: string; headline?: string; original_summary?: string; summary?: string; source_url?: string },
+  dupeTitle: string,
+  threadId: string,
+) {
+  await supabase.from("newsroom_articles").insert({
+    run_id: runId,
+    source_name: dupeItem.source_name || "Unknown",
+    original_headline: dupeTitle || "Untitled",
+    original_summary: dupeItem.original_summary || dupeItem.summary || "",
+    source_url: dupeItem.source_url || null,
+    processing_status: "thread_update",
+    matched_thread_id: threadId,
+  });
+}
+
+async function maybePromoteThread(supabase: any, threadId: string) {
+  const { count } = await supabase
+    .from("thread_updates")
+    .select("id", { count: "exact", head: true })
+    .eq("thread_id", threadId);
+
+  if ((count ?? 0) < 3) return;
+
+  const { data: promoted } = await supabase
+    .from("story_threads")
+    .update({ is_live: true, live_started_at: new Date().toISOString() })
+    .eq("id", threadId)
+    .eq("created_by", "auto_pipeline")
+    .eq("is_live", false)
+    .is("live_ended_at", null)
+    .select("id");
+
+  if (promoted && promoted.length > 0) {
+    console.log(`Auto-promoted thread ${threadId} to live after ${count} confirming sources`);
+  }
+}
+
+async function appendThreadUpdate(
+  supabase: any,
+  runId: string,
+  threadId: string,
+  dupeItem: { source_name?: string; original_headline?: string; headline?: string; original_summary?: string; summary?: string; source_url?: string },
+  dupeTitle: string,
+) {
+  const dupeSummary = dupeItem.original_summary || dupeItem.summary || "";
+  const { error } = await supabase.from("thread_updates").insert({
+    thread_id: threadId,
+    title: dupeTitle || "Untitled",
+    body: dupeSummary || dupeTitle || "Untitled",
+    is_key_point: false,
+    key_point_label: null,
+    source_article_id: null,
+  });
+  if (error) {
+    console.error("Auto thread_update insert failed:", error);
+    return;
+  }
+  await logThreadUpdateAudit(supabase, runId, dupeItem, dupeTitle, threadId);
+  await maybePromoteThread(supabase, threadId);
+}
+
+async function handleDeveloperStoryPromotion(
+  supabase: any,
+  matchedArticle: { id: string; title: string; thread_id?: string | null; created_at?: string },
+  dupeItem: { source_name?: string; original_headline?: string; headline?: string; original_summary?: string; summary?: string; source_url?: string },
+  runId: string,
+  dupeTitle: string,
+) {
+  if (matchedArticle.thread_id) {
+    await appendThreadUpdate(supabase, runId, matchedArticle.thread_id, dupeItem, dupeTitle);
+    return;
+  }
+
+  // Thread-CREATION is scoped to a tighter 24h window than the 72h dedup
+  // gate — a genuine developing story escalates fast; a 3-day-old title
+  // coincidence is too weak a basis to spin up a new public-facing entity.
+  const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
+  const matchedArticleAge = matchedArticle.created_at ? new Date(matchedArticle.created_at).getTime() : 0;
+  if (matchedArticleAge < twentyFourHoursAgo) {
+    console.log(`Skipping thread auto-creation — matched article older than 24h (${matchedArticle.created_at})`);
+    return;
+  }
+
+  // Re-check immediately before acting (cheap optimization for the common
+  // sequential-loop case — this loop is not parallelized).
+  const { data: freshArticle } = await supabase
+    .from("articles")
+    .select("id, thread_id, title, summary")
+    .eq("id", matchedArticle.id)
+    .single();
+
+  if (freshArticle?.thread_id) {
+    await appendThreadUpdate(supabase, runId, freshArticle.thread_id, dupeItem, dupeTitle);
+    return;
+  }
+
+  const baseTitle = freshArticle?.title || matchedArticle.title;
+  const slug = await generateUniqueThreadSlug(supabase, baseTitle);
+
+  const { data: newThread, error: threadErr } = await supabase
+    .from("story_threads")
+    .insert({
+      thread_slug: slug,
+      title: baseTitle,
+      summary: freshArticle?.summary || null,
+      is_live: false,
+      created_by: "auto_pipeline",
+    })
+    .select()
+    .single();
+
+  if (threadErr || !newThread) {
+    console.error("Auto thread-create failed:", threadErr);
+    return;
+  }
+
+  // The real atomicity guard: a conditional UPDATE ... WHERE thread_id IS NULL.
+  // Postgres serializes concurrent updates on the same row, so only one
+  // overlapping invocation of run-newsroom can ever win this claim — the
+  // freshArticle re-check above is just a cheap optimization, not the guarantee.
+  const { data: claimed } = await supabase
+    .from("articles")
+    .update({ thread_id: newThread.id })
+    .eq("id", matchedArticle.id)
+    .is("thread_id", null)
+    .select("id");
+
+  if (!claimed || claimed.length === 0) {
+    // Lost the race — someone else claimed this article since our re-check.
+    // Discard the thread we just created and log against whichever thread won.
+    await supabase.from("story_threads").delete().eq("id", newThread.id);
+    const { data: winner } = await supabase.from("articles").select("thread_id").eq("id", matchedArticle.id).single();
+    if (winner?.thread_id) {
+      await appendThreadUpdate(supabase, runId, winner.thread_id, dupeItem, dupeTitle);
+    }
+    return;
+  }
+
+  // Seed two updates so the thread never renders empty.
+  await supabase.from("thread_updates").insert([
+    {
+      thread_id: newThread.id,
+      title: baseTitle,
+      body: freshArticle?.summary || baseTitle,
+      is_key_point: false,
+      key_point_label: null,
+      source_article_id: matchedArticle.id,
+    },
+    {
+      thread_id: newThread.id,
+      title: dupeTitle || "Untitled",
+      body: dupeItem.original_summary || dupeItem.summary || dupeTitle || "Untitled",
+      is_key_point: false,
+      key_point_label: null,
+      source_article_id: null,
+    },
+  ]);
+
+  await logThreadUpdateAudit(supabase, runId, dupeItem, dupeTitle, newThread.id);
+  console.log(`Auto-created thread "${slug}" from article ${matchedArticle.id}`);
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // Crime-relevance classifier — batched Gemini call, defensive parsing.
 // Rejected items go to public.rejected_items and never consume the
 // article-generation budget below.
@@ -743,7 +940,7 @@ Return ONLY a valid JSON array, no other text.`;
       const seventyTwoHoursAgo = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
       const { data: recentTitles } = await supabase
         .from("articles")
-        .select("title, source_url")
+        .select("id, title, source_url, thread_id, created_at")
         .gte("created_at", seventyTwoHoursAgo);
       const { data: recentQueued } = await supabase
         .from("newsroom_articles")
@@ -751,9 +948,12 @@ Return ONLY a valid JSON array, no other text.`;
         .gte("created_at", seventyTwoHoursAgo)
         .in("processing_status", ["pending", "processing", "completed"]);
 
-      const recent: Array<{ title: string; source_url: string | null }> = [
-        ...(recentTitles || []).map((r: any) => ({ title: r.title, source_url: r.source_url })),
-        ...(recentQueued || []).map((r: any) => ({ title: r.original_headline, source_url: r.source_url })),
+      // recentQueued rows have no real article id/thread_id yet, so a match
+      // against one of those can never create or feed a thread — only a
+      // match against a real `articles` row (article: true) is eligible.
+      const recent: Array<{ title: string; source_url: string | null; article: boolean; id?: string; thread_id?: string | null; created_at?: string }> = [
+        ...(recentTitles || []).map((r: any) => ({ title: r.title, source_url: r.source_url, article: true, id: r.id, thread_id: r.thread_id, created_at: r.created_at })),
+        ...(recentQueued || []).map((r: any) => ({ title: r.original_headline, source_url: r.source_url, article: false })),
       ];
       const urlSet = new Set(recent.map(r => (r.source_url || "").trim().toLowerCase()).filter(Boolean));
 
@@ -764,6 +964,7 @@ Return ONLY a valid JSON array, no other text.`;
         const title = item.original_headline || item.headline || "";
         let matched = false;
         let matchReason = "";
+        let matchedArticle: { id: string; title: string; thread_id?: string | null; created_at?: string } | null = null;
         if (url && urlSet.has(url)) {
           matched = true;
           matchReason = "same source URL";
@@ -772,6 +973,7 @@ Return ONLY a valid JSON array, no other text.`;
             if (titleSimilarity(title, r.title) >= 0.55) {
               matched = true;
               matchReason = `title sim ≥0.55 vs "${r.title.substring(0, 60)}"`;
+              if (r.article && r.id) matchedArticle = { id: r.id, title: r.title, thread_id: r.thread_id, created_at: r.created_at };
               break;
             }
           }
@@ -785,11 +987,14 @@ Return ONLY a valid JSON array, no other text.`;
             detail: matchReason,
           });
           console.log(`DUP_REJECT (${matchReason}): ${title.substring(0, 80)}`);
+          if (matchedArticle) {
+            await handleDeveloperStoryPromotion(supabase, matchedArticle, item, run.id, title);
+          }
         } else {
           kept.push(item);
           // Add to in-run set to catch duplicates within the same batch
           if (url) urlSet.add(url);
-          recent.push({ title, source_url: item.source_url || null });
+          recent.push({ title, source_url: item.source_url || null, article: false });
         }
       }
       if (dupeRows.length > 0) {

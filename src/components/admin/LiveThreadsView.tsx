@@ -8,9 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { getRelativeTime } from '@/lib/time';
-import { ArrowLeft, Plus, Radio, Square, Settings2 } from 'lucide-react';
+import { ArrowLeft, Plus, Radio, Square, Settings2, Sparkles, Pencil } from 'lucide-react';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 type StoryThread = Tables<'story_threads'>;
@@ -34,6 +35,12 @@ export default function LiveThreadsView() {
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
   const [summary, setSummary] = useState('');
+
+  const [editingThread, setEditingThread] = useState<StoryThread | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editSlug, setEditSlug] = useState('');
+  const [editSummary, setEditSummary] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -116,6 +123,36 @@ export default function LiveThreadsView() {
       toast({ title: 'Marked as developing story' });
       fetchThreads();
     }
+  };
+
+  const openEdit = (thread: StoryThread) => {
+    setEditingThread(thread);
+    setEditTitle(thread.title);
+    setEditSlug(thread.thread_slug);
+    setEditSummary(thread.summary || '');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingThread || !editTitle.trim() || !editSlug.trim()) return;
+
+    setEditSaving(true);
+    const { error } = await supabase
+      .from('story_threads')
+      .update({
+        title: editTitle.trim(),
+        thread_slug: editSlug.trim(),
+        summary: editSummary.trim() || null,
+      })
+      .eq('id', editingThread.id);
+
+    if (error) {
+      toast({ title: 'Error updating thread', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Thread updated' });
+      setEditingThread(null);
+      fetchThreads();
+    }
+    setEditSaving(false);
   };
 
   const handleEndLive = async (thread: StoryThread) => {
@@ -204,16 +241,24 @@ export default function LiveThreadsView() {
                 <TableRow key={thread.id}>
                   <TableCell className="max-w-[240px] truncate font-medium">{thread.title}</TableCell>
                   <TableCell>
-                    {thread.is_live ? (
-                      <Badge className="gap-1 bg-primary text-primary-foreground">
-                        <Radio className="h-3 w-3" />
-                        Live
-                      </Badge>
-                    ) : thread.live_ended_at ? (
-                      <Badge variant="secondary">Ended</Badge>
-                    ) : (
-                      <Badge variant="outline">Not live</Badge>
-                    )}
+                    <div className="flex flex-wrap items-center gap-1">
+                      {thread.is_live ? (
+                        <Badge className="gap-1 bg-primary text-primary-foreground">
+                          <Radio className="h-3 w-3" />
+                          Live
+                        </Badge>
+                      ) : thread.live_ended_at ? (
+                        <Badge variant="secondary">Ended</Badge>
+                      ) : (
+                        <Badge variant="outline">Not live</Badge>
+                      )}
+                      {thread.created_by === 'auto_pipeline' && (
+                        <Badge variant="outline" className="gap-1 border-primary/40 text-primary">
+                          <Sparkles className="h-3 w-3" />
+                          Auto-detected
+                        </Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {getRelativeTime(thread.updated_at)}
@@ -238,6 +283,10 @@ export default function LiveThreadsView() {
                       <Settings2 className="mr-1 h-4 w-4" />
                       Manage updates
                     </Button>
+                    <Button size="sm" variant="ghost" onClick={() => openEdit(thread)}>
+                      <Pencil className="mr-1 h-4 w-4" />
+                      Edit
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))
@@ -245,6 +294,34 @@ export default function LiveThreadsView() {
           </TableBody>
         </Table>
       </div>
+
+      <Dialog open={!!editingThread} onOpenChange={(open) => !open && setEditingThread(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit thread</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-thread-title">Title *</Label>
+              <Input id="edit-thread-title" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-thread-slug">Slug *</Label>
+              <Input id="edit-thread-slug" value={editSlug} onChange={(e) => setEditSlug(e.target.value)} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-thread-summary">Summary</Label>
+              <Textarea id="edit-thread-summary" value={editSummary} onChange={(e) => setEditSummary(e.target.value)} rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditingThread(null)}>Cancel</Button>
+            <Button onClick={handleSaveEdit} disabled={editSaving || !editTitle.trim() || !editSlug.trim()}>
+              {editSaving ? 'Saving...' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
