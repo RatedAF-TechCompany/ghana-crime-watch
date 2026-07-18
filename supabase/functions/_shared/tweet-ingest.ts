@@ -463,7 +463,9 @@ export async function runTweetIngest(req: Request, cfg: IngestConfig): Promise<R
     });
 
     return new Response(JSON.stringify({
-      success: true, processed, total_new: newTweets.length, credit_halted: creditHalted,
+      success: true, processed, eligible: eligibleTweets.length,
+      backoff_skipped: backoffSkipped, dead_letter: deadLetterCount,
+      credit_halted: creditHalted,
       ai: { calls: usage.calls, cost: Number(usage.estimated_cost.toFixed(6)) },
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {
