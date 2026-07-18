@@ -224,19 +224,53 @@ export async function runTweetIngest(req: Request, cfg: IngestConfig): Promise<R
       for (const m of tweetsData.includes.media) if (m.media_key) mediaMap[m.media_key] = m.url || m.preview_image_url || "";
     }
 
-    // 3) Dedupe by processed_tweets (already-processed X ids)
+    // 3) Look up existing queue rows for these tweet ids — decide per-tweet: skip, retry, or new.
+    //    Retry ceiling: >=3 failed attempts → mark dead_letter, never retry.
+    //    Backoff: pending rows that failed recently sleep for attempts * 30 min before retrying.
+    const MAX_ATTEMPTS = 3;
+    const BACKOFF_MS_PER_ATTEMPT = 30 * 60 * 1000;
     const tweetIds = tweets.map((t: any) => t.id);
-    const { data: existing } = await supabase.from("processed_tweets").select("tweet_id").in("tweet_id", tweetIds);
-    const processedSet = new Set((existing || []).map((e: any) => e.tweet_id));
-    const newTweets = tweets.filter((t: any) => !processedSet.has(t.id));
+    const { data: existing } = await supabase
+      .from("processed_tweets")
+      .select("tweet_id, processing_status, attempts, last_attempt_at")
+      .in("tweet_id", tweetIds);
+    const existingById = new Map<string, any>((existing || []).map((e: any) => [e.tweet_id, e]));
 
-    if (newTweets.length === 0) {
-      await log("poll", { tweets_found: tweets.length, new_tweets: 0, ai_calls: usage.calls });
-      return new Response(JSON.stringify({ success: true, processed: 0 }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // Auto-dead-letter any pending rows already over the ceiling (from prior runs before this fix).
+    const overCeiling = (existing || []).filter((e: any) => e.processing_status === "pending" && (e.attempts || 0) >= MAX_ATTEMPTS);
+    if (overCeiling.length > 0) {
+      await supabase.from("processed_tweets")
+        .update({ processing_status: "dead_letter" })
+        .in("tweet_id", overCeiling.map((e: any) => e.tweet_id));
+      for (const e of overCeiling) existingById.set(e.tweet_id, { ...e, processing_status: "dead_letter" });
+    }
+
+    // Classify: which tweets are actually eligible for processing this run?
+    let deadLetterCount = 0;
+    let backoffSkipped = 0;
+    const eligibleTweets = tweets.filter((t: any) => {
+      const row = existingById.get(t.id);
+      if (!row) return true; // brand new
+      if (row.processing_status !== "pending") return false; // terminal status (published/skipped_*/dead_letter/failed)
+      if ((row.attempts || 0) >= MAX_ATTEMPTS) { deadLetterCount++; return false; }
+      if (row.last_attempt_at) {
+        const nextEligible = new Date(row.last_attempt_at).getTime() + (row.attempts || 0) * BACKOFF_MS_PER_ATTEMPT;
+        if (Date.now() < nextEligible) { backoffSkipped++; return false; }
+      }
+      return true; // pending + under ceiling + past backoff window
+    });
+
+    if (eligibleTweets.length === 0) {
+      await log("poll", {
+        tweets_found: tweets.length, eligible: 0,
+        backoff_skipped: backoffSkipped, dead_lettered_now: overCeiling.length,
+        ai_calls: usage.calls,
+      });
+      return new Response(JSON.stringify({ success: true, processed: 0, backoff_skipped: backoffSkipped }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // 3b) Pre-AI ai_rejects lookup (by tweet-text title hash)
-    const hashes = await Promise.all(newTweets.map(async (t: any) => ({ id: t.id, h: await tweetTitleHash(t.text || "") })));
+    const hashes = await Promise.all(eligibleTweets.map(async (t: any) => ({ id: t.id, h: await tweetTitleHash(t.text || "") })));
     const hashList = hashes.map((x) => x.h).filter((h): h is string => !!h);
     const rejectedHashes = new Set<string>();
     if (hashList.length > 0) {
@@ -249,36 +283,69 @@ export async function runTweetIngest(req: Request, cfg: IngestConfig): Promise<R
 
     let processed = 0;
 
-    for (const tweet of newTweets) {
-      if (creditHalted) break; // stop cleanly on 402/429; remaining stay pending
+    // Helper: record a per-item terminal failure (increments attempts, dead-letters at ceiling).
+    // Never called on AiCreditError — credit halts are not the item's fault.
+    const recordItemFailure = async (row: any | undefined, tweetId: string, tweetText: string, mediaUrls: string[], errorMsg: string) => {
+      const prevAttempts = row?.attempts || 0;
+      const nextAttempts = prevAttempts + 1;
+      const nextStatus = nextAttempts >= MAX_ATTEMPTS ? "dead_letter" : "pending";
+      if (row) {
+        await supabase.from("processed_tweets").update({
+          processing_status: nextStatus,
+          attempts: nextAttempts,
+          last_error: errorMsg.slice(0, 500),
+          last_attempt_at: new Date().toISOString(),
+        }).eq("tweet_id", tweetId);
+      } else {
+        await supabase.from("processed_tweets").insert({
+          tweet_id: tweetId, author_username: cfg.username, tweet_text: tweetText,
+          tweet_created_at: null, tweet_media_urls: mediaUrls,
+          processing_status: nextStatus,
+          attempts: nextAttempts,
+          last_error: errorMsg.slice(0, 500),
+          last_attempt_at: new Date().toISOString(),
+        });
+      }
+      if (nextStatus === "dead_letter") deadLetterCount++;
+    };
+
+    for (const tweet of eligibleTweets) {
+      if (creditHalted) break; // stop cleanly on 402/429; remaining stay pending (attempts NOT bumped)
 
       const tweetText = tweet.text || "";
       const tweetId = tweet.id;
+      const existingRow = existingById.get(tweetId);
       const tweetMediaUrls: string[] = [];
       if (tweet.attachments?.media_keys) {
         for (const mk of tweet.attachments.media_keys) if (mediaMap[mk]) tweetMediaUrls.push(mediaMap[mk]);
       }
 
-      // Pre-AI gate: previously-rejected tweet text
+      // Pre-AI gate: previously-rejected tweet text (terminal, does not count as an attempt)
       const th = hashById.get(tweetId);
       if (th && rejectedHashes.has(th)) {
-        await supabase.from("processed_tweets").insert({
-          tweet_id: tweetId, author_username: cfg.username, tweet_text: tweetText,
-          tweet_created_at: tweet.created_at, tweet_media_urls: tweetMediaUrls,
-          processing_status: "skipped_ai_reject",
-        });
+        if (existingRow) {
+          await supabase.from("processed_tweets").update({ processing_status: "skipped_ai_reject" }).eq("tweet_id", tweetId);
+        } else {
+          await supabase.from("processed_tweets").insert({
+            tweet_id: tweetId, author_username: cfg.username, tweet_text: tweetText,
+            tweet_created_at: tweet.created_at, tweet_media_urls: tweetMediaUrls,
+            processing_status: "skipped_ai_reject",
+          });
+        }
         await log("skipped", { tweet_id: tweetId, reason: "ai_reject_hash" });
         continue;
       }
 
-      // Insert as pending (deleted on transient failure so next run retries)
-      await supabase.from("processed_tweets").insert({
-        tweet_id: tweetId, author_username: cfg.username, tweet_text: tweetText,
-        tweet_created_at: tweet.created_at, tweet_media_urls: tweetMediaUrls,
-        processing_status: "pending",
-      });
+      // Ensure a pending row exists so retries and the admin view can track this tweet.
+      if (!existingRow) {
+        await supabase.from("processed_tweets").insert({
+          tweet_id: tweetId, author_username: cfg.username, tweet_text: tweetText,
+          tweet_created_at: tweet.created_at, tweet_media_urls: tweetMediaUrls,
+          processing_status: "pending",
+        });
+      }
 
-      // Cheap crime filter — write rejection to ai_rejects so future runs skip for free
+      // Cheap crime filter (terminal — write rejection to ai_rejects so future runs skip for free)
       if (!isCrimeRelated(tweetText)) {
         await supabase.from("processed_tweets").update({ processing_status: "skipped_not_crime" }).eq("tweet_id", tweetId);
         if (th) await supabase.from("ai_rejects").insert({ title_hash: th, reason: "not_crime_related", detail: cfg.sourceKey }).then(() => {}, () => {});
@@ -287,7 +354,7 @@ export async function runTweetIngest(req: Request, cfg: IngestConfig): Promise<R
       }
 
       if (!lovableApiKey) {
-        await supabase.from("processed_tweets").update({ processing_status: "failed", error_message: "AI not configured" }).eq("tweet_id", tweetId);
+        await recordItemFailure(existingRow, tweetId, tweetText, tweetMediaUrls, "AI not configured");
         continue;
       }
 
@@ -296,9 +363,9 @@ export async function runTweetIngest(req: Request, cfg: IngestConfig): Promise<R
         jsonParseFailures += gen.parseFailures;
 
         if (!gen.ok) {
-          // Terminal failure — leave the item PENDING by deleting the processed_tweets row so the next cron retries it.
-          await supabase.from("processed_tweets").delete().eq("tweet_id", tweetId);
-          await log("error", { tweet_id: tweetId, step: "ai_generate", error: gen.error, left_pending: true });
+          // Genuine per-item failure — bump attempts, dead-letter at ceiling.
+          await recordItemFailure(existingRow, tweetId, tweetText, tweetMediaUrls, gen.error);
+          await log("error", { tweet_id: tweetId, step: "ai_generate", error: gen.error, attempts: (existingRow?.attempts || 0) + 1 });
           continue;
         }
 
@@ -354,33 +421,39 @@ export async function runTweetIngest(req: Request, cfg: IngestConfig): Promise<R
         }).select("id").single();
 
         if (insertErr || !article) {
-          await supabase.from("processed_tweets").update({ processing_status: "failed", error_message: insertErr?.message || "Insert failed" }).eq("tweet_id", tweetId);
+          await recordItemFailure(existingRow, tweetId, tweetText, tweetMediaUrls, insertErr?.message || "Insert failed");
           await log("error", { tweet_id: tweetId, step: "insert_article", error: insertErr?.message });
           continue;
         }
 
-        await supabase.from("processed_tweets").update({ processing_status: "published", generated_article_id: article.id }).eq("tweet_id", tweetId);
+        await supabase.from("processed_tweets").update({
+          processing_status: "published",
+          generated_article_id: article.id,
+          last_attempt_at: new Date().toISOString(),
+        }).eq("tweet_id", tweetId);
         await log("published", { tweet_id: tweetId, article_id: article.id, headline: articleData.headline });
         // NOTE: direct X posting removed — ghanacrimes-autopost owns the @ghanacrimes account on a schedule.
         processed++;
       } catch (err) {
         if (err instanceof AiCreditError) {
-          // Stop cleanly: leave this + remaining tweets pending for the next cron.
-          await supabase.from("processed_tweets").delete().eq("tweet_id", tweetId);
+          // Credit halt is NOT the item's fault — do not increment attempts, do not touch last_attempt_at.
+          // Leave the row as-is so this item is first-in-line next cron with no backoff penalty.
           creditHalted = err.message;
           await log("halted_credit", { status: err.status, message: err.message });
           break;
         }
         const errMsg = err instanceof Error ? err.message : "Unknown error";
-        await supabase.from("processed_tweets").update({ processing_status: "failed", error_message: errMsg }).eq("tweet_id", tweetId);
+        await recordItemFailure(existingRow, tweetId, tweetText, tweetMediaUrls, errMsg);
         await log("error", { tweet_id: tweetId, step: "processing", error: errMsg });
       }
     }
 
     await log("poll_complete", {
       tweets_found: tweets.length,
-      new_tweets: newTweets.length,
+      eligible: eligibleTweets.length,
       articles_published: processed,
+      backoff_skipped: backoffSkipped,
+      dead_letter: deadLetterCount,
       credit_halted: creditHalted,
       ai_calls: usage.calls,
       prompt_tokens: usage.prompt_tokens,
@@ -390,7 +463,9 @@ export async function runTweetIngest(req: Request, cfg: IngestConfig): Promise<R
     });
 
     return new Response(JSON.stringify({
-      success: true, processed, total_new: newTweets.length, credit_halted: creditHalted,
+      success: true, processed, eligible: eligibleTweets.length,
+      backoff_skipped: backoffSkipped, dead_letter: deadLetterCount,
+      credit_halted: creditHalted,
       ai: { calls: usage.calls, cost: Number(usage.estimated_cost.toFixed(6)) },
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {

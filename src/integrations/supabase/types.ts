@@ -703,11 +703,14 @@ export type Database = {
       }
       processed_tweets: {
         Row: {
+          attempts: number
           author_username: string
           created_at: string
           error_message: string | null
           generated_article_id: string | null
           id: string
+          last_attempt_at: string | null
+          last_error: string | null
           processing_status: string
           tweet_created_at: string | null
           tweet_id: string
@@ -715,11 +718,14 @@ export type Database = {
           tweet_text: string
         }
         Insert: {
+          attempts?: number
           author_username: string
           created_at?: string
           error_message?: string | null
           generated_article_id?: string | null
           id?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
           processing_status?: string
           tweet_created_at?: string | null
           tweet_id: string
@@ -727,11 +733,14 @@ export type Database = {
           tweet_text: string
         }
         Update: {
+          attempts?: number
           author_username?: string
           created_at?: string
           error_message?: string | null
           generated_article_id?: string | null
           id?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
           processing_status?: string
           tweet_created_at?: string | null
           tweet_id?: string
