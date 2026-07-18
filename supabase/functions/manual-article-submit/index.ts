@@ -1,10 +1,12 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callGateway, parseJson, newUsage, AiCreditError } from "../_shared/ai-usage.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
 
 const VALID_CATEGORIES = [
   "top-stories",
@@ -269,71 +271,33 @@ Important:
 - Format body text with proper HTML paragraphs
 - Respect the presumption of innocence for suspects`;
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${lovableApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `Transform this content into a structured news article:\n\n${content}` }
-        ],
+    const usage = newUsage();
+    let articleData;
+    try {
+      const { content: responseContent } = await callGateway(lovableApiKey, usage, {
+        system: systemPrompt,
+        user: `Transform this content into a structured news article:\n\n${content}`,
+        max_tokens: 1800,
         temperature: 0.3,
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error("AI API error:", aiResponse.status, errorText);
-      
-      if (aiResponse.status === 429) {
+        json: true,
+      });
+      if (!responseContent) throw new Error("No response from AI");
+      articleData = parseJson(responseContent);
+    } catch (e) {
+      if (e instanceof AiCreditError) {
+        const status = e.status === 402 ? 402 : 429;
         return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({ error: e.message }),
+          { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (aiResponse.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits exhausted. Please add funds." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      
+      console.error("manual-article-submit AI error:", e);
       return new Response(
         JSON.stringify({ error: "Failed to process article with AI" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const aiData = await aiResponse.json();
-    const responseContent = aiData.choices?.[0]?.message?.content;
-
-    if (!responseContent) {
-      return new Response(
-        JSON.stringify({ error: "No response from AI" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Parse AI response
-    let articleData;
-    try {
-      const jsonMatch = responseContent.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        articleData = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error("No JSON found in response");
-      }
-    } catch (parseError) {
-      console.error("Failed to parse AI response:", responseContent);
-      return new Response(
-        JSON.stringify({ error: "Failed to parse AI response" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
 
     // Count numbers for informational purposes only (no longer a requirement)
     const numberCount = countNumbers(articleData.body || "");

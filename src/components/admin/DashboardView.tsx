@@ -229,36 +229,13 @@ export default function DashboardView() {
 
   const [tweetingId, setTweetingId] = useState<string | null>(null);
 
-  const handleTweetArticle = async (article: Article) => {
-    if (article.twitter_post?.startsWith('POSTED:')) {
-      toast({ title: 'Already tweeted', description: 'This article has already been posted to X.' });
-      return;
-    }
-    if (!confirm('Post this article to X/Twitter?')) return;
-    setTweetingId(article.id);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-      const resp = await fetch(`${supabaseUrl}/functions/v1/auto-tweet`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token || supabaseAnonKey}`,
-        },
-        body: JSON.stringify({ article_id: article.id }),
-      });
-      const result = await resp.json();
-      if (!resp.ok) throw new Error(result.error || 'Tweet failed');
-      toast({ title: 'Tweeted!', description: `Posted to X: ${result.tweet_url}` });
-      fetchArticles();
-    } catch (err: any) {
-      toast({ title: 'Tweet failed', description: err.message, variant: 'destructive' });
-    } finally {
-      setTweetingId(null);
-    }
+  const handleTweetArticle = async (_article: Article) => {
+    toast({
+      title: 'Auto-tweet retired',
+      description: 'Per-article tweeting is disabled. GhanaCrimes AutoPost posts qualifying stories automatically every 6 hours.',
+    });
   };
+
 
   if (loading) {
     return <div className="container py-8">Loading...</div>;

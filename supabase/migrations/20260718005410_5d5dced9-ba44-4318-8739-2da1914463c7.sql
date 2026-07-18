@@ -1,0 +1,1 @@
+ALTER TABLE public.newsroom_runs ADD COLUMN IF NOT EXISTS json_parse_failures integer NOT NULL DEFAULT 0;

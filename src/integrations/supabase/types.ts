@@ -610,6 +610,7 @@ export type Database = {
           error_message: string | null
           estimated_cost: number
           id: string
+          json_parse_failures: number
           prompt_tokens: number
           started_at: string
           status: string
@@ -627,6 +628,7 @@ export type Database = {
           error_message?: string | null
           estimated_cost?: number
           id?: string
+          json_parse_failures?: number
           prompt_tokens?: number
           started_at?: string
           status?: string
@@ -644,6 +646,7 @@ export type Database = {
           error_message?: string | null
           estimated_cost?: number
           id?: string
+          json_parse_failures?: number
           prompt_tokens?: number
           started_at?: string
           status?: string

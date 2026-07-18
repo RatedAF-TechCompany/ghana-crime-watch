@@ -1,9 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { callGateway, parseJson, newUsage, AiCreditError } from "../_shared/ai-usage.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -92,60 +94,33 @@ Example output
 "seo_description": "Police are investigating an attempted takeover of a palace in Boadua linked to a chieftaincy dispute."
 }`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `Article Body:\n${plainText}` }
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits exhausted. Please add credits to continue." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      throw new Error("Failed to generate article fields");
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
-      throw new Error("No content returned from AI");
-    }
-
-    // Parse the JSON response
+    const usage = newUsage();
     let fields;
     try {
-      // Try to extract JSON from the response (in case there's extra text)
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        fields = JSON.parse(jsonMatch[0]);
-      } else {
-        fields = JSON.parse(content);
+      const { content } = await callGateway(LOVABLE_API_KEY, usage, {
+        system: systemPrompt,
+        user: `Article Body:\n${plainText}`,
+        max_tokens: 400,
+        temperature: 0.2,
+        json: true,
+      });
+      if (!content) throw new Error("No content returned from AI");
+      fields = parseJson(content);
+    } catch (e) {
+      if (e instanceof AiCreditError) {
+        const status = e.status === 402 ? 402 : 429;
+        return new Response(
+          JSON.stringify({ error: e.message }),
+          { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
-    } catch (parseError) {
-      console.error("Failed to parse AI response:", content);
-      throw new Error("Failed to parse AI response");
+      console.error("generate-article-fields error:", e);
+      return new Response(
+        JSON.stringify({ error: e instanceof Error ? e.message : "Failed to generate article fields" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
+
 
     console.log("Generated fields:", fields);
 

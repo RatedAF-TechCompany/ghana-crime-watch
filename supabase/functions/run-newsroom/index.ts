@@ -693,6 +693,7 @@ serve(async (req) => {
 
     // Whether the AI-search discovery pass ran this run (throttled below).
     let discoveryRanThisRun = false;
+    let totalJsonParseFailures = 0;
 
     // Persist AI usage into the run row. Called on every exit path.
     const persistUsage = async (extra: Record<string, any> = {}) => {
@@ -703,12 +704,14 @@ serve(async (req) => {
           completion_tokens: usage.completion_tokens,
           estimated_cost: Number(usage.estimated_cost.toFixed(6)),
           discovery_ran: discoveryRanThisRun,
+          json_parse_failures: totalJsonParseFailures,
           ...extra,
         }).eq("id", run.id);
       } catch (e) {
         console.error("persistUsage failed:", e);
       }
     };
+
 
 
     // ═══════════════════════════════════════════════════════════════════
@@ -1433,15 +1436,28 @@ Return ONLY valid JSON with exactly these keys:
 }`;
 
         let articleJson: any;
+        let jsonParseFailures = 0;
         try {
-          const { content: articleContent } = await callGateway(lovableApiKey, usage, {
-            system: "You are the GhanaCrimes Automated Newsroom Engine. You are a senior investigative crime editor. You write in clear, simple English that a 10 year old can understand, while maintaining professional newsroom standards. You do not mention or promote other media outlets. You do not narrate your verification process. You do not hedge excessively. You do not repeat facts. You do not use filler language. Return only valid JSON. Never use colons, long dashes, bullet points, emojis, hashtags, URLs, or media outlet names.",
-            user: articlePrompt,
-            max_tokens: 1400,
-            temperature: 0.4,
-            json: true,
-          });
-          articleJson = parseJson<any>(articleContent);
+          const runArticleGen = async (maxTokens: number) => {
+            const { content: c } = await callGateway(lovableApiKey, usage, {
+              system: "You are the GhanaCrimes Automated Newsroom Engine. You are a senior investigative crime editor. You write in clear, simple English that a 10 year old can understand, while maintaining professional newsroom standards. You do not mention or promote other media outlets. You do not narrate your verification process. You do not hedge excessively. You do not repeat facts. You do not use filler language. Return only valid JSON. Never use colons, long dashes, bullet points, emojis, hashtags, URLs, or media outlet names.",
+              user: articlePrompt,
+              max_tokens: maxTokens,
+              temperature: 0.4,
+              json: true,
+            });
+            return c;
+          };
+
+          let articleContent = await runArticleGen(1800);
+          try {
+            articleJson = parseJson<any>(articleContent);
+          } catch (parseErr) {
+            jsonParseFailures += 1;
+            console.warn(`Article JSON parse failed (max_tokens=1800), retrying at 2200. Item: ${newsItem.id}`);
+            articleContent = await runArticleGen(2200);
+            articleJson = parseJson<any>(articleContent);
+          }
           if (!articleJson || typeof articleJson !== "object") throw new Error("empty article JSON");
         } catch (e) {
           if (e instanceof AiCreditError) {
@@ -1455,15 +1471,26 @@ Return ONLY valid JSON with exactly these keys:
               completion_tokens: usage.completion_tokens,
               estimated_cost: Number(usage.estimated_cost.toFixed(6)),
               discovery_ran: discoveryRanThisRun,
+              json_parse_failures: totalJsonParseFailures + jsonParseFailures,
               error_message: e.message,
             }).eq("id", run.id);
+
             return new Response(JSON.stringify({ success: false, run_id: run.id, reason: e.message, articles_created: articlesCreated }), {
               status: 200,
               headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
           }
-          throw new Error(`Article generation failed: ${e instanceof Error ? e.message : String(e)}`);
+          // Never silently drop — leave item pending, log the parse failure, move on.
+          console.error(`Article generation failed for item ${newsItem.id}:`, e);
+          totalJsonParseFailures += jsonParseFailures + 1;
+          await supabase.from("newsroom_articles").update({
+            processing_status: "pending",
+            error_message: `Article generation failed: ${e instanceof Error ? e.message : String(e)}`,
+          }).eq("id", newsItem.id);
+          continue;
         }
+        totalJsonParseFailures += jsonParseFailures;
+
 
 
         // Skip flags from AI verification — INSUFFICIENT_VERIFICATION no longer blocks publishing
@@ -1648,27 +1675,8 @@ Return ONLY valid JSON with exactly these keys:
           console.error("City extraction failed:", extractError);
         }
 
-        // Auto-tweet the newly published article
-        try {
-          const tweetResponse = await fetch(`${supabaseUrl}/functions/v1/auto-tweet`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${supabaseKey}`,
-            },
-            body: JSON.stringify({ article_id: newArticle.id }),
-          });
-          
-          if (tweetResponse.ok) {
-            const tweetResult = await tweetResponse.json();
-            console.log(`Auto-tweeted article: ${tweetResult.tweet_id || 'success'}`);
-          } else {
-            const tweetErr = await tweetResponse.text();
-            console.error("Auto-tweet failed:", tweetErr);
-          }
-        } catch (tweetError) {
-          console.error("Auto-tweet error:", tweetError);
-        }
+        // Legacy auto-tweet removed — tweeting is now handled solely by ghanacrimes-autopost.
+
 
         // Case B companion log: this article is a major development in an
         // active thread — link it into the live coverage timeline too.
@@ -1717,7 +1725,9 @@ Return ONLY valid JSON with exactly these keys:
       completion_tokens: usage.completion_tokens,
       estimated_cost: Number(usage.estimated_cost.toFixed(6)),
       discovery_ran: discoveryRanThisRun,
+      json_parse_failures: totalJsonParseFailures,
     }).eq("id", run.id);
+
     console.log(`AI usage: ${usage.calls} calls, ${usage.prompt_tokens}+${usage.completion_tokens} tokens, $${usage.estimated_cost.toFixed(4)}`);
 
 
