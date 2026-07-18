@@ -688,6 +688,29 @@ serve(async (req) => {
 
     console.log(`Started newsroom run: ${run.id}`);
 
+    // Per-run AI usage aggregator — written back to newsroom_runs at exit.
+    const usage: AiUsage = newUsage();
+
+    // Whether the AI-search discovery pass ran this run (throttled below).
+    let discoveryRanThisRun = false;
+
+    // Persist AI usage into the run row. Called on every exit path.
+    const persistUsage = async (extra: Record<string, any> = {}) => {
+      try {
+        await supabase.from("newsroom_runs").update({
+          ai_calls: usage.calls,
+          prompt_tokens: usage.prompt_tokens,
+          completion_tokens: usage.completion_tokens,
+          estimated_cost: Number(usage.estimated_cost.toFixed(6)),
+          discovery_ran: discoveryRanThisRun,
+          ...extra,
+        }).eq("id", run.id);
+      } catch (e) {
+        console.error("persistUsage failed:", e);
+      }
+    };
+
+
     // ═══════════════════════════════════════════════════════════════════
     // STEP 1A: NATIVE RSS FEED SCANNING — real grounded news discovery
     // ═══════════════════════════════════════════════════════════════════
