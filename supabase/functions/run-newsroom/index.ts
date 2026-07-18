@@ -1433,15 +1433,28 @@ Return ONLY valid JSON with exactly these keys:
 }`;
 
         let articleJson: any;
+        let jsonParseFailures = 0;
         try {
-          const { content: articleContent } = await callGateway(lovableApiKey, usage, {
-            system: "You are the GhanaCrimes Automated Newsroom Engine. You are a senior investigative crime editor. You write in clear, simple English that a 10 year old can understand, while maintaining professional newsroom standards. You do not mention or promote other media outlets. You do not narrate your verification process. You do not hedge excessively. You do not repeat facts. You do not use filler language. Return only valid JSON. Never use colons, long dashes, bullet points, emojis, hashtags, URLs, or media outlet names.",
-            user: articlePrompt,
-            max_tokens: 1400,
-            temperature: 0.4,
-            json: true,
-          });
-          articleJson = parseJson<any>(articleContent);
+          const runArticleGen = async (maxTokens: number) => {
+            const { content: c } = await callGateway(lovableApiKey, usage, {
+              system: "You are the GhanaCrimes Automated Newsroom Engine. You are a senior investigative crime editor. You write in clear, simple English that a 10 year old can understand, while maintaining professional newsroom standards. You do not mention or promote other media outlets. You do not narrate your verification process. You do not hedge excessively. You do not repeat facts. You do not use filler language. Return only valid JSON. Never use colons, long dashes, bullet points, emojis, hashtags, URLs, or media outlet names.",
+              user: articlePrompt,
+              max_tokens: maxTokens,
+              temperature: 0.4,
+              json: true,
+            });
+            return c;
+          };
+
+          let articleContent = await runArticleGen(1800);
+          try {
+            articleJson = parseJson<any>(articleContent);
+          } catch (parseErr) {
+            jsonParseFailures += 1;
+            console.warn(`Article JSON parse failed (max_tokens=1800), retrying at 2200. Item: ${newsItem.id}`);
+            articleContent = await runArticleGen(2200);
+            articleJson = parseJson<any>(articleContent);
+          }
           if (!articleJson || typeof articleJson !== "object") throw new Error("empty article JSON");
         } catch (e) {
           if (e instanceof AiCreditError) {
@@ -1462,8 +1475,17 @@ Return ONLY valid JSON with exactly these keys:
               headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
           }
-          throw new Error(`Article generation failed: ${e instanceof Error ? e.message : String(e)}`);
+          // Never silently drop — leave item pending, log the parse failure, move on.
+          console.error(`Article generation failed for item ${newsItem.id}:`, e);
+          totalJsonParseFailures += jsonParseFailures + 1;
+          await supabase.from("newsroom_articles").update({
+            processing_status: "pending",
+            error_message: `Article generation failed: ${e instanceof Error ? e.message : String(e)}`,
+          }).eq("id", newsItem.id);
+          continue;
         }
+        totalJsonParseFailures += jsonParseFailures;
+
 
 
         // Skip flags from AI verification — INSUFFICIENT_VERIFICATION no longer blocks publishing
