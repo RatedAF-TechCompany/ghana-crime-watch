@@ -95,34 +95,14 @@ export default function ThreadUpdatesView({ threadId }: { threadId: string }) {
     }
   };
 
-  const triggerTweet = async (threadUpdateId: string) => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-      const resp = await fetch(`${supabaseUrl}/functions/v1/auto-tweet`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session?.access_token || supabaseAnonKey}`,
-        },
-        body: JSON.stringify({ thread_update_id: threadUpdateId }),
-      });
-      const result = await resp.json();
-      if (result.success) {
-        toast({ title: 'Tweeted!', description: `Posted to X: ${result.tweet_url}` });
-      } else {
-        // Paused/rate-limited/stale/not-key-point/already-posted are expected
-        // non-error outcomes (HTTP 200 or 4xx), not failures to retry.
-        toast({ title: 'Tweet not posted', description: result.error || 'Unknown reason' });
-      }
-    } catch (err: any) {
-      toast({ title: 'Tweet not posted', description: err.message, variant: 'destructive' });
-    } finally {
-      fetchUpdates();
-    }
+  const triggerTweet = async (_threadUpdateId: string) => {
+    toast({
+      title: 'Auto-tweet retired',
+      description: 'Manual tweeting is disabled. GhanaCrimes AutoPost handles X posting on a 6-hour schedule.',
+    });
+    fetchUpdates();
   };
+
 
   const resetForm = () => {
     setTitle('');
