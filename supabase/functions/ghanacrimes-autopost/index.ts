@@ -181,19 +181,16 @@ OUTPUT: Return ONLY the single hook sentence. No URL. No line breaks. No surroun
 SUMMARY: ${summary || "(none)"}
 BODY EXCERPT: ${excerpt}`;
 
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableKey}` },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash-lite",
-      messages: [{ role: "system", content: system }, { role: "user", content: user }],
-      temperature: 0.4,
-      max_tokens: 120,
-    }),
+  const usage = newUsage();
+  const { content } = await callGateway(lovableKey, usage, {
+    system,
+    user,
+    max_tokens: 120,
+    temperature: 0.7,
+    json: false,
   });
-  if (!res.ok) throw new Error(`AI gateway ${res.status}: ${await res.text()}`);
-  const data = await res.json();
-  let text: string = (data.choices?.[0]?.message?.content || "").trim();
+  let text: string = (content || "").trim();
+
 
   // Sanitize
   text = text
