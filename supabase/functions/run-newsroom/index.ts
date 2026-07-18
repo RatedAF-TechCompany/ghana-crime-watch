@@ -352,67 +352,60 @@ async function handleDeveloperStoryPromotion(
 async function classifyBatchInScope(
   items: Array<{ original_headline?: string; headline?: string; original_summary?: string; summary?: string }>,
   lovableApiKey: string,
+  usage: AiUsage,
 ): Promise<Array<{ in_scope: boolean; confidence: number; reason: string }>> {
   if (items.length === 0) return [];
-  const payload = items.map((it, i) => ({
-    i,
-    headline: String(it.original_headline || it.headline || "").slice(0, 300),
-    body: String(it.original_summary || it.summary || "").slice(0, 300),
-  }));
-  const user = `Classify whether each news item below is within scope for a crime and justice news site covering Ghana. IN SCOPE: crime, arrests, court cases, trials, sentencing, police and security services, prisons, fraud, corruption investigations, EOCO/OSP/NACOC actions, missing persons, road fatalities involving legal proceedings, public safety incidents, and crime policy or legislation. OUT OF SCOPE: entertainment, music, TV shows, talent competitions, sport, celebrity lifestyle, business stories with no criminal element, politics with no criminal element, and human-interest stories.
 
-Respond with valid JSON only: a single array in the same order and length as the input, each element: {"i": number, "in_scope": true/false, "confidence": 0-100, "reason": "one short sentence"}.
+  // Cap batch size — one round-trip per <=20 items. Callers slice ahead of time
+  // to guarantee a single call per batch.
+  const payload = items.slice(0, 20).map((it, i) => ({
+    i,
+    // Title + short snippet only — never full body. Token discipline.
+    t: String(it.original_headline || it.headline || "").slice(0, 160),
+    s: String(it.original_summary || it.summary || "").slice(0, 200),
+  }));
+
+  const user = `Classify each news item for a Ghana crime and justice news site.
+IN SCOPE: crime, arrests, court cases, sentencing, police/security services, prisons, fraud, corruption investigations, EOCO/OSP/NACOC actions, missing persons, road fatalities with legal proceedings, public safety incidents, crime policy.
+OUT OF SCOPE: entertainment, music, sport, celebrity, lifestyle, business/politics without a criminal element, human interest.
+
+Return ONE JSON object: {"results":[{"i":number,"in_scope":true|false,"reason":"short"}...]} same length and order as input.
 
 Items:
 ${JSON.stringify(payload)}`;
 
-  const doCall = async () => {
-    const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
-        messages: [
-          { role: "system", content: "You classify news items for a Ghanaian crime and justice site. Return only valid JSON — no prose." },
-          { role: "user", content: user },
-        ],
-      }),
-    });
-    if (!r.ok) throw new Error(`classifier http ${r.status}`);
-    const d = await r.json();
-    const c = d.choices?.[0]?.message?.content || "[]";
-    const m = c.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, c];
-    const parsed = JSON.parse(m[1] || c);
-    if (!Array.isArray(parsed)) throw new Error("classifier: not an array");
-    return parsed;
-  };
-
-  let parsed: any[] = [];
+  let parsedResults: any[] = [];
   try {
-    parsed = await doCall();
-  } catch (e1) {
-    console.error("Classifier attempt 1 failed:", e1);
-    try {
-      parsed = await doCall();
-    } catch (e2) {
-      console.error("Classifier attempt 2 failed — treating all as out of scope:", e2);
-      return items.map(() => ({ in_scope: false, confidence: 0, reason: "classifier_error" }));
-    }
+    const { content } = await callGateway(lovableApiKey, usage, {
+      system: "You classify news items for a Ghana crime & justice site. Return only valid JSON.",
+      user,
+      max_tokens: 500,
+      temperature: 0.2,
+      json: true,
+    });
+    const obj = parseJson<any>(content);
+    parsedResults = Array.isArray(obj) ? obj : (Array.isArray(obj?.results) ? obj.results : []);
+  } catch (e) {
+    if (e instanceof AiCreditError) throw e; // bubble up — caller must stop
+    console.error("Classifier failed:", e);
+    return items.map(() => ({ in_scope: false, confidence: 0, reason: "classifier_error" }));
   }
 
   const out = items.map(() => ({ in_scope: false, confidence: 0, reason: "no classification returned" }));
-  for (const row of parsed) {
+  for (const row of parsedResults) {
     const idx = typeof row?.i === "number" ? row.i : -1;
     if (idx >= 0 && idx < items.length) {
       out[idx] = {
         in_scope: !!row.in_scope,
-        confidence: Math.max(0, Math.min(100, Number(row.confidence) || 0)),
+        // No longer a separate confidence — treat in_scope as boolean decision.
+        confidence: row.in_scope ? 90 : 10,
         reason: String(row.reason || "").slice(0, 200),
       };
     }
   }
   return out;
 }
+
 
 // Strict crime-only keywords for RSS filtering
 // Story MUST involve a criminal act, formal allegation, police/court action, seizure, or investigation
