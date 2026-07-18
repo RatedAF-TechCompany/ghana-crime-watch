@@ -450,8 +450,10 @@ export async function runTweetIngest(req: Request, cfg: IngestConfig): Promise<R
 
     await log("poll_complete", {
       tweets_found: tweets.length,
-      new_tweets: newTweets.length,
+      eligible: eligibleTweets.length,
       articles_published: processed,
+      backoff_skipped: backoffSkipped,
+      dead_letter: deadLetterCount,
       credit_halted: creditHalted,
       ai_calls: usage.calls,
       prompt_tokens: usage.prompt_tokens,
