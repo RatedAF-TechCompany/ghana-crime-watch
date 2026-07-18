@@ -1432,35 +1432,39 @@ Return ONLY valid JSON with exactly these keys:
   "is_minor_update": false
 }`;
 
-        const articleResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${lovableApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
-            messages: [
-              { role: "system", content: "You are the GhanaCrimes Automated Newsroom Engine. You are a senior investigative crime editor. You write in clear, simple English that a 10 year old can understand, while maintaining professional newsroom standards. You do not mention or promote other media outlets. You do not narrate your verification process. You do not hedge excessively. You do not repeat facts. You do not use filler language. Return only valid JSON. Never use colons, long dashes, bullet points, emojis, hashtags, URLs, or media outlet names." },
-              { role: "user", content: articlePrompt }
-            ],
-          }),
-        });
-
-        if (!articleResponse.ok) {
-          throw new Error(`Article generation failed: ${articleResponse.status}`);
-        }
-
-        const articleData = await articleResponse.json();
-        const articleContent = articleData.choices?.[0]?.message?.content || "{}";
-
         let articleJson: any;
         try {
-          const jsonMatch = articleContent.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, articleContent];
-          articleJson = JSON.parse(jsonMatch[1] || articleContent);
+          const { content: articleContent } = await callGateway(lovableApiKey, usage, {
+            system: "You are the GhanaCrimes Automated Newsroom Engine. You are a senior investigative crime editor. You write in clear, simple English that a 10 year old can understand, while maintaining professional newsroom standards. You do not mention or promote other media outlets. You do not narrate your verification process. You do not hedge excessively. You do not repeat facts. You do not use filler language. Return only valid JSON. Never use colons, long dashes, bullet points, emojis, hashtags, URLs, or media outlet names.",
+            user: articlePrompt,
+            max_tokens: 1400,
+            temperature: 0.4,
+            json: true,
+          });
+          articleJson = parseJson<any>(articleContent);
+          if (!articleJson || typeof articleJson !== "object") throw new Error("empty article JSON");
         } catch (e) {
-          throw new Error("Failed to parse article JSON");
+          if (e instanceof AiCreditError) {
+            console.warn(`Article generation stopped mid-loop: ${e.message}`);
+            await supabase.from("newsroom_runs").update({
+              status: "credit_limit",
+              articles_created: articlesCreated,
+              completed_at: new Date().toISOString(),
+              ai_calls: usage.calls,
+              prompt_tokens: usage.prompt_tokens,
+              completion_tokens: usage.completion_tokens,
+              estimated_cost: Number(usage.estimated_cost.toFixed(6)),
+              discovery_ran: discoveryRanThisRun,
+              error_message: e.message,
+            }).eq("id", run.id);
+            return new Response(JSON.stringify({ success: false, run_id: run.id, reason: e.message, articles_created: articlesCreated }), {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          throw new Error(`Article generation failed: ${e instanceof Error ? e.message : String(e)}`);
         }
+
 
         // Skip flags from AI verification — INSUFFICIENT_VERIFICATION no longer blocks publishing
         const skipFlag = articleJson.headline;
