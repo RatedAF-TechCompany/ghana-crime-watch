@@ -1471,8 +1471,10 @@ Return ONLY valid JSON with exactly these keys:
               completion_tokens: usage.completion_tokens,
               estimated_cost: Number(usage.estimated_cost.toFixed(6)),
               discovery_ran: discoveryRanThisRun,
+              json_parse_failures: totalJsonParseFailures + jsonParseFailures,
               error_message: e.message,
             }).eq("id", run.id);
+
             return new Response(JSON.stringify({ success: false, run_id: run.id, reason: e.message, articles_created: articlesCreated }), {
               status: 200,
               headers: { ...corsHeaders, "Content-Type": "application/json" },
