@@ -850,38 +850,95 @@ Return ONE JSON object: {"items":[{"source_name":"...","original_headline":"..."
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // GATE: CRIME-RELEVANCE CLASSIFIER (before AI article generation)
-    // Rejected items log to public.rejected_items and never consume the
-    // article-generation budget below.
+    // PRE-AI FILTERING (biggest win — never pay AI to re-reject known items)
+    // 1) Drop items we've already decided about (ai_rejects, hashed by URL+title).
+    // 2) Cheap deterministic gate: hard-reject obvious out-of-scope, hard-accept
+    //    obvious in-scope. Only ambiguous items go to the batched AI classifier.
     // ═══════════════════════════════════════════════════════════════════
     if (currentNewsItems.length > 0) {
-      const classifications = await classifyBatchInScope(currentNewsItems, lovableApiKey);
-      const kept: any[] = [];
-      const rejectedRows: any[] = [];
-      for (let i = 0; i < currentNewsItems.length; i++) {
-        const item = currentNewsItems[i];
-        const c = classifications[i] || { in_scope: false, confidence: 0, reason: "no classification returned" };
-        if (c.in_scope && c.confidence >= 70) {
-          kept.push(item);
-        } else {
-          const reason = c.reason === "classifier_error" ? "classifier_error" : "out_of_scope";
-          rejectedRows.push({
-            source: item.source_name || null,
-            original_headline: item.original_headline || item.headline || "Untitled",
-            original_url: item.source_url || null,
-            reason,
-            confidence: c.confidence,
-            detail: c.reason,
-          });
-          console.log(`SCOPE_REJECT (${c.confidence}) ${c.reason}: ${(item.original_headline || "").substring(0, 80)}`);
-        }
-      }
-      if (rejectedRows.length > 0) {
-        await supabase.from("rejected_items").insert(rejectedRows);
-      }
-      console.log(`Scope gate: ${kept.length} in scope, ${rejectedRows.length} rejected`);
-      currentNewsItems = kept;
+      const beforeRejects = currentNewsItems.length;
+      const { kept: afterRejects, skipped } = await filterByAiRejects(supabase, currentNewsItems);
+      if (skipped > 0) console.log(`ai_rejects gate: skipped ${skipped}/${beforeRejects} already-decided items`);
+      currentNewsItems = afterRejects;
     }
+
+    const hardAccepted: any[] = [];
+    const needsAiClassifier: any[] = [];
+    const hardRejected: any[] = [];
+    for (const it of currentNewsItems) {
+      const g = cheapGate(it);
+      if (g === "accept") hardAccepted.push(it);
+      else if (g === "reject") hardRejected.push(it);
+      else needsAiClassifier.push(it);
+    }
+    if (hardRejected.length > 0) {
+      console.log(`Cheap gate: hard-rejected ${hardRejected.length} items`);
+      await recordAiRejects(supabase, hardRejected, "out_of_scope", "cheap_gate");
+      await supabase.from("rejected_items").insert(hardRejected.map(it => ({
+        source: it.source_name || null,
+        original_headline: it.original_headline || it.headline || "Untitled",
+        original_url: it.source_url || null,
+        reason: "out_of_scope",
+        detail: "cheap_gate",
+      })));
+    }
+    if (hardAccepted.length > 0) console.log(`Cheap gate: hard-accepted ${hardAccepted.length} items (no AI classification)`);
+
+    // ═══════════════════════════════════════════════════════════════════
+    // GATE: BATCHED CRIME-RELEVANCE CLASSIFIER (only for ambiguous items)
+    // One AI call per batch of up to 20 items. Rejected items go to
+    // rejected_items AND ai_rejects so future runs skip them for free.
+    // ═══════════════════════════════════════════════════════════════════
+    const aiKept: any[] = [];
+    if (needsAiClassifier.length > 0) {
+      try {
+        const BATCH = 20;
+        for (let offset = 0; offset < needsAiClassifier.length; offset += BATCH) {
+          const batch = needsAiClassifier.slice(offset, offset + BATCH);
+          const classifications = await classifyBatchInScope(batch, lovableApiKey, usage);
+          const batchRejected: any[] = [];
+          const rejectedRows: any[] = [];
+          for (let i = 0; i < batch.length; i++) {
+            const item = batch[i];
+            const c = classifications[i] || { in_scope: false, confidence: 0, reason: "no classification returned" };
+            if (c.in_scope) {
+              aiKept.push(item);
+            } else {
+              batchRejected.push(item);
+              rejectedRows.push({
+                source: item.source_name || null,
+                original_headline: item.original_headline || item.headline || "Untitled",
+                original_url: item.source_url || null,
+                reason: c.reason === "classifier_error" ? "classifier_error" : "out_of_scope",
+                confidence: c.confidence,
+                detail: c.reason,
+              });
+              console.log(`SCOPE_REJECT ${c.reason}: ${(item.original_headline || "").substring(0, 80)}`);
+            }
+          }
+          if (rejectedRows.length > 0) await supabase.from("rejected_items").insert(rejectedRows);
+          if (batchRejected.length > 0) await recordAiRejects(supabase, batchRejected, "out_of_scope", "ai_classifier");
+        }
+      } catch (e) {
+        if (e instanceof AiCreditError) {
+          console.warn(`Scope classifier stopped: ${e.message} — keeping ambiguous items as pending`);
+          aiKept.push(...needsAiClassifier); // let them survive to next run
+          await supabase.from("newsroom_runs").update({
+            status: "credit_limit",
+            error_message: e.message,
+          }).eq("id", run.id);
+          await persistUsage({ completed_at: new Date().toISOString() });
+          return new Response(JSON.stringify({ success: false, run_id: run.id, reason: e.message }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        throw e;
+      }
+    }
+    currentNewsItems = [...hardAccepted, ...aiKept];
+    console.log(`Scope gate result: ${currentNewsItems.length} kept (${hardAccepted.length} hard-accept + ${aiKept.length} ai-accept), ${hardRejected.length} hard-reject`);
+
 
     // ═══════════════════════════════════════════════════════════════════
     // GATE: TIGHTENED DUPLICATE CHECK (72h, title similarity ≥ 0.55 OR same source URL)
