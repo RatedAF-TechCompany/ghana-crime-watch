@@ -1,10 +1,102 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { AiCreditError, callGateway, newUsage, parseJson, type AiUsage } from "../_shared/ai-usage.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// ═══════════════════════════════════════════════════════════════════
+// PRE-AI FILTERING HELPERS
+// Deterministic gates that keep out-of-scope / already-seen items from
+// ever reaching the AI. Every rejection is recorded in ai_rejects so
+// future runs skip the same item for zero AI cost.
+// ═══════════════════════════════════════════════════════════════════
+async function sha1Hex(s: string): Promise<string> {
+  const bytes = new TextEncoder().encode(s);
+  const hash = await crypto.subtle.digest("SHA-1", bytes);
+  return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function normUrlForHash(u: string | null | undefined): string {
+  if (!u) return "";
+  return u.trim().toLowerCase().replace(/[#?].*$/, "").replace(/\/$/, "");
+}
+
+function normTitleForHash(t: string | null | undefined): string {
+  return (t || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).slice(0, 12).join(" ");
+}
+
+async function itemHashes(item: any): Promise<{ url_hash: string | null; title_hash: string | null }> {
+  const urlN = normUrlForHash(item.source_url);
+  const titleN = normTitleForHash(item.original_headline || item.headline);
+  return {
+    url_hash: urlN ? await sha1Hex(urlN) : null,
+    title_hash: titleN ? await sha1Hex(titleN) : null,
+  };
+}
+
+// Hard-reject: obvious non-crime slot keywords in headline+summary.
+const HARD_OUT_OF_SCOPE = [
+  " afcon ", " world cup ", " premier league ", " match ", " goal ", " goals ", " striker ",
+  " coach ", " transfer ", " squad ", " fixture ", " kickoff ", " kick-off ",
+  " concert ", " album ", " song ", " lyrics ", " music video ", " movie ", " film ",
+  " trailer ", " actor ", " actress ", " celebrity ", " award ", " nominat",
+  " fashion ", " designer ", " wedding ", " engagement ", " birthday ",
+  " reality show ", " talent show ", " miss ghana ", " ghana idol ",
+];
+
+// Hard-accept: obvious in-scope crime signal in headline. Skip AI classifier entirely.
+const HARD_IN_SCOPE = [
+  "arrest", "arrested", "murder", "murdered", "homicide", "robbery", "armed robber",
+  "kidnap", "abduct", "rape", "defilement", "defiled", "assault", "stabbed", "shot dead",
+  "shooting", "fraud", "scam", "cybercrime", "hacked", "drug bust", "drug seizure",
+  "cocaine", "cannabis", "tramadol", "money laundering", "corruption charge", "bribery",
+  "human trafficking", "smuggl", "extortion", "convicted", "sentenced to", "remanded",
+  "manhunt", "most wanted", "police arrest", "court charges", "court remands",
+  "eoco", "nacoc", "osp probe",
+];
+
+function cheapGate(item: any): "accept" | "reject" | "unknown" {
+  const text = ` ${String(item.original_headline || item.headline || "").toLowerCase()} ${String(item.original_summary || item.summary || "").toLowerCase()} `;
+  for (const k of HARD_OUT_OF_SCOPE) if (text.includes(k)) return "reject";
+  const headline = ` ${String(item.original_headline || item.headline || "").toLowerCase()} `;
+  for (const k of HARD_IN_SCOPE) if (headline.includes(k)) return "accept";
+  return "unknown";
+}
+
+async function filterByAiRejects(supabase: any, items: any[]): Promise<{ kept: any[]; skipped: number }> {
+  if (items.length === 0) return { kept: [], skipped: 0 };
+  const withHashes = await Promise.all(items.map(async (it) => ({ it, h: await itemHashes(it) })));
+  const allHashes = new Set<string>();
+  for (const { h } of withHashes) {
+    if (h.url_hash) allHashes.add(h.url_hash);
+    if (h.title_hash) allHashes.add(h.title_hash);
+  }
+  if (allHashes.size === 0) return { kept: items, skipped: 0 };
+  const hashArr = Array.from(allHashes);
+  const { data } = await supabase
+    .from("ai_rejects")
+    .select("url_hash, title_hash")
+    .or(`url_hash.in.(${hashArr.map((h) => `"${h}"`).join(",")}),title_hash.in.(${hashArr.map((h) => `"${h}"`).join(",")})`);
+  const seen = new Set<string>();
+  for (const r of data || []) {
+    if (r.url_hash) seen.add(r.url_hash);
+    if (r.title_hash) seen.add(r.title_hash);
+  }
+  const kept = withHashes.filter(({ h }) => !(h.url_hash && seen.has(h.url_hash)) && !(h.title_hash && seen.has(h.title_hash))).map((x) => x.it);
+  return { kept, skipped: items.length - kept.length };
+}
+
+async function recordAiRejects(supabase: any, items: any[], reason: string, detail?: string) {
+  if (items.length === 0) return;
+  const rows = await Promise.all(items.map(async (it) => {
+    const h = await itemHashes(it);
+    return { url_hash: h.url_hash, title_hash: h.title_hash, reason, detail: detail || null };
+  }));
+  await supabase.from("ai_rejects").insert(rows);
+}
 
 // Source list — for sources that offer a section-specific crime/justice feed, we use it.
 // Sources without a section feed use the general feed and rely on the AI scope gate below.
@@ -260,67 +352,60 @@ async function handleDeveloperStoryPromotion(
 async function classifyBatchInScope(
   items: Array<{ original_headline?: string; headline?: string; original_summary?: string; summary?: string }>,
   lovableApiKey: string,
+  usage: AiUsage,
 ): Promise<Array<{ in_scope: boolean; confidence: number; reason: string }>> {
   if (items.length === 0) return [];
-  const payload = items.map((it, i) => ({
-    i,
-    headline: String(it.original_headline || it.headline || "").slice(0, 300),
-    body: String(it.original_summary || it.summary || "").slice(0, 300),
-  }));
-  const user = `Classify whether each news item below is within scope for a crime and justice news site covering Ghana. IN SCOPE: crime, arrests, court cases, trials, sentencing, police and security services, prisons, fraud, corruption investigations, EOCO/OSP/NACOC actions, missing persons, road fatalities involving legal proceedings, public safety incidents, and crime policy or legislation. OUT OF SCOPE: entertainment, music, TV shows, talent competitions, sport, celebrity lifestyle, business stories with no criminal element, politics with no criminal element, and human-interest stories.
 
-Respond with valid JSON only: a single array in the same order and length as the input, each element: {"i": number, "in_scope": true/false, "confidence": 0-100, "reason": "one short sentence"}.
+  // Cap batch size — one round-trip per <=20 items. Callers slice ahead of time
+  // to guarantee a single call per batch.
+  const payload = items.slice(0, 20).map((it, i) => ({
+    i,
+    // Title + short snippet only — never full body. Token discipline.
+    t: String(it.original_headline || it.headline || "").slice(0, 160),
+    s: String(it.original_summary || it.summary || "").slice(0, 200),
+  }));
+
+  const user = `Classify each news item for a Ghana crime and justice news site.
+IN SCOPE: crime, arrests, court cases, sentencing, police/security services, prisons, fraud, corruption investigations, EOCO/OSP/NACOC actions, missing persons, road fatalities with legal proceedings, public safety incidents, crime policy.
+OUT OF SCOPE: entertainment, music, sport, celebrity, lifestyle, business/politics without a criminal element, human interest.
+
+Return ONE JSON object: {"results":[{"i":number,"in_scope":true|false,"reason":"short"}...]} same length and order as input.
 
 Items:
 ${JSON.stringify(payload)}`;
 
-  const doCall = async () => {
-    const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
-        messages: [
-          { role: "system", content: "You classify news items for a Ghanaian crime and justice site. Return only valid JSON — no prose." },
-          { role: "user", content: user },
-        ],
-      }),
-    });
-    if (!r.ok) throw new Error(`classifier http ${r.status}`);
-    const d = await r.json();
-    const c = d.choices?.[0]?.message?.content || "[]";
-    const m = c.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, c];
-    const parsed = JSON.parse(m[1] || c);
-    if (!Array.isArray(parsed)) throw new Error("classifier: not an array");
-    return parsed;
-  };
-
-  let parsed: any[] = [];
+  let parsedResults: any[] = [];
   try {
-    parsed = await doCall();
-  } catch (e1) {
-    console.error("Classifier attempt 1 failed:", e1);
-    try {
-      parsed = await doCall();
-    } catch (e2) {
-      console.error("Classifier attempt 2 failed — treating all as out of scope:", e2);
-      return items.map(() => ({ in_scope: false, confidence: 0, reason: "classifier_error" }));
-    }
+    const { content } = await callGateway(lovableApiKey, usage, {
+      system: "You classify news items for a Ghana crime & justice site. Return only valid JSON.",
+      user,
+      max_tokens: 500,
+      temperature: 0.2,
+      json: true,
+    });
+    const obj = parseJson<any>(content);
+    parsedResults = Array.isArray(obj) ? obj : (Array.isArray(obj?.results) ? obj.results : []);
+  } catch (e) {
+    if (e instanceof AiCreditError) throw e; // bubble up — caller must stop
+    console.error("Classifier failed:", e);
+    return items.map(() => ({ in_scope: false, confidence: 0, reason: "classifier_error" }));
   }
 
   const out = items.map(() => ({ in_scope: false, confidence: 0, reason: "no classification returned" }));
-  for (const row of parsed) {
+  for (const row of parsedResults) {
     const idx = typeof row?.i === "number" ? row.i : -1;
     if (idx >= 0 && idx < items.length) {
       out[idx] = {
         in_scope: !!row.in_scope,
-        confidence: Math.max(0, Math.min(100, Number(row.confidence) || 0)),
+        // No longer a separate confidence — treat in_scope as boolean decision.
+        confidence: row.in_scope ? 90 : 10,
         reason: String(row.reason || "").slice(0, 200),
       };
     }
   }
   return out;
 }
+
 
 // Strict crime-only keywords for RSS filtering
 // Story MUST involve a criminal act, formal allegation, police/court action, seizure, or investigation
@@ -534,123 +619,8 @@ function normalizeCategory(category: string): string {
 
 
 
-// ═══════════════════════════════════════════════════════════════════
-// LIVE FACT-CHECKING FILTER — verifies claims using real-time web search
-// Catches errors like incorrect titles, wrong officeholders, outdated roles
-// ═══════════════════════════════════════════════════════════════════
-interface FactCheckResult {
-  passed: boolean;
-  corrections: Array<{
-    original: string;
-    corrected: string;
-    field: string;
-    reason: string;
-  }>;
-  corrected_article: any | null;
-}
+// Live fact-check removed — was disabled for latency and never called downstream.
 
-async function liveFactCheck(
-  articleJson: any,
-  lovableApiKey: string
-): Promise<FactCheckResult> {
-  const currentDateTime = new Date().toISOString();
-  
-  const factCheckPrompt = `You are a LIVE FACT-CHECKER for a Ghana crime news platform. The current date and time is ${currentDateTime}.
-
-Your job is to verify ALL factual claims in this article using real-time web search. You must be especially vigilant about:
-
-1. **CURRENT OFFICEHOLDERS & TITLES**: Verify that anyone mentioned holds the title/role stated AS OF RIGHT NOW (${currentDateTime}). Presidents, ministers, chiefs, commissioners, directors — their titles MUST reflect who currently holds office. If someone is referred to as "former" when they are actually the current officeholder, or vice versa, this is a CRITICAL error.
-
-2. **NAMES & SPELLINGS**: Verify correct spelling of all names — people, places, institutions.
-
-3. **DATES & TIMELINES**: Verify that dates mentioned are accurate and consistent.
-
-4. **INSTITUTIONAL NAMES**: Verify official names of agencies, courts, police divisions, etc.
-
-5. **LEGAL TERMINOLOGY**: Verify charges, legal processes, and court procedures are accurately described.
-
-6. **GEOGRAPHIC ACCURACY**: Verify locations, regions, districts are correctly identified.
-
-ARTICLE TO FACT-CHECK:
-
-Headline: ${articleJson.headline}
-Subtitle: ${articleJson.subtitle || ""}
-Summary: ${articleJson.summary || ""}
-Body: ${articleJson.body || ""}
-Tweet: ${articleJson.twitter_post || ""}
-Tags: ${JSON.stringify(articleJson.tags || [])}
-
-INSTRUCTIONS:
-- Search the web to verify EVERY factual claim, especially titles and roles of named individuals.
-- For Ghana's President, Vice President, IGP, Attorney General, ministers — confirm who CURRENTLY holds each position as of today.
-- If ANY factual error is found, provide the correction.
-- If corrections are needed, return a FULLY CORRECTED version of the article with all fields.
-- The corrected article must maintain the exact same structure and writing style.
-- Do NOT change the writing style, tone, or structure — only fix factual errors.
-- Do NOT add new information that wasn't in the original.
-- Do NOT remove information unless it is factually wrong.
-
-Return ONLY valid JSON:
-{
-  "passed": true/false,
-  "corrections": [
-    {
-      "original": "exact text that is wrong",
-      "corrected": "what it should be",
-      "field": "which field (headline/body/summary/subtitle/twitter_post/tags)",
-      "reason": "why this is wrong and source of correct info"
-    }
-  ],
-  "corrected_article": null (if passed=true) OR { full corrected article with all original fields } (if passed=false)
-}
-
-If everything checks out, return: {"passed": true, "corrections": [], "corrected_article": null}`;
-
-  try {
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${lovableApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
-        messages: [
-          { role: "system", content: "You are a rigorous, real-time fact-checker for a professional news organization. You verify every claim using live web search. You are especially strict about current officeholders, titles, and roles. Return only valid JSON." },
-          { role: "user", content: factCheckPrompt }
-        ],
-        tools: [{ google_search: {} }],
-      }),
-    });
-
-    if (!response.ok) {
-      console.error(`Fact-check API failed: ${response.status}`);
-      // On API failure, pass through but log warning
-      return { passed: true, corrections: [], corrected_article: null };
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "{}";
-    
-    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, content];
-    const result = JSON.parse(jsonMatch[1] || content);
-    
-    if (!result.passed && result.corrections?.length > 0) {
-      console.log(`FACT-CHECK FAILED — ${result.corrections.length} corrections needed:`);
-      for (const c of result.corrections) {
-        console.log(`  ❌ [${c.field}] "${c.original}" → "${c.corrected}" (${c.reason})`);
-      }
-    } else {
-      console.log("FACT-CHECK PASSED — all claims verified");
-    }
-    
-    return result;
-  } catch (e) {
-    console.error("Fact-check error:", e);
-    // On error, pass through but log
-    return { passed: true, corrections: [], corrected_article: null };
-  }
-}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -718,6 +688,29 @@ serve(async (req) => {
 
     console.log(`Started newsroom run: ${run.id}`);
 
+    // Per-run AI usage aggregator — written back to newsroom_runs at exit.
+    const usage: AiUsage = newUsage();
+
+    // Whether the AI-search discovery pass ran this run (throttled below).
+    let discoveryRanThisRun = false;
+
+    // Persist AI usage into the run row. Called on every exit path.
+    const persistUsage = async (extra: Record<string, any> = {}) => {
+      try {
+        await supabase.from("newsroom_runs").update({
+          ai_calls: usage.calls,
+          prompt_tokens: usage.prompt_tokens,
+          completion_tokens: usage.completion_tokens,
+          estimated_cost: Number(usage.estimated_cost.toFixed(6)),
+          discovery_ran: discoveryRanThisRun,
+          ...extra,
+        }).eq("id", run.id);
+      } catch (e) {
+        console.error("persistUsage failed:", e);
+      }
+    };
+
+
     // ═══════════════════════════════════════════════════════════════════
     // STEP 1A: NATIVE RSS FEED SCANNING — real grounded news discovery
     // ═══════════════════════════════════════════════════════════════════
@@ -752,99 +745,57 @@ serve(async (req) => {
 
     // ═══════════════════════════════════════════════════════════════════
     // STEP 1B: GEMINI SEARCH GROUNDING — supplementary AI web search
+    // Throttled: run at most every ~3 hours (roughly every 6th scheduled run).
     // ═══════════════════════════════════════════════════════════════════
-    console.log("Step 1B: Running Gemini search grounding for additional stories...");
-    
     let geminiNewsItems: any[] = [];
-    try {
-      const sourcesList = NEWS_SOURCES.map(s => `${s.name} (${s.domain})`).join(", ");
-      const searchPrompt = `You are the GhanaCrimes News Intake Filter.
+    const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+    const { data: recentDiscovery } = await supabase
+      .from("newsroom_runs")
+      .select("id")
+      .eq("discovery_ran", true)
+      .gte("started_at", threeHoursAgo)
+      .limit(1);
+    const discoveryThrottled = (recentDiscovery?.length ?? 0) > 0;
 
-You are scanning the following approved Ghanaian news outlets:
-${sourcesList}
+    if (discoveryThrottled) {
+      console.log("Step 1B: SKIPPED (discovery pass ran within last 3h)");
+    } else {
+      console.log("Step 1B: Running Gemini search grounding for additional stories...");
+      try {
+        const sourcesList = NEWS_SOURCES.map(s => `${s.name} (${s.domain})`).join(", ");
+        const searchPrompt = `You are the GhanaCrimes News Intake Filter. Approved outlets: ${sourcesList}.
+Time: ${new Date().toISOString()}. Return only crime news published within the last 20 hours FROM GHANA (or directly involving Ghanaian citizens/institutions/law enforcement).
+Only extract: arrests, court cases, sentencing, police investigations, fraud, scams, robbery, murder, assault, defilement, cybercrime, drug seizures, money laundering, corruption charges, human trafficking, kidnapping, prison news, security operations, most wanted notices. Discard opinion, politics without charges, or crimes outside Ghana.
 
-Today's date and time is ${new Date().toISOString()}. Only return news published within the last 20 hours.
+Return ONE JSON object: {"items":[{"source_name":"...","original_headline":"...","original_summary":"1-2 sentences","source_url":"real url","category_hint":"one of: ${VALID_CATEGORIES.join(", ")}","estimated_date":"YYYY-MM-DD"}...]}. 5-15 items.`;
 
-CRITICAL GEOGRAPHIC RULE:
-You must ONLY return crime news that takes place IN GHANA or directly involves Ghanaian citizens, Ghanaian institutions, or Ghanaian law enforcement.
-Do NOT return any international crime news from the USA, UK, Nigeria, or any other country unless it directly involves a Ghanaian suspect, Ghanaian victim, or Ghanaian authorities.
-If a story is about a crime in another country with no Ghana connection, discard it immediately.
-
-Your job is to extract ONLY crime-related news FROM GHANA. You must IGNORE all stories that are:
-Politics, Business, Sports, Entertainment, Opinion, Lifestyle, Education, Religion, Health (unless directly tied to a criminal investigation), Editorial commentary, Announcements, Feature stories, Human interest stories, International news without a direct Ghana connection.
-
-Only extract stories involving:
-Arrests, Court cases, Sentencing, Police investigations, Fraud, Scams, Robbery, Armed robbery, Murder, Attempted murder, Assault, Domestic violence, Child abuse, Defilement, Rape, Cybercrime, Drug seizures, Money laundering, Corruption charges, Human trafficking, Kidnapping, Prison news, Crime statistics, Security operations, Most wanted notices.
-
-Filtering Rules:
-- The crime must have occurred in Ghana OR directly involve Ghanaian nationals or institutions.
-- The article must involve a criminal act or formal criminal allegation.
-- There must be either: a named suspect, a police or court action, a filed charge, a sentencing decision, a seizure of illegal items, or an official criminal investigation.
-- If the story does not involve a criminal offence or official criminal action, discard it.
-- If the story is opinion or analysis about crime trends without a specific incident, discard it.
-- If the story is purely political debate without charges filed, discard it.
-- If the crime happened outside Ghana with no Ghanaian connection, discard it.
-- If unsure, discard it.
-
-Return only items that clearly meet BOTH the crime AND Ghana criteria.
-
-Return a JSON array of 5-15 real crime news items. Each item must have:
-- source_name: The news outlet name
-- original_headline: The exact headline from the source
-- original_summary: A brief 1-2 sentence summary of the story
-- source_url: The actual URL where this story was published (must be a real URL you found)
-- category_hint: One of: ${VALID_CATEGORIES.join(", ")}
-- estimated_date: Publication date in YYYY-MM-DD format
-
-Return ONLY a valid JSON array, no other text.`;
-
-      // Add 15s timeout so Gemini search doesn't block the entire pipeline
-      const geminiController = new AbortController();
-      const geminiTimeout = setTimeout(() => geminiController.abort(), 15000);
-      
-      const searchResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${lovableApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash-lite",
-          messages: [
-            { role: "system", content: "You are a news wire service that finds and reports real, current news stories. You must search the web and return only verifiable news items with real URLs. Return only valid JSON." },
-            { role: "user", content: searchPrompt }
-          ],
-          tools: [{ google_search: {} }],
-        }),
-        signal: geminiController.signal,
-      });
-      clearTimeout(geminiTimeout);
-
-      if (searchResponse.ok) {
-        const searchData = await searchResponse.json();
-        const newsContent = searchData.choices?.[0]?.message?.content || "[]";
-        
         try {
-          const jsonMatch = newsContent.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, newsContent];
-          const parsed = JSON.parse(jsonMatch[1] || newsContent);
-          geminiNewsItems = (Array.isArray(parsed) ? parsed : []).map((item: any) => ({
-            ...item,
-            discovery_method: "gemini_search",
-          }));
+          const { content } = await callGateway(lovableApiKey, usage, {
+            system: "You are a news wire service finding real crime stories with real URLs. Return only valid JSON.",
+            user: searchPrompt,
+            max_tokens: 1500,
+            temperature: 0.3,
+            json: true,
+            tools: [{ google_search: {} }],
+            retryOn429: false,
+          });
+          const obj = parseJson<any>(content);
+          const arr = Array.isArray(obj) ? obj : (Array.isArray(obj?.items) ? obj.items : []);
+          geminiNewsItems = arr.map((item: any) => ({ ...item, discovery_method: "gemini_search" }));
+          discoveryRanThisRun = true;
+          console.log(`Gemini search: found ${geminiNewsItems.length} items`);
         } catch (e) {
-          console.error("Failed to parse Gemini search results:", e);
+          if (e instanceof AiCreditError) {
+            console.warn(`Gemini discovery skipped (${e.status}): ${e.message}`);
+          } else {
+            console.error("Gemini search error:", e);
+          }
         }
-        console.log(`Gemini search: found ${geminiNewsItems.length} items`);
-      } else {
-        const errText = await searchResponse.text();
-        console.error(`Gemini search failed (${searchResponse.status}): ${errText}`);
-        if (searchResponse.status === 429) {
-          console.log("Rate limited on Gemini search, continuing with RSS results only");
-        }
+      } catch (geminiError) {
+        console.error("Gemini search outer error:", geminiError);
       }
-    } catch (geminiError) {
-      console.error("Gemini search error:", geminiError);
     }
+
 
     // ═══════════════════════════════════════════════════════════════════
     // STEP 1C: MERGE & DEDUPLICATE — combine RSS + Gemini results
@@ -899,38 +850,95 @@ Return ONLY a valid JSON array, no other text.`;
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // GATE: CRIME-RELEVANCE CLASSIFIER (before AI article generation)
-    // Rejected items log to public.rejected_items and never consume the
-    // article-generation budget below.
+    // PRE-AI FILTERING (biggest win — never pay AI to re-reject known items)
+    // 1) Drop items we've already decided about (ai_rejects, hashed by URL+title).
+    // 2) Cheap deterministic gate: hard-reject obvious out-of-scope, hard-accept
+    //    obvious in-scope. Only ambiguous items go to the batched AI classifier.
     // ═══════════════════════════════════════════════════════════════════
     if (currentNewsItems.length > 0) {
-      const classifications = await classifyBatchInScope(currentNewsItems, lovableApiKey);
-      const kept: any[] = [];
-      const rejectedRows: any[] = [];
-      for (let i = 0; i < currentNewsItems.length; i++) {
-        const item = currentNewsItems[i];
-        const c = classifications[i] || { in_scope: false, confidence: 0, reason: "no classification returned" };
-        if (c.in_scope && c.confidence >= 70) {
-          kept.push(item);
-        } else {
-          const reason = c.reason === "classifier_error" ? "classifier_error" : "out_of_scope";
-          rejectedRows.push({
-            source: item.source_name || null,
-            original_headline: item.original_headline || item.headline || "Untitled",
-            original_url: item.source_url || null,
-            reason,
-            confidence: c.confidence,
-            detail: c.reason,
-          });
-          console.log(`SCOPE_REJECT (${c.confidence}) ${c.reason}: ${(item.original_headline || "").substring(0, 80)}`);
-        }
-      }
-      if (rejectedRows.length > 0) {
-        await supabase.from("rejected_items").insert(rejectedRows);
-      }
-      console.log(`Scope gate: ${kept.length} in scope, ${rejectedRows.length} rejected`);
-      currentNewsItems = kept;
+      const beforeRejects = currentNewsItems.length;
+      const { kept: afterRejects, skipped } = await filterByAiRejects(supabase, currentNewsItems);
+      if (skipped > 0) console.log(`ai_rejects gate: skipped ${skipped}/${beforeRejects} already-decided items`);
+      currentNewsItems = afterRejects;
     }
+
+    const hardAccepted: any[] = [];
+    const needsAiClassifier: any[] = [];
+    const hardRejected: any[] = [];
+    for (const it of currentNewsItems) {
+      const g = cheapGate(it);
+      if (g === "accept") hardAccepted.push(it);
+      else if (g === "reject") hardRejected.push(it);
+      else needsAiClassifier.push(it);
+    }
+    if (hardRejected.length > 0) {
+      console.log(`Cheap gate: hard-rejected ${hardRejected.length} items`);
+      await recordAiRejects(supabase, hardRejected, "out_of_scope", "cheap_gate");
+      await supabase.from("rejected_items").insert(hardRejected.map(it => ({
+        source: it.source_name || null,
+        original_headline: it.original_headline || it.headline || "Untitled",
+        original_url: it.source_url || null,
+        reason: "out_of_scope",
+        detail: "cheap_gate",
+      })));
+    }
+    if (hardAccepted.length > 0) console.log(`Cheap gate: hard-accepted ${hardAccepted.length} items (no AI classification)`);
+
+    // ═══════════════════════════════════════════════════════════════════
+    // GATE: BATCHED CRIME-RELEVANCE CLASSIFIER (only for ambiguous items)
+    // One AI call per batch of up to 20 items. Rejected items go to
+    // rejected_items AND ai_rejects so future runs skip them for free.
+    // ═══════════════════════════════════════════════════════════════════
+    const aiKept: any[] = [];
+    if (needsAiClassifier.length > 0) {
+      try {
+        const BATCH = 20;
+        for (let offset = 0; offset < needsAiClassifier.length; offset += BATCH) {
+          const batch = needsAiClassifier.slice(offset, offset + BATCH);
+          const classifications = await classifyBatchInScope(batch, lovableApiKey, usage);
+          const batchRejected: any[] = [];
+          const rejectedRows: any[] = [];
+          for (let i = 0; i < batch.length; i++) {
+            const item = batch[i];
+            const c = classifications[i] || { in_scope: false, confidence: 0, reason: "no classification returned" };
+            if (c.in_scope) {
+              aiKept.push(item);
+            } else {
+              batchRejected.push(item);
+              rejectedRows.push({
+                source: item.source_name || null,
+                original_headline: item.original_headline || item.headline || "Untitled",
+                original_url: item.source_url || null,
+                reason: c.reason === "classifier_error" ? "classifier_error" : "out_of_scope",
+                confidence: c.confidence,
+                detail: c.reason,
+              });
+              console.log(`SCOPE_REJECT ${c.reason}: ${(item.original_headline || "").substring(0, 80)}`);
+            }
+          }
+          if (rejectedRows.length > 0) await supabase.from("rejected_items").insert(rejectedRows);
+          if (batchRejected.length > 0) await recordAiRejects(supabase, batchRejected, "out_of_scope", "ai_classifier");
+        }
+      } catch (e) {
+        if (e instanceof AiCreditError) {
+          console.warn(`Scope classifier stopped: ${e.message} — keeping ambiguous items as pending`);
+          aiKept.push(...needsAiClassifier); // let them survive to next run
+          await supabase.from("newsroom_runs").update({
+            status: "credit_limit",
+            error_message: e.message,
+          }).eq("id", run.id);
+          await persistUsage({ completed_at: new Date().toISOString() });
+          return new Response(JSON.stringify({ success: false, run_id: run.id, reason: e.message }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        throw e;
+      }
+    }
+    currentNewsItems = [...hardAccepted, ...aiKept];
+    console.log(`Scope gate result: ${currentNewsItems.length} kept (${hardAccepted.length} hard-accept + ${aiKept.length} ai-accept), ${hardRejected.length} hard-reject`);
+
 
     // ═══════════════════════════════════════════════════════════════════
     // GATE: TIGHTENED DUPLICATE CHECK (72h, title similarity ≥ 0.55 OR same source URL)
@@ -1424,35 +1432,39 @@ Return ONLY valid JSON with exactly these keys:
   "is_minor_update": false
 }`;
 
-        const articleResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${lovableApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
-            messages: [
-              { role: "system", content: "You are the GhanaCrimes Automated Newsroom Engine. You are a senior investigative crime editor. You write in clear, simple English that a 10 year old can understand, while maintaining professional newsroom standards. You do not mention or promote other media outlets. You do not narrate your verification process. You do not hedge excessively. You do not repeat facts. You do not use filler language. Return only valid JSON. Never use colons, long dashes, bullet points, emojis, hashtags, URLs, or media outlet names." },
-              { role: "user", content: articlePrompt }
-            ],
-          }),
-        });
-
-        if (!articleResponse.ok) {
-          throw new Error(`Article generation failed: ${articleResponse.status}`);
-        }
-
-        const articleData = await articleResponse.json();
-        const articleContent = articleData.choices?.[0]?.message?.content || "{}";
-
         let articleJson: any;
         try {
-          const jsonMatch = articleContent.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, articleContent];
-          articleJson = JSON.parse(jsonMatch[1] || articleContent);
+          const { content: articleContent } = await callGateway(lovableApiKey, usage, {
+            system: "You are the GhanaCrimes Automated Newsroom Engine. You are a senior investigative crime editor. You write in clear, simple English that a 10 year old can understand, while maintaining professional newsroom standards. You do not mention or promote other media outlets. You do not narrate your verification process. You do not hedge excessively. You do not repeat facts. You do not use filler language. Return only valid JSON. Never use colons, long dashes, bullet points, emojis, hashtags, URLs, or media outlet names.",
+            user: articlePrompt,
+            max_tokens: 1400,
+            temperature: 0.4,
+            json: true,
+          });
+          articleJson = parseJson<any>(articleContent);
+          if (!articleJson || typeof articleJson !== "object") throw new Error("empty article JSON");
         } catch (e) {
-          throw new Error("Failed to parse article JSON");
+          if (e instanceof AiCreditError) {
+            console.warn(`Article generation stopped mid-loop: ${e.message}`);
+            await supabase.from("newsroom_runs").update({
+              status: "credit_limit",
+              articles_created: articlesCreated,
+              completed_at: new Date().toISOString(),
+              ai_calls: usage.calls,
+              prompt_tokens: usage.prompt_tokens,
+              completion_tokens: usage.completion_tokens,
+              estimated_cost: Number(usage.estimated_cost.toFixed(6)),
+              discovery_ran: discoveryRanThisRun,
+              error_message: e.message,
+            }).eq("id", run.id);
+            return new Response(JSON.stringify({ success: false, run_id: run.id, reason: e.message, articles_created: articlesCreated }), {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          throw new Error(`Article generation failed: ${e instanceof Error ? e.message : String(e)}`);
         }
+
 
         // Skip flags from AI verification — INSUFFICIENT_VERIFICATION no longer blocks publishing
         const skipFlag = articleJson.headline;
@@ -1695,12 +1707,19 @@ Return ONLY valid JSON with exactly these keys:
       }
     }
 
-    // Update run as completed
+    // Update run as completed (+ AI cost visibility)
     await supabase.from("newsroom_runs").update({
       status: "completed",
       articles_created: articlesCreated,
       completed_at: new Date().toISOString(),
+      ai_calls: usage.calls,
+      prompt_tokens: usage.prompt_tokens,
+      completion_tokens: usage.completion_tokens,
+      estimated_cost: Number(usage.estimated_cost.toFixed(6)),
+      discovery_ran: discoveryRanThisRun,
     }).eq("id", run.id);
+    console.log(`AI usage: ${usage.calls} calls, ${usage.prompt_tokens}+${usage.completion_tokens} tokens, $${usage.estimated_cost.toFixed(4)}`);
+
 
     return new Response(JSON.stringify({
       success: true,

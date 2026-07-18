@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_rejects: {
+        Row: {
+          created_at: string
+          detail: string | null
+          id: string
+          reason: string
+          title_hash: string | null
+          url_hash: string | null
+        }
+        Insert: {
+          created_at?: string
+          detail?: string | null
+          id?: string
+          reason: string
+          title_hash?: string | null
+          url_hash?: string | null
+        }
+        Update: {
+          created_at?: string
+          detail?: string | null
+          id?: string
+          reason?: string
+          title_hash?: string | null
+          url_hash?: string | null
+        }
+        Relationships: []
+      }
       articles: {
         Row: {
           article_slug: string
@@ -572,37 +599,52 @@ export type Database = {
       }
       newsroom_runs: {
         Row: {
+          ai_calls: number
           articles_created: number
           articles_found: number
           completed_at: string | null
+          completion_tokens: number
           created_at: string
           created_by: string | null
+          discovery_ran: boolean
           error_message: string | null
+          estimated_cost: number
           id: string
+          prompt_tokens: number
           started_at: string
           status: string
           trigger_type: string
         }
         Insert: {
+          ai_calls?: number
           articles_created?: number
           articles_found?: number
           completed_at?: string | null
+          completion_tokens?: number
           created_at?: string
           created_by?: string | null
+          discovery_ran?: boolean
           error_message?: string | null
+          estimated_cost?: number
           id?: string
+          prompt_tokens?: number
           started_at?: string
           status?: string
           trigger_type: string
         }
         Update: {
+          ai_calls?: number
           articles_created?: number
           articles_found?: number
           completed_at?: string | null
+          completion_tokens?: number
           created_at?: string
           created_by?: string | null
+          discovery_ran?: boolean
           error_message?: string | null
+          estimated_cost?: number
           id?: string
+          prompt_tokens?: number
           started_at?: string
           status?: string
           trigger_type?: string
