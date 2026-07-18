@@ -1703,12 +1703,19 @@ Return ONLY valid JSON with exactly these keys:
       }
     }
 
-    // Update run as completed
+    // Update run as completed (+ AI cost visibility)
     await supabase.from("newsroom_runs").update({
       status: "completed",
       articles_created: articlesCreated,
       completed_at: new Date().toISOString(),
+      ai_calls: usage.calls,
+      prompt_tokens: usage.prompt_tokens,
+      completion_tokens: usage.completion_tokens,
+      estimated_cost: Number(usage.estimated_cost.toFixed(6)),
+      discovery_ran: discoveryRanThisRun,
     }).eq("id", run.id);
+    console.log(`AI usage: ${usage.calls} calls, ${usage.prompt_tokens}+${usage.completion_tokens} tokens, $${usage.estimated_cost.toFixed(4)}`);
+
 
     return new Response(JSON.stringify({
       success: true,
