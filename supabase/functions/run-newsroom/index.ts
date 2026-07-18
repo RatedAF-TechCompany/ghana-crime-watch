@@ -1,10 +1,102 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { AiCreditError, callGateway, newUsage, parseJson, type AiUsage } from "../_shared/ai-usage.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// ═══════════════════════════════════════════════════════════════════
+// PRE-AI FILTERING HELPERS
+// Deterministic gates that keep out-of-scope / already-seen items from
+// ever reaching the AI. Every rejection is recorded in ai_rejects so
+// future runs skip the same item for zero AI cost.
+// ═══════════════════════════════════════════════════════════════════
+async function sha1Hex(s: string): Promise<string> {
+  const bytes = new TextEncoder().encode(s);
+  const hash = await crypto.subtle.digest("SHA-1", bytes);
+  return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function normUrlForHash(u: string | null | undefined): string {
+  if (!u) return "";
+  return u.trim().toLowerCase().replace(/[#?].*$/, "").replace(/\/$/, "");
+}
+
+function normTitleForHash(t: string | null | undefined): string {
+  return (t || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).slice(0, 12).join(" ");
+}
+
+async function itemHashes(item: any): Promise<{ url_hash: string | null; title_hash: string | null }> {
+  const urlN = normUrlForHash(item.source_url);
+  const titleN = normTitleForHash(item.original_headline || item.headline);
+  return {
+    url_hash: urlN ? await sha1Hex(urlN) : null,
+    title_hash: titleN ? await sha1Hex(titleN) : null,
+  };
+}
+
+// Hard-reject: obvious non-crime slot keywords in headline+summary.
+const HARD_OUT_OF_SCOPE = [
+  " afcon ", " world cup ", " premier league ", " match ", " goal ", " goals ", " striker ",
+  " coach ", " transfer ", " squad ", " fixture ", " kickoff ", " kick-off ",
+  " concert ", " album ", " song ", " lyrics ", " music video ", " movie ", " film ",
+  " trailer ", " actor ", " actress ", " celebrity ", " award ", " nominat",
+  " fashion ", " designer ", " wedding ", " engagement ", " birthday ",
+  " reality show ", " talent show ", " miss ghana ", " ghana idol ",
+];
+
+// Hard-accept: obvious in-scope crime signal in headline. Skip AI classifier entirely.
+const HARD_IN_SCOPE = [
+  "arrest", "arrested", "murder", "murdered", "homicide", "robbery", "armed robber",
+  "kidnap", "abduct", "rape", "defilement", "defiled", "assault", "stabbed", "shot dead",
+  "shooting", "fraud", "scam", "cybercrime", "hacked", "drug bust", "drug seizure",
+  "cocaine", "cannabis", "tramadol", "money laundering", "corruption charge", "bribery",
+  "human trafficking", "smuggl", "extortion", "convicted", "sentenced to", "remanded",
+  "manhunt", "most wanted", "police arrest", "court charges", "court remands",
+  "eoco", "nacoc", "osp probe",
+];
+
+function cheapGate(item: any): "accept" | "reject" | "unknown" {
+  const text = ` ${String(item.original_headline || item.headline || "").toLowerCase()} ${String(item.original_summary || item.summary || "").toLowerCase()} `;
+  for (const k of HARD_OUT_OF_SCOPE) if (text.includes(k)) return "reject";
+  const headline = ` ${String(item.original_headline || item.headline || "").toLowerCase()} `;
+  for (const k of HARD_IN_SCOPE) if (headline.includes(k)) return "accept";
+  return "unknown";
+}
+
+async function filterByAiRejects(supabase: any, items: any[]): Promise<{ kept: any[]; skipped: number }> {
+  if (items.length === 0) return { kept: [], skipped: 0 };
+  const withHashes = await Promise.all(items.map(async (it) => ({ it, h: await itemHashes(it) })));
+  const allHashes = new Set<string>();
+  for (const { h } of withHashes) {
+    if (h.url_hash) allHashes.add(h.url_hash);
+    if (h.title_hash) allHashes.add(h.title_hash);
+  }
+  if (allHashes.size === 0) return { kept: items, skipped: 0 };
+  const hashArr = Array.from(allHashes);
+  const { data } = await supabase
+    .from("ai_rejects")
+    .select("url_hash, title_hash")
+    .or(`url_hash.in.(${hashArr.map((h) => `"${h}"`).join(",")}),title_hash.in.(${hashArr.map((h) => `"${h}"`).join(",")})`);
+  const seen = new Set<string>();
+  for (const r of data || []) {
+    if (r.url_hash) seen.add(r.url_hash);
+    if (r.title_hash) seen.add(r.title_hash);
+  }
+  const kept = withHashes.filter(({ h }) => !(h.url_hash && seen.has(h.url_hash)) && !(h.title_hash && seen.has(h.title_hash))).map((x) => x.it);
+  return { kept, skipped: items.length - kept.length };
+}
+
+async function recordAiRejects(supabase: any, items: any[], reason: string, detail?: string) {
+  if (items.length === 0) return;
+  const rows = await Promise.all(items.map(async (it) => {
+    const h = await itemHashes(it);
+    return { url_hash: h.url_hash, title_hash: h.title_hash, reason, detail: detail || null };
+  }));
+  await supabase.from("ai_rejects").insert(rows);
+}
 
 // Source list — for sources that offer a section-specific crime/justice feed, we use it.
 // Sources without a section feed use the general feed and rely on the AI scope gate below.
