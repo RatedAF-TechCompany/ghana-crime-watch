@@ -693,6 +693,7 @@ serve(async (req) => {
 
     // Whether the AI-search discovery pass ran this run (throttled below).
     let discoveryRanThisRun = false;
+    let totalJsonParseFailures = 0;
 
     // Persist AI usage into the run row. Called on every exit path.
     const persistUsage = async (extra: Record<string, any> = {}) => {
@@ -703,12 +704,14 @@ serve(async (req) => {
           completion_tokens: usage.completion_tokens,
           estimated_cost: Number(usage.estimated_cost.toFixed(6)),
           discovery_ran: discoveryRanThisRun,
+          json_parse_failures: totalJsonParseFailures,
           ...extra,
         }).eq("id", run.id);
       } catch (e) {
         console.error("persistUsage failed:", e);
       }
     };
+
 
 
     // ═══════════════════════════════════════════════════════════════════
