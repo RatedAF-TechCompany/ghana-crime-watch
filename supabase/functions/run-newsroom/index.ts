@@ -745,99 +745,57 @@ serve(async (req) => {
 
     // ═══════════════════════════════════════════════════════════════════
     // STEP 1B: GEMINI SEARCH GROUNDING — supplementary AI web search
+    // Throttled: run at most every ~3 hours (roughly every 6th scheduled run).
     // ═══════════════════════════════════════════════════════════════════
-    console.log("Step 1B: Running Gemini search grounding for additional stories...");
-    
     let geminiNewsItems: any[] = [];
-    try {
-      const sourcesList = NEWS_SOURCES.map(s => `${s.name} (${s.domain})`).join(", ");
-      const searchPrompt = `You are the GhanaCrimes News Intake Filter.
+    const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+    const { data: recentDiscovery } = await supabase
+      .from("newsroom_runs")
+      .select("id")
+      .eq("discovery_ran", true)
+      .gte("started_at", threeHoursAgo)
+      .limit(1);
+    const discoveryThrottled = (recentDiscovery?.length ?? 0) > 0;
 
-You are scanning the following approved Ghanaian news outlets:
-${sourcesList}
+    if (discoveryThrottled) {
+      console.log("Step 1B: SKIPPED (discovery pass ran within last 3h)");
+    } else {
+      console.log("Step 1B: Running Gemini search grounding for additional stories...");
+      try {
+        const sourcesList = NEWS_SOURCES.map(s => `${s.name} (${s.domain})`).join(", ");
+        const searchPrompt = `You are the GhanaCrimes News Intake Filter. Approved outlets: ${sourcesList}.
+Time: ${new Date().toISOString()}. Return only crime news published within the last 20 hours FROM GHANA (or directly involving Ghanaian citizens/institutions/law enforcement).
+Only extract: arrests, court cases, sentencing, police investigations, fraud, scams, robbery, murder, assault, defilement, cybercrime, drug seizures, money laundering, corruption charges, human trafficking, kidnapping, prison news, security operations, most wanted notices. Discard opinion, politics without charges, or crimes outside Ghana.
 
-Today's date and time is ${new Date().toISOString()}. Only return news published within the last 20 hours.
+Return ONE JSON object: {"items":[{"source_name":"...","original_headline":"...","original_summary":"1-2 sentences","source_url":"real url","category_hint":"one of: ${VALID_CATEGORIES.join(", ")}","estimated_date":"YYYY-MM-DD"}...]}. 5-15 items.`;
 
-CRITICAL GEOGRAPHIC RULE:
-You must ONLY return crime news that takes place IN GHANA or directly involves Ghanaian citizens, Ghanaian institutions, or Ghanaian law enforcement.
-Do NOT return any international crime news from the USA, UK, Nigeria, or any other country unless it directly involves a Ghanaian suspect, Ghanaian victim, or Ghanaian authorities.
-If a story is about a crime in another country with no Ghana connection, discard it immediately.
-
-Your job is to extract ONLY crime-related news FROM GHANA. You must IGNORE all stories that are:
-Politics, Business, Sports, Entertainment, Opinion, Lifestyle, Education, Religion, Health (unless directly tied to a criminal investigation), Editorial commentary, Announcements, Feature stories, Human interest stories, International news without a direct Ghana connection.
-
-Only extract stories involving:
-Arrests, Court cases, Sentencing, Police investigations, Fraud, Scams, Robbery, Armed robbery, Murder, Attempted murder, Assault, Domestic violence, Child abuse, Defilement, Rape, Cybercrime, Drug seizures, Money laundering, Corruption charges, Human trafficking, Kidnapping, Prison news, Crime statistics, Security operations, Most wanted notices.
-
-Filtering Rules:
-- The crime must have occurred in Ghana OR directly involve Ghanaian nationals or institutions.
-- The article must involve a criminal act or formal criminal allegation.
-- There must be either: a named suspect, a police or court action, a filed charge, a sentencing decision, a seizure of illegal items, or an official criminal investigation.
-- If the story does not involve a criminal offence or official criminal action, discard it.
-- If the story is opinion or analysis about crime trends without a specific incident, discard it.
-- If the story is purely political debate without charges filed, discard it.
-- If the crime happened outside Ghana with no Ghanaian connection, discard it.
-- If unsure, discard it.
-
-Return only items that clearly meet BOTH the crime AND Ghana criteria.
-
-Return a JSON array of 5-15 real crime news items. Each item must have:
-- source_name: The news outlet name
-- original_headline: The exact headline from the source
-- original_summary: A brief 1-2 sentence summary of the story
-- source_url: The actual URL where this story was published (must be a real URL you found)
-- category_hint: One of: ${VALID_CATEGORIES.join(", ")}
-- estimated_date: Publication date in YYYY-MM-DD format
-
-Return ONLY a valid JSON array, no other text.`;
-
-      // Add 15s timeout so Gemini search doesn't block the entire pipeline
-      const geminiController = new AbortController();
-      const geminiTimeout = setTimeout(() => geminiController.abort(), 15000);
-      
-      const searchResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${lovableApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash-lite",
-          messages: [
-            { role: "system", content: "You are a news wire service that finds and reports real, current news stories. You must search the web and return only verifiable news items with real URLs. Return only valid JSON." },
-            { role: "user", content: searchPrompt }
-          ],
-          tools: [{ google_search: {} }],
-        }),
-        signal: geminiController.signal,
-      });
-      clearTimeout(geminiTimeout);
-
-      if (searchResponse.ok) {
-        const searchData = await searchResponse.json();
-        const newsContent = searchData.choices?.[0]?.message?.content || "[]";
-        
         try {
-          const jsonMatch = newsContent.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, newsContent];
-          const parsed = JSON.parse(jsonMatch[1] || newsContent);
-          geminiNewsItems = (Array.isArray(parsed) ? parsed : []).map((item: any) => ({
-            ...item,
-            discovery_method: "gemini_search",
-          }));
+          const { content } = await callGateway(lovableApiKey, usage, {
+            system: "You are a news wire service finding real crime stories with real URLs. Return only valid JSON.",
+            user: searchPrompt,
+            max_tokens: 1500,
+            temperature: 0.3,
+            json: true,
+            tools: [{ google_search: {} }],
+            retryOn429: false,
+          });
+          const obj = parseJson<any>(content);
+          const arr = Array.isArray(obj) ? obj : (Array.isArray(obj?.items) ? obj.items : []);
+          geminiNewsItems = arr.map((item: any) => ({ ...item, discovery_method: "gemini_search" }));
+          discoveryRanThisRun = true;
+          console.log(`Gemini search: found ${geminiNewsItems.length} items`);
         } catch (e) {
-          console.error("Failed to parse Gemini search results:", e);
+          if (e instanceof AiCreditError) {
+            console.warn(`Gemini discovery skipped (${e.status}): ${e.message}`);
+          } else {
+            console.error("Gemini search error:", e);
+          }
         }
-        console.log(`Gemini search: found ${geminiNewsItems.length} items`);
-      } else {
-        const errText = await searchResponse.text();
-        console.error(`Gemini search failed (${searchResponse.status}): ${errText}`);
-        if (searchResponse.status === 429) {
-          console.log("Rate limited on Gemini search, continuing with RSS results only");
-        }
+      } catch (geminiError) {
+        console.error("Gemini search outer error:", geminiError);
       }
-    } catch (geminiError) {
-      console.error("Gemini search error:", geminiError);
     }
+
 
     // ═══════════════════════════════════════════════════════════════════
     // STEP 1C: MERGE & DEDUPLICATE — combine RSS + Gemini results
