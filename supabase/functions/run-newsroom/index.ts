@@ -1648,27 +1648,8 @@ Return ONLY valid JSON with exactly these keys:
           console.error("City extraction failed:", extractError);
         }
 
-        // Auto-tweet the newly published article
-        try {
-          const tweetResponse = await fetch(`${supabaseUrl}/functions/v1/auto-tweet`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${supabaseKey}`,
-            },
-            body: JSON.stringify({ article_id: newArticle.id }),
-          });
-          
-          if (tweetResponse.ok) {
-            const tweetResult = await tweetResponse.json();
-            console.log(`Auto-tweeted article: ${tweetResult.tweet_id || 'success'}`);
-          } else {
-            const tweetErr = await tweetResponse.text();
-            console.error("Auto-tweet failed:", tweetErr);
-          }
-        } catch (tweetError) {
-          console.error("Auto-tweet error:", tweetError);
-        }
+        // Legacy auto-tweet removed — tweeting is now handled solely by ghanacrimes-autopost.
+
 
         // Case B companion log: this article is a major development in an
         // active thread — link it into the live coverage timeline too.
