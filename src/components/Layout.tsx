@@ -18,36 +18,34 @@ const FOOTER_COLUMNS: { title: string; links: { label: string; to: string }[] }[
       { label: "Homepage", to: "/" },
       { label: "Top Stories", to: "/top-stories" },
       { label: "Fraud Watch", to: "/fraud-watch" },
-      { label: "RSS Feed", to: "/functions/v1/rss-feed" },
+      { label: "RSS Feed", to: "/rss.xml" },
     ],
   },
   {
     title: "About us",
     links: [
       { label: "About GhanaCrimes", to: "/about" },
-      { label: "Editorial Policy", to: "/about" },
-      { label: "Corrections", to: "/about" },
-      { label: "Careers", to: "/about" },
+      { label: "Editorial Policy", to: "/editorial-policy" },
+      { label: "Corrections", to: "/corrections" },
     ],
   },
   {
     title: "Sections",
-    links: CATEGORIES.slice(0, 6).map((c) => ({ label: c.label, to: `/${c.slug}` })),
+    links: NAV_CATEGORIES.slice(0, 6).map((c) => ({ label: c.label, to: `/${c.slug}` })),
   },
   {
-    title: "Newsletters",
+    title: "Legal",
     links: [
-      { label: "Daily briefing", to: "/" },
-      { label: "Weekly roundup", to: "/" },
-      { label: "Court diary", to: "/" },
+      { label: "Privacy Policy", to: "/privacy" },
+      { label: "Terms of Use", to: "/terms" },
     ],
   },
   {
     title: "Contact",
     links: [
-      { label: "Contact GhanaCrimes", to: "/about" },
+      { label: "Contact GhanaCrimes", to: "/contact" },
+      { label: "Send a tip", to: "/tips" },
       { label: "Report a scam", to: "/fraud-watch/report" },
-      { label: "Send a tip", to: "/about" },
     ],
   },
 ];

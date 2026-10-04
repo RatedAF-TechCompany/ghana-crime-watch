@@ -18,12 +18,11 @@ const PRIMARY_NAV: { label: string; to: string }[] = [
   { label: "Crime", to: "/violent-crime" },
   { label: "Court", to: "/court-cases" },
   { label: "Police", to: "/police-reports" },
-  { label: "Politics", to: "/politics" },
-  { label: "Economy", to: "/economy" },
-  { label: "World", to: "/world" },
-  { label: "Culture", to: "/culture" },
-  { label: "Life", to: "/lifestyle" },
-  { label: "Magazine", to: "/magazine" },
+  { label: "Fraud", to: "/fraud-scams" },
+  { label: "Cybercrime", to: "/cybercrime" },
+  { label: "Drugs", to: "/drug-offences" },
+  { label: "Investigations", to: "/investigations" },
+  { label: "Fraud Watch", to: "/fraud-watch" },
 ];
 
 export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
