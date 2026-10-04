@@ -16,6 +16,8 @@ process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY =
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: process.cwd(),
+  // Lint runs separately (npm run lint); auto-generated files must not block deploys.
+  eslint: { ignoreDuringBuilds: true },
   env: {
     NEXT_PUBLIC_SUPABASE_URL:
       process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? '',
