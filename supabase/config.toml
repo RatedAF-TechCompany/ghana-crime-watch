@@ -41,3 +41,9 @@ verify_jwt = false
 
 [functions.ingest-ghanaweb]
 verify_jwt = false
+
+[functions.source-ingest]
+verify_jwt = false
+
+[functions.gate-backfill]
+verify_jwt = false
