@@ -96,9 +96,12 @@ export function Layout({ children }: LayoutProps) {
           </div>
           <div className="mt-10 flex flex-col items-start justify-between gap-3 border-t border-pale-rule pt-6 font-sans text-xs text-muted-fg sm:flex-row sm:items-center">
             <span>© {new Date().getFullYear()} GhanaCrimes. All rights reserved.</span>
-            <Link href="/about" className="hover:text-primary">
-              About GhanaCrimes and Editorial Policy
-            </Link>
+            <span className="flex flex-wrap gap-4">
+              <Link href="/editorial-policy" className="hover:text-primary">Editorial Policy</Link>
+              <Link href="/corrections" className="hover:text-primary">Corrections</Link>
+              <Link href="/privacy" className="hover:text-primary">Privacy</Link>
+              <Link href="/terms" className="hover:text-primary">Terms</Link>
+            </span>
           </div>
         </div>
       </footer>
