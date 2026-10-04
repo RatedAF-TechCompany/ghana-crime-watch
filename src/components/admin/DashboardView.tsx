@@ -269,6 +269,12 @@ export default function DashboardView() {
             </Button>
           )}
           {(userRole === 'admin' || userRole === 'editor') && (
+            <Button size="sm" onClick={() => router.push('/admin/review')}>
+              <ShieldAlert className="h-4 w-4 mr-2" />
+              Review Queue
+            </Button>
+          )}
+          {(userRole === 'admin' || userRole === 'editor') && (
             <Button variant="outline" size="sm" onClick={() => router.push('/admin/scope-review')}>
               <ShieldAlert className="h-4 w-4 mr-2" />
               Scope Review
