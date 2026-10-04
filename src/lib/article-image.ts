@@ -1,6 +1,10 @@
 import breakingNewsAsset from "@/assets/breaking-news.png.asset.json";
 
 export const BREAKING_NEWS_IMAGE = breakingNewsAsset.url;
+export const PLACEHOLDER_CARD_IMAGE = "/placeholder-card.svg";
+
+/** Only images hosted in our own storage are allowed. Never hot-link other publishers. */
+const SELF_HOSTED_PREFIX = "https://zninjnjujptjxdikehun.supabase.co/storage/";
 
 type ArticleLike = {
   hero_image?: string | null;
@@ -11,15 +15,19 @@ export function isBreakingNews(article: ArticleLike | null | undefined): boolean
   return article?.category_slug === "breaking-news";
 }
 
+export function isSelfHostedImage(url: string | null | undefined): boolean {
+  return !!url && (url.startsWith(SELF_HOSTED_PREFIX) || url.startsWith("/"));
+}
+
 /**
- * Strict image policy:
- * - Return the real source-derived hero_image when present.
- * - Otherwise, only breaking-news gets the single provided BREAKING_NEWS_IMAGE.
- * - Every other case returns null. Callers MUST render no <img> when null
- *   (no placeholder, no branded card, no grey box).
+ * Image policy:
+ * - Self-hosted hero_image when present.
+ * - breaking-news uses the provided breaking-news graphic.
+ * - Everything else gets a neutral branded placeholder card.
+ * Third-party (hot-linked) URLs are never rendered.
  */
-export function getArticleImage(article: ArticleLike | null | undefined): string | null {
-  if (article?.hero_image) return article.hero_image;
+export function getArticleImage(article: ArticleLike | null | undefined): string {
+  if (isSelfHostedImage(article?.hero_image)) return article!.hero_image!;
   if (isBreakingNews(article)) return BREAKING_NEWS_IMAGE;
-  return null;
+  return PLACEHOLDER_CARD_IMAGE;
 }
