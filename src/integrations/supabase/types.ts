@@ -274,6 +274,66 @@ export type Database = {
           },
         ]
       }
+      contact_messages: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          message: string
+          name: string
+          status: string
+          subject: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          message: string
+          name: string
+          status?: string
+          subject?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          message?: string
+          name?: string
+          status?: string
+          subject?: string | null
+        }
+        Relationships: []
+      }
+      correction_requests: {
+        Row: {
+          article_url: string | null
+          created_at: string
+          details: string
+          email: string | null
+          id: string
+          name: string | null
+          status: string
+        }
+        Insert: {
+          article_url?: string | null
+          created_at?: string
+          details: string
+          email?: string | null
+          id?: string
+          name?: string | null
+          status?: string
+        }
+        Update: {
+          article_url?: string | null
+          created_at?: string
+          details?: string
+          email?: string | null
+          id?: string
+          name?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       crime_type_stats: {
         Row: {
           created_at: string
@@ -997,6 +1057,33 @@ export type Database = {
           },
         ]
       }
+      tips: {
+        Row: {
+          contact: string | null
+          created_at: string
+          id: string
+          location: string | null
+          status: string
+          tip_text: string
+        }
+        Insert: {
+          contact?: string | null
+          created_at?: string
+          id?: string
+          location?: string | null
+          status?: string
+          tip_text: string
+        }
+        Update: {
+          contact?: string | null
+          created_at?: string
+          id?: string
+          location?: string | null
+          status?: string
+          tip_text?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1137,6 +1224,18 @@ export type Database = {
         Returns: string
       }
       generate_article_slug: { Args: { title: string }; Returns: string }
+      get_approved_comments: {
+        Args: { _article_id: string }
+        Returns: {
+          article_id: string
+          comment_text: string
+          commenter_name: string
+          created_at: string
+          id: string
+          is_verified: boolean
+          parent_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
