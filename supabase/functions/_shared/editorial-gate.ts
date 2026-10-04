@@ -7,7 +7,7 @@ export interface GateResult {
   notes: Record<string, unknown>;
 }
 
-export const VERDICT_WORDS = /\b(killer|killers|thief|thieves|criminal|criminals|murderer|murderers|rapist|rapists|fraudster|fraudsters|armed robbers?|kidnappers?)\b/i;
+export const VERDICT_WORDS = /(?<!(suspected|alleged|accused|wanted) )\b(killer|killers|thief|thieves|criminals|a criminal(?! (case|charge|offence|court|record|investigation|trial|division|matter))|murderer|murderers|rapist|rapists|fraudster|fraudsters|armed robbers?|kidnappers?)\b/i;
 export const GUILTY_LANGUAGE = /\b(is guilty|was guilty|are guilty|clearly guilty|obviously guilty|undoubtedly)\b/i;
 export const SPECULATION = /\b(evidence (suggests|shows|proves) (he|she|they)|it is believed (he|she|they) (did|committed)|likely (committed|guilty))\b/i;
 export const GORE = /\b(decapitat\w*|beheaded|dismember\w*|mutilat\w*|disembowel\w*|entrails|brains? (spilled|scattered)|pool of blood|gory|charred bod(y|ies)|severed (head|limb)s?|body parts)\b/i;
