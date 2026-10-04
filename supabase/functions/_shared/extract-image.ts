@@ -255,11 +255,12 @@ export async function extractHeroImage(
       const v = await validateImageUrl(c.url);
       if (!v.ok) continue;
       const bytes = v.bytes;
+      // Policy: never hot-link third-party images. Only self-hosted URLs are returned.
       if (bytes) {
         const rehosted = await rehost(supabase, bucket, articleId, bytes, v.contentType || "image/jpeg");
-        return { url: rehosted || c.url, source: sourceTag };
+        if (rehosted) return { url: rehosted, source: sourceTag };
       }
-      return { url: c.url, source: sourceTag };
+      continue;
     }
     return null;
   };
