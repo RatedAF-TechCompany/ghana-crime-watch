@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 const ARTICLES_PER_PAGE = 17; // 1 lead + 4 + 4 + 8 compact
 
-export default function CategoryView({ categorySlug }: { categorySlug: string }) {
+export default function CategoryView({ categorySlug, initialArticles }: { categorySlug: string; initialArticles?: any[] }) {
   const [page, setPage] = useState(0);
 
   const { data: articles, isLoading } = useQuery({
@@ -30,6 +30,7 @@ export default function CategoryView({ categorySlug }: { categorySlug: string })
       return data;
     },
     enabled: !!categorySlug,
+    initialData: page === 0 ? initialArticles : undefined,
   });
 
   const label = getCategoryLabel(categorySlug!);

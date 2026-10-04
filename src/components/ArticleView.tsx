@@ -15,11 +15,11 @@ import { WhatsAppChannelCTA, useShouldShowWhatsAppCTA } from "@/components/Whats
 import { AdBanner } from "@/components/AdBanner";
 import { LiveDevelopingPill } from "@/components/LiveDevelopingPill";
 import { CaseTimeline } from "@/components/CaseTimeline";
-import DOMPurify from "dompurify";
+import { sanitizeArticleBody } from "@/lib/sanitize";
 import { useEffect, useRef } from "react";
 import { getArticleImage } from "@/lib/article-image";
 
-export default function ArticleView({ categorySlug, articleSlug }: { categorySlug: string; articleSlug: string }) {
+export default function ArticleView({ categorySlug, articleSlug, initialArticle }: { categorySlug: string; articleSlug: string; initialArticle?: any }) {
   const { isPlaying, isPaused, isSupported, speak, stop, togglePlayPause } = useTextToSpeech();
 
   // Determine if WhatsApp CTA should be shown (25% probability, memoized per article)
@@ -40,6 +40,7 @@ export default function ArticleView({ categorySlug, articleSlug }: { categorySlu
       return data;
     },
     enabled: !!categorySlug && !!articleSlug,
+    initialData: initialArticle ?? undefined,
   });
 
   const handleListen = () => {
@@ -64,10 +65,7 @@ export default function ArticleView({ categorySlug, articleSlug }: { categorySlu
 
       viewTrackedRef.current = article.id;
 
-      await supabase
-        .from('articles')
-        .update({ view_count: (article.view_count || 0) + 1 })
-        .eq('id', article.id);
+      await supabase.rpc('increment_view_count', { article_id: article.id });
     };
 
     trackView();
@@ -145,10 +143,7 @@ export default function ArticleView({ categorySlug, articleSlug }: { categorySlu
     return body.replace(/\b(\d+(?:,\d{3})*(?:\.\d+)?)\b/g, '<mark>$1</mark>');
   };
 
-  const sanitizedBody = DOMPurify.sanitize(processBodyText(article.body), {
-    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h2', 'h3', 'h4', 'ul', 'ol', 'li', 'a', 'mark'],
-    ALLOWED_ATTR: ['href', 'target', 'rel'],
-  });
+  const sanitizedBody = sanitizeArticleBody(processBodyText(article.body));
 
   return (
     <article className="mx-auto max-w-[760px]">
@@ -181,7 +176,7 @@ export default function ArticleView({ categorySlug, articleSlug }: { categorySlu
 
       <div className="mb-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-y border-border py-3 text-center">
         <p className="font-sans text-[12px] uppercase tracking-[0.14em] text-muted-fg">
-          By <span className="not-italic text-foreground">{article.author_name || "GhanaCrimes Newsroom"}</span>
+          Reported by <span className="not-italic text-foreground">{article.author_name || "GhanaCrimes Data Desk"}</span>
           <span className="mx-2">·</span>
           {relativeTime}
           <span className="mx-2">·</span>
@@ -234,6 +229,24 @@ export default function ArticleView({ categorySlug, articleSlug }: { categorySlu
         className="article-body max-w-none py-4"
         dangerouslySetInnerHTML={{ __html: sanitizedBody }}
       />
+
+      <div className="mt-2 space-y-2 border-t border-border pt-4 font-sans text-[13px] text-muted-fg">
+        {article.source_url && (
+          <p>
+            <span className="font-semibold text-foreground">Source: </span>
+            <a href={article.source_url} target="_blank" rel="noopener noreferrer nofollow" className="text-primary underline underline-offset-2">
+              {(() => { try { return new URL(article.source_url).hostname.replace(/^www\./, ""); } catch { return "Original report"; } })()}
+            </a>
+          </p>
+        )}
+        <p>
+          Spotted an error?{" "}
+          <Link href={`/corrections?article=${encodeURIComponent(`/${article.category_slug}/${article.article_slug}`)}`} className="text-primary underline underline-offset-2">
+            Request a correction
+          </Link>
+          {" "}· <Link href="/editorial-policy" className="underline underline-offset-2">Editorial policy</Link>
+        </p>
+      </div>
 
 
       {/* Calabashe Ad - always shown if enabled */}
