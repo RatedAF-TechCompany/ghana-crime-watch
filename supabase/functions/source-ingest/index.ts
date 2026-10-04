@@ -23,13 +23,12 @@ async function fetchText(url: string, ms = 15000): Promise<string> {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), ms);
   try {
-    let r = await fetch(url, { headers: { "User-Agent": UA, Accept: "*/*" }, redirect: "follow", signal: ctl.signal });
-    let body = await r.text();
-    if (!body || body.length < 50) {
-      // Some feeds answer 302 with the feed in the body: read it without following.
-      r = await fetch(url, { headers: { "User-Agent": UA }, redirect: "manual", signal: ctl.signal });
-      body = await r.text();
-    }
+    // Read the first response body even on 3xx: some feeds answer 302 with the feed in the body.
+    const first = await fetch(url, { headers: { "User-Agent": UA, Accept: "*/*" }, redirect: "manual", signal: ctl.signal });
+    const firstBody = await first.text();
+    if (first.status < 300 || /<rss|<feed|^\s*[\[{]/i.test(firstBody.slice(0, 500))) return firstBody;
+    const r = await fetch(url, { headers: { "User-Agent": UA, Accept: "*/*" }, redirect: "follow", signal: ctl.signal });
+    const body = await r.text();
     return body;
   } finally {
     clearTimeout(t);
@@ -114,11 +113,28 @@ async function fetchPageText(url: string): Promise<string> {
   }
 }
 
+const CRIME_HINT = /\b(police|arrest\w*|suspect\w*|court|judge|remand\w*|charged|convict\w*|sentenc\w*|jail\w*|prison\w*|inmate\w*|robber\w*|rob(bed)?|murder\w*|kill\w*|stab\w*|shot|shoot\w*|gun\w*|fraud\w*|scam\w*|cyber\w*|galamsey|illegal mining|narcotic\w*|drug\w*|cocaine|cannabis|wee|corrupt\w*|bribe\w*|embezzl\w*|EOCO|NACOC|CHRAJ|OSP|mob|lynch\w*|crash\w*|accident|kidnap\w*|theft|stole\w*|smuggl\w*|traffick\w*|assault\w*|defile\w*|rape\w*|immigration|deport\w*|crime\w*|criminal|offence\w*|investigat\w*|bail)\b/i;
+
 const CATEGORY_FOR: Record<string, string> = {
   robbery: "property-crime", murder: "violent-crime", fraud_cyber: "fraud-scams", galamsey: "organised-crime",
   narcotics: "drug-offences", corruption: "white-collar-crime", road_crash_arrest: "traffic-offences",
   mob_violence: "violent-crime", court_judgement: "court-cases",
 };
+
+/** Parse the first balanced JSON object; tolerates trailing text after it. */
+function extractJson<T>(content: string): T {
+  try { return parseJson<T>(content); } catch { /* fall through */ }
+  const start = content.indexOf("{");
+  let depth = 0, inStr = false, esc = false;
+  for (let i = start; i >= 0 && i < content.length; i++) {
+    const c = content[i];
+    if (inStr) { if (esc) esc = false; else if (c === "\\") esc = true; else if (c === '"') inStr = false; continue; }
+    if (c === '"') inStr = true;
+    else if (c === "{") depth++;
+    else if (c === "}" && --depth === 0) return JSON.parse(content.slice(start, i + 1));
+  }
+  throw new Error("no JSON object in model output");
+}
 
 function slugify(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").slice(0, 90).replace(/-$/, "");
@@ -248,6 +264,13 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Cheap keyword pre-filter: skip obvious non-crime items without spending AI credits
+      const pre = `${item.title} ${transientText.get(item.id) || item.summary || ""}`;
+      if (!CRIME_HINT.test(pre)) {
+        await supabase.from("raw_items").update({ status: "rejected", reason: "not_in_crime_scope (keyword prefilter)" }).eq("id", item.id);
+        stats.rejected++; continue;
+      }
+
       if (aiBudget <= 0) break; // leave remaining items as 'new' for the next run
       aiBudget--;
 
@@ -277,7 +300,7 @@ Deno.serve(async (req) => {
           max_tokens: 900, json: true, temperature: 0.1,
         });
         stats.ai_calls++;
-        const out = parseJson<{ analysis: Analysis; title: string; summary: string; body: string }>(content);
+        const out = extractJson<{ analysis: Analysis; title: string; summary: string; body: string }>(content);
         const body = (out.body || "").replace(/[\u2013\u2014]/g, ", ").trim();
         const title = (out.title || item.title).replace(/[\u2013\u2014]/g, ", ").trim().slice(0, 120);
         const gate = runGate({ analysis: out.analysis || {}, draftTitle: title, draftBody: body, sourceText, isOfficial: src.trust_tier === 1, corroboratingSources: corroborating });

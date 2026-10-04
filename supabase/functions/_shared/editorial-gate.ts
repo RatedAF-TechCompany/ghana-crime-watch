@@ -52,9 +52,9 @@ export function unsupportedFacts(draft: string, source: string): string[] {
     if (v && !src.includes(v) && !src.includes(n.replace(/[,.]$/, ""))) missing.add(n);
   }
   for (const sentence of draft.split(/(?<=[.!?])\s+/)) {
-    const words = sentence.split(/\s+/).slice(1); // skip sentence-initial capital
+    const words = sentence.split(/[\s\-\/]+/).slice(1); // skip sentence-initial capital
     for (const w of words) {
-      const clean = w.replace(/[^A-Za-z'-]/g, "");
+      const clean = w.replace(/['’]s$/i, "").replace(/[^A-Za-z]/g, "");
       if (!/^[A-Z][a-z]{2,}/.test(clean) || STOP_CAPS.has(clean)) continue;
       if (!src.includes(clean.toLowerCase())) missing.add(clean);
     }
