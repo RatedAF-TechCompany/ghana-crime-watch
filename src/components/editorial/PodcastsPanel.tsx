@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Mic } from "lucide-react";
 import { EditorialSectionHeading } from "./EditorialSectionHeading";
+import { isSelfHostedImage } from "@/lib/article-image";
 
 interface Article {
   id: string;
@@ -40,8 +41,8 @@ function PodcastBlock({ article, large = false }: { article: Article; large?: bo
         className="shrink-0 overflow-hidden bg-black"
         style={{ width: large ? 160 : 110, height: large ? 160 : 110 }}
       >
-        {article.hero_image ? (
-          <img src={article.hero_image} alt="" loading="lazy" className="h-full w-full object-cover" />
+        {isSelfHostedImage(article.hero_image) ? (
+          <img src={article.hero_image!} alt="" loading="lazy" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
             <Mic className="h-8 w-8 text-white/60" strokeWidth={1.2} />
