@@ -47,16 +47,22 @@ export type Database = {
           author_id: string | null
           author_name: string | null
           body: string
+          case_status: string | null
           category_slug: string
           created_at: string
+          gate_report: Json | null
           hero_image: string | null
           id: string
           is_published: boolean
+          offence_type: string | null
           published_at: string | null
+          region: string | null
           seo_description: string | null
           seo_title: string | null
           source_published_at: string | null
           source_url: string | null
+          source_urls: string[]
+          status: string
           subtitle: string | null
           summary: string
           tags: string[] | null
@@ -71,16 +77,22 @@ export type Database = {
           author_id?: string | null
           author_name?: string | null
           body: string
+          case_status?: string | null
           category_slug: string
           created_at?: string
+          gate_report?: Json | null
           hero_image?: string | null
           id?: string
           is_published?: boolean
+          offence_type?: string | null
           published_at?: string | null
+          region?: string | null
           seo_description?: string | null
           seo_title?: string | null
           source_published_at?: string | null
           source_url?: string | null
+          source_urls?: string[]
+          status?: string
           subtitle?: string | null
           summary: string
           tags?: string[] | null
@@ -95,16 +107,22 @@ export type Database = {
           author_id?: string | null
           author_name?: string | null
           body?: string
+          case_status?: string | null
           category_slug?: string
           created_at?: string
+          gate_report?: Json | null
           hero_image?: string | null
           id?: string
           is_published?: boolean
+          offence_type?: string | null
           published_at?: string | null
+          region?: string | null
           seo_description?: string | null
           seo_title?: string | null
           source_published_at?: string | null
           source_url?: string | null
+          source_urls?: string[]
+          status?: string
           subtitle?: string | null
           summary?: string
           tags?: string[] | null
@@ -333,6 +351,38 @@ export type Database = {
           status?: string
         }
         Relationships: []
+      }
+      corrections: {
+        Row: {
+          article_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          note: string
+        }
+        Insert: {
+          article_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note: string
+        }
+        Update: {
+          article_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "corrections_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       crime_type_stats: {
         Row: {
@@ -722,6 +772,36 @@ export type Database = {
           },
         ]
       }
+      pipeline_runs: {
+        Row: {
+          error: string | null
+          finished_at: string | null
+          id: string
+          kind: string
+          started_at: string
+          stats: Json
+          status: string
+        }
+        Insert: {
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          kind?: string
+          started_at?: string
+          stats?: Json
+          status?: string
+        }
+        Update: {
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          kind?: string
+          started_at?: string
+          stats?: Json
+          status?: string
+        }
+        Relationships: []
+      }
       posted_articles: {
         Row: {
           article_title: string
@@ -844,6 +924,82 @@ export type Database = {
         }
         Relationships: []
       }
+      raw_items: {
+        Row: {
+          article_id: string | null
+          attempts: number
+          fetched_at: string
+          gate_report: Json | null
+          hash: string
+          id: string
+          published_at: string | null
+          reason: string | null
+          source_id: string
+          status: string
+          summary: string | null
+          thread_id: string | null
+          title: string
+          url: string
+          url_hash: string
+        }
+        Insert: {
+          article_id?: string | null
+          attempts?: number
+          fetched_at?: string
+          gate_report?: Json | null
+          hash: string
+          id?: string
+          published_at?: string | null
+          reason?: string | null
+          source_id: string
+          status?: string
+          summary?: string | null
+          thread_id?: string | null
+          title: string
+          url: string
+          url_hash: string
+        }
+        Update: {
+          article_id?: string | null
+          attempts?: number
+          fetched_at?: string
+          gate_report?: Json | null
+          hash?: string
+          id?: string
+          published_at?: string | null
+          reason?: string | null
+          source_id?: string
+          status?: string
+          summary?: string | null
+          thread_id?: string | null
+          title?: string
+          url?: string
+          url_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "raw_items_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "raw_items_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "raw_items_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "story_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rejected_items: {
         Row: {
           confidence: number | null
@@ -934,32 +1090,56 @@ export type Database = {
       sources: {
         Row: {
           active: boolean
+          api_url: string | null
           created_at: string
           domain: string
+          feed_url: string | null
+          html_url: string | null
           id: string
+          last_polled_at: string | null
+          last_status: string | null
           name: string
+          poll_minutes: number
           requires_topic_gate: boolean
           rss_url: string | null
+          trust_tier: number
+          type: string
           updated_at: string
         }
         Insert: {
           active?: boolean
+          api_url?: string | null
           created_at?: string
           domain: string
+          feed_url?: string | null
+          html_url?: string | null
           id?: string
+          last_polled_at?: string | null
+          last_status?: string | null
           name: string
+          poll_minutes?: number
           requires_topic_gate?: boolean
           rss_url?: string | null
+          trust_tier?: number
+          type?: string
           updated_at?: string
         }
         Update: {
           active?: boolean
+          api_url?: string | null
           created_at?: string
           domain?: string
+          feed_url?: string | null
+          html_url?: string | null
           id?: string
+          last_polled_at?: string | null
+          last_status?: string | null
           name?: string
+          poll_minutes?: number
           requires_topic_gate?: boolean
           rss_url?: string | null
+          trust_tier?: number
+          type?: string
           updated_at?: string
         }
         Relationships: []
@@ -1223,6 +1403,24 @@ export type Database = {
         }
         Returns: string
       }
+      find_similar_articles: {
+        Args: { _hours?: number; _title: string }
+        Returns: {
+          created_at: string
+          id: string
+          published_at: string
+          sim: number
+          thread_id: string
+        }[]
+      }
+      find_similar_raw_items: {
+        Args: { _exclude: string; _hours?: number; _title: string }
+        Returns: {
+          id: string
+          sim: number
+          source_id: string
+        }[]
+      }
       generate_article_slug: { Args: { title: string }; Returns: string }
       get_approved_comments: {
         Args: { _article_id: string }
@@ -1270,6 +1468,7 @@ export type Database = {
         }
         Returns: Json
       }
+      verify_cron_secret: { Args: { _secret: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "editor" | "contributor" | "reader"

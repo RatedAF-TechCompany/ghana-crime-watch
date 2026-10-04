@@ -231,14 +231,27 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle 
       />
 
       <div className="mt-2 space-y-2 border-t border-border pt-4 font-sans text-[13px] text-muted-fg">
-        {article.source_url && (
-          <p>
-            <span className="font-semibold text-foreground">Source: </span>
-            <a href={article.source_url} target="_blank" rel="noopener noreferrer nofollow" className="text-primary underline underline-offset-2">
-              {(() => { try { return new URL(article.source_url).hostname.replace(/^www\./, ""); } catch { return "Original report"; } })()}
-            </a>
-          </p>
-        )}
+        {(() => {
+          const urls: string[] = Array.from(new Set([article.source_url, ...((article as any).source_urls || [])].filter(Boolean)));
+          if (!urls.length) {
+            return (
+              <p><span className="font-semibold text-foreground">Source: </span>not recorded</p>
+            );
+          }
+          return (
+            <p>
+              <span className="font-semibold text-foreground">Source: </span>
+              {urls.map((u, i) => (
+                <span key={u}>
+                  {i > 0 && ", "}
+                  <a href={u} target="_blank" rel="noopener noreferrer nofollow" className="text-primary underline underline-offset-2">
+                    {(() => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return "Original report"; } })()}
+                  </a>
+                </span>
+              ))}
+            </p>
+          );
+        })()}
         <p>
           Spotted an error?{" "}
           <Link href={`/corrections?article=${encodeURIComponent(`/${article.category_slug}/${article.article_slug}`)}`} className="text-primary underline underline-offset-2">
