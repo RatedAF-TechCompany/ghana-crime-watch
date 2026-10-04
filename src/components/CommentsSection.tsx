@@ -43,15 +43,12 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
   const { data: comments, isLoading } = useQuery({
     queryKey: ["comments", articleId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("comments")
-        .select("id, article_id, parent_id, commenter_name, comment_text, created_at, is_approved, is_verified")
-        .eq("article_id", articleId)
-        .eq("is_approved", true)
-        .order("created_at", { ascending: false });
+      const { data, error } = await (supabase as any).rpc("get_approved_comments", {
+        _article_id: articleId,
+      });
 
       if (error) throw error;
-      return data as Comment[];
+      return ((data ?? []) as any[]).map((c) => ({ ...c, is_approved: true })) as Comment[];
     },
   });
 
