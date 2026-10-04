@@ -5,7 +5,7 @@ import { Header } from "./Header";
 import { NavigationDrawer } from "./NavigationDrawer";
 import { SearchOverlay } from "./SearchOverlay";
 import { BreakingNewsTicker } from "./BreakingNewsTicker";
-import { CATEGORIES } from "@/lib/categories";
+import { NAV_CATEGORIES } from "@/lib/categories";
 
 interface LayoutProps {
   children: React.ReactNode;
