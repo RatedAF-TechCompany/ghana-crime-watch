@@ -141,7 +141,8 @@ export function runBackfillGate(a: { title: string; body: string; source_url: st
   const hard: string[] = [];
   const soft: string[] = [];
   const convicted = CONVICTED.test(text);
-  if (VERDICT_WORDS.test(text) && !convicted) hard.push("verdict_word_before_conviction");
+  // Verdict words in already-published copy often refer to fraudsters in general (scam advice), so editors judge them.
+  if (VERDICT_WORDS.test(text) && !convicted) soft.push("verdict_word_check_context");
   if (GORE.test(text)) hard.push("graphic_terms");
   if (PHONE.test(text)) hard.push("phone_number");
   if (HOUSE_ADDRESS.test(text)) hard.push("home_address");
