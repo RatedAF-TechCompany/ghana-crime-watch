@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { createServerClient } from '@/lib/supabase/server';
 import { BASE_URL } from '@/lib/utils';
-import { CATEGORIES } from '@/lib/categories';
+import { NAV_CATEGORIES } from '@/lib/categories';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createServerClient();
@@ -21,7 +21,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: BASE_URL, changeFrequency: 'hourly', priority: 1 },
     { url: `${BASE_URL}/about`, changeFrequency: 'monthly', priority: 0.5 },
     { url: `${BASE_URL}/fraud-watch`, changeFrequency: 'daily', priority: 0.7 },
-    ...CATEGORIES.map((c) => ({
+    ...NAV_CATEGORIES.map((c) => ({
       url: `${BASE_URL}/${c.slug}`,
       changeFrequency: 'hourly' as const,
       priority: 0.8,
