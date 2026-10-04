@@ -23,7 +23,7 @@ import { ArrowUpRight } from "lucide-react";
 
 const ARTICLES_PER_PAGE = 30;
 
-export default function HomeView() {
+export default function HomeView({ initialArticles }: { initialArticles?: any[] }) {
   const [page, setPage] = useState(0);
 
   const { data: articles, isLoading } = useQuery({
@@ -38,6 +38,7 @@ export default function HomeView() {
       if (error) throw error;
       return data;
     },
+    initialData: page === 0 ? initialArticles : undefined,
   });
 
   if (isLoading) {

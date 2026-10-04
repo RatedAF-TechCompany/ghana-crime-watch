@@ -5,7 +5,7 @@ import { Header } from "./Header";
 import { NavigationDrawer } from "./NavigationDrawer";
 import { SearchOverlay } from "./SearchOverlay";
 import { BreakingNewsTicker } from "./BreakingNewsTicker";
-import { CATEGORIES } from "@/lib/categories";
+import { NAV_CATEGORIES } from "@/lib/categories";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -18,36 +18,34 @@ const FOOTER_COLUMNS: { title: string; links: { label: string; to: string }[] }[
       { label: "Homepage", to: "/" },
       { label: "Top Stories", to: "/top-stories" },
       { label: "Fraud Watch", to: "/fraud-watch" },
-      { label: "RSS Feed", to: "/functions/v1/rss-feed" },
+      { label: "RSS Feed", to: "/rss.xml" },
     ],
   },
   {
     title: "About us",
     links: [
       { label: "About GhanaCrimes", to: "/about" },
-      { label: "Editorial Policy", to: "/about" },
-      { label: "Corrections", to: "/about" },
-      { label: "Careers", to: "/about" },
+      { label: "Editorial Policy", to: "/editorial-policy" },
+      { label: "Corrections", to: "/corrections" },
     ],
   },
   {
     title: "Sections",
-    links: CATEGORIES.slice(0, 6).map((c) => ({ label: c.label, to: `/${c.slug}` })),
+    links: NAV_CATEGORIES.slice(0, 6).map((c) => ({ label: c.label, to: `/${c.slug}` })),
   },
   {
-    title: "Newsletters",
+    title: "Legal",
     links: [
-      { label: "Daily briefing", to: "/" },
-      { label: "Weekly roundup", to: "/" },
-      { label: "Court diary", to: "/" },
+      { label: "Privacy Policy", to: "/privacy" },
+      { label: "Terms of Use", to: "/terms" },
     ],
   },
   {
     title: "Contact",
     links: [
-      { label: "Contact GhanaCrimes", to: "/about" },
+      { label: "Contact GhanaCrimes", to: "/contact" },
+      { label: "Send a tip", to: "/tips" },
       { label: "Report a scam", to: "/fraud-watch/report" },
-      { label: "Send a tip", to: "/about" },
     ],
   },
 ];
@@ -98,9 +96,12 @@ export function Layout({ children }: LayoutProps) {
           </div>
           <div className="mt-10 flex flex-col items-start justify-between gap-3 border-t border-pale-rule pt-6 font-sans text-xs text-muted-fg sm:flex-row sm:items-center">
             <span>© {new Date().getFullYear()} GhanaCrimes. All rights reserved.</span>
-            <Link href="/about" className="hover:text-primary">
-              About GhanaCrimes and Editorial Policy
-            </Link>
+            <span className="flex flex-wrap gap-4">
+              <Link href="/editorial-policy" className="hover:text-primary">Editorial Policy</Link>
+              <Link href="/corrections" className="hover:text-primary">Corrections</Link>
+              <Link href="/privacy" className="hover:text-primary">Privacy</Link>
+              <Link href="/terms" className="hover:text-primary">Terms</Link>
+            </span>
           </div>
         </div>
       </footer>

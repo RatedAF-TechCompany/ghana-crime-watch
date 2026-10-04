@@ -2,7 +2,7 @@
 import { X, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { CATEGORIES } from "@/lib/categories";
+import { NAV_CATEGORIES } from "@/lib/categories";
 import Link from "next/link";
 
 interface NavigationDrawerProps {
@@ -34,7 +34,7 @@ export function NavigationDrawer({ open, onClose }: NavigationDrawerProps) {
             <Shield className="h-4 w-4 shrink-0" />
             Fraud Watch
           </Link>
-          {CATEGORIES.map((category) => (
+          {NAV_CATEGORIES.map((category) => (
             <Link
               key={category.slug}
               href={`/${category.slug}`}
@@ -46,7 +46,7 @@ export function NavigationDrawer({ open, onClose }: NavigationDrawerProps) {
           ))}
           <div className="border-t border-border mt-2 pt-2">
             <Link
-              href="/about"
+              href="/editorial-policy"
               onClick={onClose}
               className="flex items-center px-4 py-3.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
             >

@@ -90,11 +90,11 @@ Deno.serve(async (req) => {
                 <span style="display: inline-block; width: 28px; height: 28px; background-color: #9A0044; color: white; font-weight: bold; text-align: center; line-height: 28px; border-radius: 4px;">${index + 1}</span>
               </td>
               <td style="vertical-align: top;">
-                <a href="https://ghanacrimes.com/${article.category_slug}/${article.article_slug}" style="color: #000; text-decoration: none;">
+                <a href="https://www.ghanacrimes.com/${article.category_slug}/${article.article_slug}" style="color: #000; text-decoration: none;">
                   <h3 style="margin: 0 0 8px 0; font-size: 18px; font-weight: 600; line-height: 1.3;">${article.title}</h3>
                 </a>
                 <p style="margin: 0; color: #666; font-size: 14px; line-height: 1.5;">${article.summary}</p>
-                <a href="https://ghanacrimes.com/${article.category_slug}/${article.article_slug}" style="display: inline-block; margin-top: 10px; color: #9A0044; font-size: 14px; font-weight: 500; text-decoration: none;">Read full story →</a>
+                <a href="https://www.ghanacrimes.com/${article.category_slug}/${article.article_slug}" style="display: inline-block; margin-top: 10px; color: #9A0044; font-size: 14px; font-weight: 500; text-decoration: none;">Read full story →</a>
               </td>
             </tr>
           </table>
@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
           <!-- CTA -->
           <tr>
             <td style="padding: 24px; text-align: center;">
-              <a href="https://ghanacrimes.com" style="display: inline-block; background-color: #9A0044; color: white; padding: 12px 32px; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 6px;">Visit GhanaCrimes</a>
+              <a href="https://www.ghanacrimes.com" style="display: inline-block; background-color: #9A0044; color: white; padding: 12px 32px; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 6px;">Visit GhanaCrimes</a>
             </td>
           </tr>
           

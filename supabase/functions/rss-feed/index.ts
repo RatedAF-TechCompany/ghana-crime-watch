@@ -6,7 +6,7 @@ const corsHeaders = {
   "Content-Type": "application/rss+xml; charset=utf-8",
 };
 
-const SITE_URL = "https://ghanacrimes.com";
+const SITE_URL = "https://www.ghanacrimes.com";
 const SITE_TITLE = "GhanaCrimes";
 const SITE_DESCRIPTION = "Latest crime news and reports from Ghana";
 

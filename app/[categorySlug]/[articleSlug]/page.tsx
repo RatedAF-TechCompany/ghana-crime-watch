@@ -1,31 +1,31 @@
 import type { Metadata } from 'next';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { Layout } from '@/components/Layout';
 import { BASE_URL } from '@/lib/utils';
 import ArticleView from '@/components/ArticleView';
-import { createServerClient } from '@/lib/supabase/server';
+import { JsonLd } from '@/components/JsonLd';
+import { getArticle, findSlugRedirect } from '@/lib/server-data';
+import { getCategoryLabel, isValidCategory } from '@/lib/categories';
+import { isSelfHostedImage } from '@/lib/article-image';
+
+export const revalidate = 300;
 
 type Params = Promise<{ categorySlug: string; articleSlug: string }>;
 
+function socialImageFor(hero: string | null | undefined) {
+  return isSelfHostedImage(hero) && hero?.startsWith('http')
+    ? `${BASE_URL}/api/og-image?url=${encodeURIComponent(hero)}`
+    : `${BASE_URL}/og-image.png`;
+}
+
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { categorySlug, articleSlug } = await params;
-  const supabase = createServerClient();
-  const { data: article } = await supabase
-    .from('articles')
-    .select('title, seo_title, seo_description, summary, hero_image, published_at, author_name')
-    .eq('category_slug', categorySlug)
-    .eq('article_slug', articleSlug)
-    .eq('is_published', true)
-    .maybeSingle();
-
-  if (!article) {
-    return { title: 'Article Not Found' };
-  }
+  const article = await getArticle(categorySlug, articleSlug);
+  if (!article) return { title: 'Page not found', robots: { index: false } };
 
   const title = article.seo_title || article.title;
   const description = article.seo_description || article.summary || '';
-  const socialImage = article.hero_image
-    ? `${BASE_URL}/api/og-image?url=${encodeURIComponent(article.hero_image)}`
-    : `${BASE_URL}/og-image.png`;
+  const socialImage = socialImageFor(article.hero_image);
   const canonical = `${BASE_URL}/${categorySlug}/${articleSlug}`;
 
   return {
@@ -38,43 +38,67 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
       url: canonical,
       type: 'article',
       publishedTime: article.published_at ?? undefined,
-      authors: [article.author_name || 'GhanaCrimes Newsroom'],
+      modifiedTime: article.updated_at ?? undefined,
+      authors: [article.author_name || 'GhanaCrimes Data Desk'],
       images: [{ url: socialImage }],
     },
-    twitter: {
-      card: 'summary_large_image',
-      title,
-      description,
-      images: [socialImage],
-    },
-    other: {
-      'script:ld+json': JSON.stringify({
-        '@context': 'https://schema.org',
-        '@type': 'NewsArticle',
-        headline: title,
-        description,
-        image: socialImage,
-        datePublished: article.published_at,
-        author: {
-          '@type': 'Person',
-          name: article.author_name || 'GhanaCrimes Newsroom',
-        },
-        publisher: {
-          '@type': 'Organization',
-          name: 'GhanaCrimes',
-          logo: { '@type': 'ImageObject', url: `${BASE_URL}/favicon.png` },
-        },
-        mainEntityOfPage: canonical,
-      }),
-    },
+    twitter: { card: 'summary_large_image', title, description, images: [socialImage] },
   };
 }
 
 export default async function ArticlePage({ params }: { params: Params }) {
   const { categorySlug, articleSlug } = await params;
+  if (!isValidCategory(categorySlug)) notFound();
+
+  const article = await getArticle(categorySlug, articleSlug);
+  if (!article) {
+    const target = await findSlugRedirect(categorySlug, articleSlug);
+    if (target) permanentRedirect(target);
+    notFound();
+  }
+
+  const canonical = `${BASE_URL}/${categorySlug}/${articleSlug}`;
+  const title = article.seo_title || article.title;
+  const authorName = article.author_name || 'GhanaCrimes Data Desk';
+
   return (
     <Layout>
-      <ArticleView categorySlug={categorySlug} articleSlug={articleSlug} />
+      <JsonLd
+        data={[
+          {
+            '@context': 'https://schema.org',
+            '@type': 'NewsArticle',
+            headline: title.slice(0, 110),
+            description: article.seo_description || article.summary,
+            image: [socialImageFor(article.hero_image)],
+            datePublished: article.published_at,
+            dateModified: article.updated_at || article.published_at,
+            author: { '@type': 'Organization', name: authorName, url: `${BASE_URL}/about` },
+            publisher: {
+              '@type': 'Organization',
+              name: 'GhanaCrimes',
+              logo: { '@type': 'ImageObject', url: `${BASE_URL}/favicon.png` },
+            },
+            mainEntityOfPage: { '@type': 'WebPage', '@id': canonical },
+            ...(article.source_url ? { isBasedOn: article.source_url } : {}),
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              { '@type': 'ListItem', position: 1, name: 'Home', item: BASE_URL },
+              {
+                '@type': 'ListItem',
+                position: 2,
+                name: getCategoryLabel(categorySlug),
+                item: `${BASE_URL}/${categorySlug}`,
+              },
+              { '@type': 'ListItem', position: 3, name: article.title, item: canonical },
+            ],
+          },
+        ]}
+      />
+      <ArticleView categorySlug={categorySlug} articleSlug={articleSlug} initialArticle={article} />
     </Layout>
   );
 }

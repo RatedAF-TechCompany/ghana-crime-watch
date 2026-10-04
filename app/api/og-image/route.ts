@@ -1,41 +1,26 @@
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const imageUrl = searchParams.get('url');
+const ALLOWED_PREFIX = 'https://zninjnjujptjxdikehun.supabase.co/storage/';
 
-  if (!imageUrl) {
-    return new Response('Missing url parameter', { status: 400 });
+export async function GET(request: Request) {
+  const { searchParams, origin } = new URL(request.url);
+  const imageUrl = searchParams.get('url');
+  const fallback = `${origin}/og-image.png`;
+
+  // Only proxy our own storage images; never hot-link third-party publishers.
+  if (!imageUrl || !imageUrl.startsWith(ALLOWED_PREFIX)) {
+    return Response.redirect(fallback, 302);
   }
 
   try {
-    const response = await fetch(imageUrl, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-        Accept: 'image/webp,image/png,image/jpeg,image/*,*/*',
-      },
-    });
-
-    if (!response.ok) {
-      return Response.redirect(
-        `${new URL(request.url).origin}/og-image.png`,
-        302
-      );
-    }
-
+    const response = await fetch(imageUrl);
+    if (!response.ok) return Response.redirect(fallback, 302);
     const buffer = await response.arrayBuffer();
-    const contentType =
-      response.headers.get('content-type') || 'image/jpeg';
-
     return new Response(buffer, {
       headers: {
-        'Content-Type': contentType,
+        'Content-Type': response.headers.get('content-type') || 'image/jpeg',
         'Cache-Control': 'public, max-age=86400, s-maxage=86400',
       },
     });
   } catch {
-    return Response.redirect(
-      `${new URL(request.url).origin}/og-image.png`,
-      302
-    );
+    return Response.redirect(fallback, 302);
   }
 }
