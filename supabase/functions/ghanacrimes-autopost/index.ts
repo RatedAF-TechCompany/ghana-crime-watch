@@ -246,8 +246,10 @@ serve(async (req) => {
     // 1. Pull recent published articles
     const { data: articles, error: aerr } = await supabase
       .from("articles")
-      .select("id,title,summary,body,category_slug,article_slug,published_at")
+      .select("id,title,summary,body,category_slug,article_slug,published_at,gate_report")
       .eq("is_published", true)
+      // Only articles that went through the editorial gate (auto-published with zero flags, or editor-approved from review).
+      .not("gate_report->>raw_item_id", "is", null)
       .order("published_at", { ascending: false })
       .limit(30);
     if (aerr) throw aerr;
@@ -271,6 +273,8 @@ serve(async (req) => {
     for (const a of articles) {
       const url = buildArticleUrl(a.category_slug, a.article_slug);
       if (posted.has(url)) { skips.push(`${a.title}: already posted`); continue; }
+      const g: any = (a as any).gate_report || {};
+      if ((g.hard_fails || []).length || (g.backfill?.hard_fails || []).length) { skips.push(`${a.title}: failed editorial gate`); continue; }
       const combined = `${a.title}\n${a.summary || ""}\n${(a.body || "").slice(0, 3000)}`;
       if (!looksAboutGhana(combined)) { skips.push(`${a.title}: not Ghana-relevant`); continue; }
       if (!isCrimeAngle(combined, a.category_slug)) { skips.push(`${a.title}: not a crime angle`); continue; }
