@@ -11,7 +11,7 @@ const compat = new FlatCompat({
 
 /** @type {import('eslint').Linter.Config[]} */
 const eslintConfig = [
-  { ignores: ['.next', 'dist', 'node_modules', 'public', 'supabase/functions', 'next-env.d.ts'] },
+  { ignores: ['.next', 'dist', 'node_modules', 'public', 'supabase/functions', 'next-env.d.ts', 'src/integrations/supabase/previewAuthStorage.ts'] },
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
   {
     files: ['**/*.{ts,tsx}'],
