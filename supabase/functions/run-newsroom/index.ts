@@ -1574,7 +1574,14 @@ Return ONLY valid JSON with exactly these keys:
           .replace(/(^-|-$)/g, "")
           .substring(0, 80);
 
-        const articleSlug = `${slugBase}-${Date.now()}`;
+        // Clean slug (no epoch suffix). On collision append -2, -3, ...
+        let articleSlug = slugBase || "article";
+        for (let n = 2; n < 50; n++) {
+          const { data: clash } = await supabase
+            .from("articles").select("id").eq("article_slug", articleSlug).maybeSingle();
+          if (!clash) break;
+          articleSlug = `${slugBase}-${n}`;
+        }
 
         // SOURCE IMAGE EXTRACTION — shared waterfall (RSS → source URL og:image),
         // validates and re-hosts to storage. Never blocks publishing on failure.
