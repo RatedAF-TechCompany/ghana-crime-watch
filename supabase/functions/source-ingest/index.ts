@@ -4,7 +4,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { AiCreditError, callGateway, newUsage, parseJson } from "../_shared/ai-usage.ts";
-import { runGate, stripHtml, wordCount, type Analysis } from "../_shared/editorial-gate.ts";
+import { detectRegion, runGate, stripHtml, wordCount, type Analysis } from "../_shared/editorial-gate.ts";
 
 const UA = "GhanaCrimesBot/1.0 (+https://www.ghanacrimes.com/about)";
 const MAX_AI_ITEMS = 12;
@@ -19,15 +19,59 @@ async function sha(s: string) {
   return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+// judicial.gov.gh serves a valid Sectigo chain whose root (Public Server Authentication Root R46)
+// is missing from the edge runtime's trust store. Trust that one public root for that host only;
+// certificates are still fully verified.
+const SECTIGO_R46 = `-----BEGIN CERTIFICATE-----
+MIIFijCCA3KgAwIBAgIQdY39i658BwD6qSWn4cetFDANBgkqhkiG9w0BAQwFADBf
+MQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2VjdGlnbyBMaW1pdGVkMTYwNAYDVQQD
+Ey1TZWN0aWdvIFB1YmxpYyBTZXJ2ZXIgQXV0aGVudGljYXRpb24gUm9vdCBSNDYw
+HhcNMjEwMzIyMDAwMDAwWhcNNDYwMzIxMjM1OTU5WjBfMQswCQYDVQQGEwJHQjEY
+MBYGA1UEChMPU2VjdGlnbyBMaW1pdGVkMTYwNAYDVQQDEy1TZWN0aWdvIFB1Ymxp
+YyBTZXJ2ZXIgQXV0aGVudGljYXRpb24gUm9vdCBSNDYwggIiMA0GCSqGSIb3DQEB
+AQUAA4ICDwAwggIKAoICAQCTvtU2UnXYASOgHEdCSe5jtrch/cSV1UgrJnwUUxDa
+ef0rty2k1Cz66jLdScK5vQ9IPXtamFSvnl0xdE8H/FAh3aTPaE8bEmNtJZlMKpnz
+SDBh+oF8HqcIStw+KxwfGExxqjWMrfhu6DtK2eWUAtaJhBOqbchPM8xQljeSM9xf
+iOefVNlI8JhD1mb9nxc4Q8UBUQvX4yMPFF1bFOdLvt30yNoDN9HWOaEhUTCDsG3X
+ME6WW5HwcCSrv0WBZEMNvSE6Lzzpng3LILVCJ8zab5vuZDCQOc2TZYEhMbUjUDM3
+IuM47fgxMMxF/mL50V0yeUKH32rMVhlATc6qu/m1dkmU8Sf4kaWD5QazYw6A3OAS
+VYCmO2a0OYctyPDQ0RTp5A1NDvZdV3LFOxxHVp3i1fuBYYzMTYCQNFu31xR13NgE
+SJ/AwSiItOkcyqex8Va3e0lMWeUgFaiEAin6OJRpmkkGj80feRQXEgyDet4fsZfu
++Zd4KKTIRJLpfSYFplhym3kT2BFfrsU4YjRosoYwjviQYZ4ybPUHNs2iTG7sijbt
+8uaZFURww3y8nDnAtOFr94MlI1fZEoDlSfB1D++N6xybVCi0ITz8fAr/73trdf+L
+HaAZBav6+CuBQug4urv7qv094PPK306Xlynt8xhW6aWWrL3DkJiy4Pmi1KZHQ3xt
+zwIDAQABo0IwQDAdBgNVHQ4EFgQUVnNYZJX5khqwEioEYnmhQBWIIUkwDgYDVR0P
+AQH/BAQDAgGGMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQEMBQADggIBAC9c
+mTz8Bl6MlC5w6tIyMY208FHVvArzZJ8HXtXBc2hkeqK5Duj5XYUtqDdFqij0lgVQ
+YKlJfp/imTYpE0RHap1VIDzYm/EDMrraQKFz6oOht0SmDpkBm+S8f74TlH7Kph52
+gDY9hAaLMyZlbcp+nv4fjFg4exqDsQ+8FxG75gbMY/qB8oFM2gsQa6H61SilzwZA
+Fv97fRheORKkU55+MkIQpiGRqRxOF3yEvJ+M0ejf5lG5Nkc/kLnHvALcWxxPDkjB
+JYOcCj+esQMzEhonrPcibCTRAUH4WAP+JWgiH5paPHxsnnVI84HxZmduTILA7rpX
+DhjvLpr3Etiga+kFpaHpaPi8TD8SHkXoUsCjvxInebnMMTzD9joiFgOgyY9mpFui
+TdaBJQbpdqQACj7LzTWb4OE4y2BThihCQRxEV+ioratF4yUQvNs+ZUH7G6aXD+u5
+dHn5HrwdVw1Hr8Mvn4dGp+smWg9WY7ViYG4A++MnESLn/pmPNPW56MORcr3Ywx65
+LvKRRFHQV80MNNVIIb/bE/FmJUNS0nAiNs2fxBx1IK1jcmMGDw4nztJqDby1ORrp
+0XZ60Vzk50lJLVU3aPAaOpg+VBeHVOmmJ1CJeyAvP/+/oYtKR5j/K3tJPsMpRmAY
+QqszKbrAKbkTidOIijlBO8n9pu0f9GBj39ItVQGL
+-----END CERTIFICATE-----`;
+let judicialClient: any = null;
+function clientFor(url: string): any {
+  if (!/(^|\.)judicial\.gov\.gh$/.test(new URL(url).host)) return undefined;
+  // @ts-ignore Deno API
+  judicialClient ??= Deno.createHttpClient({ caCerts: [SECTIGO_R46] });
+  return judicialClient;
+}
+
 async function fetchText(url: string, ms = 15000): Promise<string> {
+  const client = clientFor(url);
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), ms);
   try {
     // Read the first response body even on 3xx: some feeds answer 302 with the feed in the body.
-    const first = await fetch(url, { headers: { "User-Agent": UA, Accept: "*/*" }, redirect: "manual", signal: ctl.signal });
+    const first = await fetch(url, { headers: { "User-Agent": UA, Accept: "*/*" }, redirect: "manual", signal: ctl.signal, client } as any);
     const firstBody = await first.text();
     if (first.status < 300 || /<rss|<feed|^\s*[\[{]/i.test(firstBody.slice(0, 500))) return firstBody;
-    const r = await fetch(url, { headers: { "User-Agent": UA, Accept: "*/*" }, redirect: "follow", signal: ctl.signal });
+    const r = await fetch(url, { headers: { "User-Agent": UA, Accept: "*/*" }, redirect: "follow", signal: ctl.signal, client } as any);
     const body = await r.text();
     return body;
   } finally {
@@ -338,7 +382,7 @@ Deno.serve(async (req) => {
         const { data: art, error: artErr } = await supabase.from("articles").insert({
           title, summary: (out.summary || "").slice(0, 300), body: html, category_slug: category, article_slug: slug,
           status: publishNow ? "published" : "review", source_url: item.url, source_urls: sourceUrls,
-          source_published_at: item.published_at, gate_report: report, region: out.analysis?.region || null,
+          source_published_at: item.published_at, gate_report: report, region: out.analysis?.region || detectRegion(sourceText),
           offence_type: out.analysis?.offence_type || null, case_status: out.analysis?.case_status || null,
           thread_id: threadId, author_name: null, hero_image: null,
           seo_title: title.slice(0, 60), seo_description: (out.summary || "").slice(0, 155),
