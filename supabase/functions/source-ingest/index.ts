@@ -316,6 +316,9 @@ Deno.serve(async (req) => {
       .eq("is_published", true).gte("published_at", startOfDay.toISOString()).eq("gate_report->>auto_published", "true");
     let autoCount = publishedToday || 0;
     let aiBudget = paused ? 0 : MAX_AI_ITEMS;
+    const { data: recentRows } = await supabase.from("articles").select("id, title")
+      .gte("created_at", new Date(Date.now() - 48 * 3600_000).toISOString()).neq("status", "rejected").limit(500);
+    const recentIncidents: { id: string; title: string }[] = recentRows || [];
 
     for (const item of queue || []) {
       const src: any = sourceById.get(item.source_id);
@@ -326,6 +329,12 @@ Deno.serve(async (req) => {
       const best = (similar || [])[0];
       if (best && best.sim > 0.6) {
         await supabase.from("raw_items").update({ status: "duplicate", reason: `matches article ${best.id}`, article_id: best.id, thread_id: best.thread_id }).eq("id", item.id);
+        stats.duplicates++; continue;
+      }
+      // Same-incident guard: same place + same incident type within 48h is one story.
+      const incidentMatch = recentIncidents.find((r) => sameIncident(item.title, r.title));
+      if (incidentMatch) {
+        await supabase.from("raw_items").update({ status: "duplicate", reason: `same incident as article ${incidentMatch.id}`, article_id: incidentMatch.id }).eq("id", item.id);
         stats.duplicates++; continue;
       }
       let threadId: string | null = best?.thread_id ?? null;
