@@ -438,6 +438,10 @@ Deno.serve(async (req) => {
       }
       // Same-incident guard: same place + same incident type within 48h is one story.
       const incidentMatch = recentIncidents.find((r) => sameIncident(item.title, r.title));
+      // One URL per incident: a same-incident item for a published article becomes an Update on it.
+      if (incidentMatch && publishedIds.has(incidentMatch.id) && await mergeInto(incidentMatch.id, item, src, "same_incident")) {
+        stats.thread_updates++; continue;
+      }
       if (incidentMatch) {
         await supabase.from("raw_items").update({ status: "duplicate", reason: `same incident as article ${incidentMatch.id}`, article_id: incidentMatch.id }).eq("id", item.id);
         stats.duplicates++; continue;
@@ -448,6 +452,16 @@ Deno.serve(async (req) => {
         if (Date.now() - last < 6 * 3600_000) {
           await supabase.from("raw_items").update({ status: "thread_update", reason: `thread update within 6h of ${best.id}`, article_id: best.id, thread_id: threadId }).eq("id", item.id);
           stats.thread_updates++; continue;
+        }
+      }
+
+      // Discovery-only sources never stand alone: they need a primary source for the same story.
+      if (src.type === "discovery") {
+        const { data: sibD } = await supabase.rpc("find_similar_raw_items", { _title: item.title, _exclude: item.id, _hours: 48 });
+        const hasPrimary = (sibD || []).some((r: any) => { const s2: any = sourceById.get(r.source_id); return s2 && s2.type !== "discovery"; });
+        if (!hasPrimary) {
+          await supabase.from("raw_items").update({ status: "discovery", reason: "discovery_only_awaiting_primary_source" }).eq("id", item.id);
+          continue;
         }
       }
 
@@ -502,10 +516,11 @@ Deno.serve(async (req) => {
         }
 
         const eligible = gate.soft_flags.length === 0 && (src.trust_tier === 1 || corroborating >= 1);
-        const publishNow = eligible && autoEnabled && autoCount < dailyCap;
+        // No daily cap: duplicates are prevented by merge/one-URL-per-incident. Discovery items always go to review.
+        const publishNow = eligible && autoEnabled && src.type !== "discovery";
         report.auto_publish_eligible = eligible;
         report.auto_published = publishNow;
-        if (eligible && !publishNow) report.held_reason = !autoEnabled ? "auto_publish_disabled" : "daily_cap_reached";
+        if (eligible && !publishNow) report.held_reason = !autoEnabled ? "auto_publish_disabled" : "discovery_source_review_only";
 
         // Thread: reuse matched thread or open one for older related coverage
         if (!threadId && best && best.sim > 0.45) {
