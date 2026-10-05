@@ -15,6 +15,15 @@ process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY =
 
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      { source: '/crime', destination: '/violent-crime', permanent: true },
+      { source: '/court', destination: '/court-cases', permanent: true },
+      { source: '/police', destination: '/police-reports', permanent: true },
+      { source: '/fraud', destination: '/fraud-scams', permanent: true },
+      { source: '/drugs', destination: '/drug-offences', permanent: true },
+    ];
+  },
   outputFileTracingRoot: process.cwd(),
   // Lint runs separately (npm run lint); auto-generated files must not block deploys.
   eslint: { ignoreDuringBuilds: true },

@@ -5,6 +5,20 @@ export function getRelativeTime(date: string | Date): string {
   return formatDistanceToNow(parsedDate, { addSuffix: true }).replace('about ', '');
 }
 
+export function getPublishedTime(date: string | Date): string {
+  const parsedDate = typeof date === 'string' ? new Date(date) : date;
+  return `Published ${new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'Africa/Accra',
+    timeZoneName: 'short',
+  }).format(parsedDate)}`;
+}
+
 export function getAbsoluteTime(date: string | Date): string {
   const parsedDate = typeof date === 'string' ? new Date(date) : date;
   return parsedDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });

@@ -5,11 +5,6 @@ import { HeroArticle } from "@/components/HeroArticle";
 import { ArticleCard } from "@/components/ArticleCard";
 import { MostReadArticles } from "@/components/MostReadArticles";
 import { EditorialSectionHeading } from "@/components/editorial/EditorialSectionHeading";
-import { GhanaCrimesTV } from "@/components/editorial/GhanaCrimesTV";
-import { MagazinePanel } from "@/components/editorial/MagazinePanel";
-import { ColumnsSection } from "@/components/editorial/ColumnsSection";
-import { PodcastsPanel } from "@/components/editorial/PodcastsPanel";
-import { CartoonSection } from "@/components/editorial/CartoonSection";
 import { NewsletterSignup } from "@/components/NewsletterSignup";
 import { AdBanner } from "@/components/AdBanner";
 import { LiveNowModule } from "@/components/LiveNowModule";
@@ -18,7 +13,7 @@ import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 import { getCategoryLabel } from "@/lib/categories";
-import { getRelativeTime } from "@/lib/time";
+import { getPublishedTime } from "@/lib/time";
 import { ArrowUpRight } from "lucide-react";
 import { ToolsDataStrip } from "@/components/ToolsDataStrip";
 
@@ -71,15 +66,12 @@ export default function HomeView({ initialArticles }: { initialArticles?: any[] 
   const lead = articles[0];
   const leftStack = articles.slice(1, 4);
   const rightList = articles.slice(4, 10);
-  const tv = articles.slice(10, 13);
-  const magazine = articles.slice(13, 18);
-  const columns = articles.slice(18, 20);
-  const podcasts = articles.slice(20, 23);
-  const cartoon = articles.slice(23, 26);
-  const overflow = articles.slice(26);
+  const overflow = articles.slice(10);
 
   return (
     <div className="space-y-14">
+      <h1 className="font-serif text-3xl font-bold text-foreground md:text-4xl">Ghana crime news</h1>
+
       {/* Three-column front page */}
       <section className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-10">
         {/* Left: stacked secondaries */}
@@ -118,7 +110,7 @@ export default function HomeView({ initialArticles }: { initialArticles?: any[] 
                       {a.title}
                     </h4>
                     <div className="mt-1 meta-text">
-                      <span>{getRelativeTime(a.published_at)}</span>
+                      <time dateTime={a.published_at}>{getPublishedTime(a.published_at)}</time>
                     </div>
                   </Link>
                 </li>
@@ -141,23 +133,8 @@ export default function HomeView({ initialArticles }: { initialArticles?: any[] 
       {/* Most popular + Writers */}
       <MostReadArticles />
 
-      {/* GhanaCrimes TV */}
-      <GhanaCrimesTV articles={tv} />
-
-      {/* Magazine */}
-      <MagazinePanel articles={magazine} />
-
       {/* Newsletter band */}
       <div><NewsletterSignup /></div>
-
-      {/* Columns */}
-      <ColumnsSection articles={columns} />
-
-      {/* Podcasts */}
-      <PodcastsPanel articles={podcasts} />
-
-      {/* Cartoon / quotes */}
-      <CartoonSection articles={cartoon} />
 
       {/* More headlines */}
       {overflow.length > 0 && (

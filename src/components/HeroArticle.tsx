@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getCategoryLabel } from "@/lib/categories";
-import { getRelativeTime } from "@/lib/time";
+import { getPublishedTime } from "@/lib/time";
 import { getArticleImage } from "@/lib/article-image";
 
 interface HeroArticleProps {
@@ -18,7 +18,7 @@ interface HeroArticleProps {
 
 export function HeroArticle({ article }: HeroArticleProps) {
   const categoryLabel = getCategoryLabel(article.category_slug);
-  const relativeTime = getRelativeTime(article.published_at);
+  const publishedTime = getPublishedTime(article.published_at);
 
   return (
     <Link
@@ -45,7 +45,7 @@ export function HeroArticle({ article }: HeroArticleProps) {
         <div className="mt-4 meta-text">
           <span className="cat">{categoryLabel}</span>
           <span className="mx-1.5">|</span>
-          <span>{relativeTime}</span>
+          <time dateTime={article.published_at}>{publishedTime}</time>
         </div>
       </article>
     </Link>

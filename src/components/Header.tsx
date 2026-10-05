@@ -37,19 +37,36 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
 
   useEffect(() => {
     setMounted(true);
-    checkAdminStatus();
-  }, []);
+    let active = true;
 
-  const checkAdminStatus = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data: roles } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id);
-    const role = roles?.[0]?.role;
-    setIsAdmin(role === 'admin' || role === 'editor' || role === 'contributor');
-  };
+    const checkAdminStatus = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        if (active) setIsAdmin(false);
+        return;
+      }
+      const { data: roles } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id);
+      const role = roles?.[0]?.role;
+      if (active) setIsAdmin(role === 'admin' || role === 'editor' || role === 'contributor');
+    };
+
+    void checkAdminStatus();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session?.user) {
+        setIsAdmin(false);
+        return;
+      }
+      void checkAdminStatus();
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
 
@@ -67,7 +84,7 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
               variant="ghost"
               size="icon"
               onClick={onMenuClick}
-              className="h-9 w-9"
+              className="h-9 w-9 lg:hidden"
               aria-label="Open menu"
             >
               <Menu className="h-5 w-5" strokeWidth={1.5} />
@@ -76,9 +93,9 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
 
           {/* Centre nav (desktop) */}
           <nav className="hidden flex-1 items-center justify-center lg:flex">
-            <ul className="flex items-center">
+            <ul className="flex items-center gap-4 xl:gap-6">
               {PRIMARY_NAV.map((item) => (
-                <li key={item.to} className="nav-slash">
+                <li key={item.to}>
                   <Link
                     href={item.to}
                     className={cn(
