@@ -85,3 +85,46 @@ export async function getLatestHeadlines(limit = 8) {
     .limit(limit);
   return data ?? [];
 }
+
+type ArticleCtx = { id: string; title: string; category_slug: string; region?: string | null; thread_id?: string | null };
+const LINK_COLS = 'id, title, category_slug, article_slug, published_at';
+
+/** Server-rendered story context: thread siblings, related stories, and the thread itself. */
+export const getArticleContext = cache(async (a: ArticleCtx, topicTerms: readonly string[] | null) => {
+  const supabase = createServerClient();
+  const since = new Date(Date.now() - 30 * 86400000).toISOString();
+
+  const threadP = a.thread_id
+    ? Promise.all([
+        supabase.from('story_threads').select('id, thread_slug, title, is_live, live_ended_at').eq('id', a.thread_id).maybeSingle(),
+        supabase.from('articles').select(LINK_COLS).eq('thread_id', a.thread_id).eq('is_published', true).neq('id', a.id)
+          .order('published_at', { ascending: false }).limit(20),
+      ])
+    : Promise.resolve(null);
+
+  const near: { or?: string; region?: string }[] = [];
+  if (a.region) near.push({ region: a.region });
+  if (topicTerms?.length) near.push({ or: topicTerms.map((t) => `title.ilike.%${t}%`).join(',') });
+
+  const nearRows = await Promise.all(near.map(async (n) => {
+    let q = supabase.from('articles').select(LINK_COLS).eq('is_published', true).neq('id', a.id).gte('published_at', since);
+    if (n.region) q = q.eq('region', n.region);
+    if (n.or) q = q.or(n.or);
+    const { data } = await q.order('published_at', { ascending: false }).limit(6);
+    return data ?? [];
+  }));
+  const { data: sameCat } = await supabase.from('articles').select(LINK_COLS).eq('is_published', true).neq('id', a.id)
+    .eq('category_slug', a.category_slug).order('published_at', { ascending: false }).limit(12);
+
+  const thread = await threadP;
+  const siblings = thread?.[1].data ?? [];
+  const exclude = new Set<string>(siblings.map((s) => s.id));
+  const related: typeof siblings = [];
+  for (const r of [...nearRows.flat().sort((x, y) => (y.published_at ?? '').localeCompare(x.published_at ?? '')), ...(sameCat ?? [])]) {
+    if (related.length >= 6) break;
+    if (exclude.has(r.id)) continue;
+    exclude.add(r.id);
+    related.push(r);
+  }
+  return { thread: thread?.[0].data ?? null, siblings, related };
+});
