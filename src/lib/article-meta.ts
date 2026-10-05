@@ -52,5 +52,5 @@ export function regionForName(name?: string | null) {
 
 /** Threads are indexable only with 3+ updates and no test slug. */
 export function isIndexableThread(slug: string, updateCount: number) {
-  return updateCount >= 3 && !/qa-test|(^|-)test(-|$)/i.test(slug.replace(/cocaine-test/gi, ""));
+  return updateCount >= 3 && !/qa-test|-test-/i.test(slug);
 }
