@@ -82,6 +82,40 @@ export interface Analysis {
 
 export const OFFENCES = ["robbery","murder","fraud_cyber","galamsey","narcotics","corruption","road_crash_arrest","mob_violence","court_judgement"];
 
+// Ghana regions with well-known towns/districts, used to resolve location without the LLM.
+export const REGION_TOWNS: Record<string, string[]> = {
+  "Greater Accra": ["Greater Accra","Accra","Tema","Madina","Kasoa","Adenta","Dansoman","Ashaiman","Nima","Kaneshie","Teshie","Nungua","Achimota","Dodowa","Weija","Kpone","Amasaman","Spintex","Labadi","East Legon","Ablekuma","Odorkor","Pokuase"],
+  "Ashanti": ["Ashanti","Kumasi","Obuasi","Ejisu","Konongo","Mampong","Bekwai","Suame","Asokwa","Offinso","Ejura","Manhyia","Kwadaso"],
+  "Western": ["Western Region","Takoradi","Sekondi","Tarkwa","Prestea","Axim","Shama","Elubo","Half Assini"],
+  "Western North": ["Western North","Sefwi","Wiawso","Bibiani","Juaboso","Enchi","Akontombra"],
+  "Central": ["Central Region","Cape Coast","Winneba","Mankessim","Saltpond","Elmina","Swedru","Assin","Dunkwa","Twifo","Awutu","Gomoa","Ajumako"],
+  "Eastern": ["Eastern Region","Koforidua","Nkawkaw","Akim","Akyem","Suhum","Nsawam","Somanya","Kyebi","Akuse","Begoro","Asamankese","Donkorkrom"],
+  "Volta": ["Volta","Hohoe","Keta","Aflao","Kpando","Sogakope","Anloga","Akatsi","Dzodze","Klo-Agogo"],
+  "Oti": ["Oti Region","Dambai","Nkwanta","Kete Krachi","Jasikan","Kadjebi"],
+  "Northern": ["Northern Region","Tamale","Yendi","Savelugu","Tolon","Gushegu","Karaga","Bimbilla","Zabzugu","Kumbungu"],
+  "Savannah": ["Savannah Region","Damongo","Salaga","Sawla","Buipe","Daboya"],
+  "North East": ["North East Region","Nalerigu","Walewale","Gambaga","Chereponi","Bunkpurugu"],
+  "Upper East": ["Upper East","Bolgatanga","Bawku","Navrongo","Zebilla","Paga","Sandema","Pusiga"],
+  "Upper West": ["Upper West","Tumu","Lawra","Nandom","Jirapa","Nadowli"],
+  "Bono": ["Bono Region","Sunyani","Berekum","Dormaa","Wenchi","Sampa","Drobo"],
+  "Bono East": ["Bono East","Techiman","Kintampo","Atebubu","Nkoranza","Yeji"],
+  "Ahafo": ["Ahafo","Goaso","Kenyasi","Bechem","Duayaw Nkwanta","Hwidiem"],
+};
+const REGION_RE: [string, RegExp][] = Object.entries(REGION_TOWNS).map(([r, towns]) =>
+  [r, new RegExp(`\\b(${towns.map((t) => t.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|")})\\b`)]);
+
+export function detectRegion(text: string): string | null {
+  for (const [r, re] of REGION_RE) if (re.test(text || "")) return r;
+  return null;
+}
+
+// Ghana institutions and identifiers that clearly place a story in Ghana's jurisdiction.
+export const GHANA_INSTITUTION = /\b(Ghana(ian)?|IGP|EOCO|NACOC|Narcotics Control Commission|CHRAJ|Office of the Special Prosecutor|National Investigations Bureau|Cyber Security Authority|Bank of Ghana|Ghana Revenue Authority|MTTD|Minerals Commission|GH¢|cedis)\b/;
+
+export function hasGhanaSignal(text: string): boolean {
+  return GHANA_INSTITUTION.test(text || "") || detectRegion(text) !== null;
+}
+
 /** Full gate for a freshly drafted item (LLM analysis + deterministic checks on the draft). */
 export function runGate(opts: {
   analysis: Analysis;
@@ -96,10 +130,12 @@ export function runGate(opts: {
   const hard: string[] = [];
   const soft: string[] = [];
 
-  // a) Ghana only, no entertainment
-  if (a.is_ghana === false && !a.ghanaian_central) hard.push("not_ghana");
+  // a) Ghana only, no entertainment. Clear Ghana signals (places, Police, courts, agencies) count as Ghana.
+  const ghanaSignal = hasGhanaSignal(sourceText);
+  const detectedRegion = a.region || detectRegion(sourceText);
+  if (a.is_ghana === false && !a.ghanaian_central && !ghanaSignal) hard.push("not_ghana");
   if (a.is_entertainment || (ENTERTAINMENT.test(sourceText) && !a.is_crime)) hard.push("entertainment");
-  if (a.is_ghana !== false && !a.region) soft.push("region_unresolved");
+  if (!detectedRegion && !ghanaSignal) soft.push("region_unresolved");
 
   // b) Crime only
   if (!a.is_crime || !a.offence_type || !OFFENCES.includes(a.offence_type)) hard.push("not_in_crime_scope");
