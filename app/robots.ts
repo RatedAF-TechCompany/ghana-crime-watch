@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next';
-import { BASE_URL } from '@/lib/utils';
+import { SITEMAP_BASE as BASE_URL } from '@/lib/feeds';
 
 export default function robots(): MetadataRoute.Robots {
   return {

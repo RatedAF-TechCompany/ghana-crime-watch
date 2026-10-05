@@ -1,7 +1,22 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { BASE_URL } from '@/lib/utils';
 
-export const ARTICLES_PER_SITEMAP = 5000;
+export const ARTICLES_PER_SITEMAP = 4500;
+/** Sitemaps always use the canonical domain, regardless of deploy env. */
+export const SITEMAP_BASE = 'https://www.ghanacrimes.com';
+
+/** Exact published-article count; falls back to paging ids if the count header is missing. */
+export async function countPublishedArticles(): Promise<number> {
+  const supabase = createServerClient();
+  const { count } = await supabase.from('articles').select('id', { count: 'exact' }).eq('is_published', true).limit(1);
+  if (typeof count === 'number') return count;
+  let n = 0;
+  for (let off = 0; ; off += 1000) {
+    const { data } = await supabase.from('articles').select('id').eq('is_published', true).range(off, off + 999);
+    n += data?.length ?? 0;
+    if (!data || data.length < 1000) return n;
+  }
+}
 
 export function escapeXml(s: string) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
