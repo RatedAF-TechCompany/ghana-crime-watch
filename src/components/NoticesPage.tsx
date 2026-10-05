@@ -74,7 +74,7 @@ export function NoticesPage({ kicker, title, intro, notices, officialLinks, emer
             <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" className="font-sans text-sm text-primary hover:underline">{l.label}</a>
           ))}
         </div>
-        {kicker.toLowerCase() !== 'missing' && <p className="mt-4 font-sans text-xs text-muted-foreground">
+        {!/missing/i.test(title) && <p className="mt-4 font-sans text-xs text-muted-foreground">
           Being named in a wanted notice is not a finding of guilt. Everyone is presumed innocent until proven guilty in court.
         </p>}
       </div>
