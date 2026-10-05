@@ -68,10 +68,10 @@ async function fetchText(url: string, ms = 15000): Promise<string> {
   const t = setTimeout(() => ctl.abort(), ms);
   try {
     // Read the first response body even on 3xx: some feeds answer 302 with the feed in the body.
-    const first = await fetch(url, { headers: { "User-Agent": UA, Accept: "*/*" }, redirect: "manual", signal: ctl.signal, client } as any);
+    const first = await fetch(url, { headers: { "User-Agent": UA, Accept: "*/*", "Accept-Encoding": "identity" }, redirect: "manual", signal: ctl.signal, client } as any);
     const firstBody = await first.text();
     if (first.status < 300 || /<rss|<feed|^\s*[\[{]/i.test(firstBody.slice(0, 500))) return firstBody;
-    const r = await fetch(url, { headers: { "User-Agent": UA, Accept: "*/*" }, redirect: "follow", signal: ctl.signal, client } as any);
+    const r = await fetch(url, { headers: { "User-Agent": UA, Accept: "*/*", "Accept-Encoding": "identity" }, redirect: "follow", signal: ctl.signal, client } as any);
     const body = await r.text();
     return body;
   } finally {
@@ -157,7 +157,9 @@ async function fetchPageText(url: string): Promise<string> {
   }
 }
 
-const CRIME_HINT = /\b(police|arrest\w*|suspect\w*|court|judge|remand\w*|charged|convict\w*|sentenc\w*|jail\w*|prison\w*|inmate\w*|robber\w*|rob(bed)?|murder\w*|kill\w*|stab\w*|shot|shoot\w*|gun\w*|fraud\w*|scam\w*|cyber\w*|galamsey|illegal mining|narcotic\w*|drug\w*|cocaine|cannabis|wee|corrupt\w*|bribe\w*|embezzl\w*|EOCO|NACOC|CHRAJ|OSP|mob|lynch\w*|crash\w*|accident|kidnap\w*|theft|stole\w*|smuggl\w*|traffick\w*|assault\w*|defile\w*|rape\w*|immigration|deport\w*|crime\w*|criminal|offence\w*|investigat\w*|bail)\b/i;
+const CRIME_HINT = /\b(police|polic(e|ing) raid|arrest\w*|suspect\w*|wanted|court\w*|judge|magistrate|remand\w*|charged|charges|convict\w*|sentenc\w*|jail\w*|prison\w*|inmate\w*|bail|bailiffs?|prosecut\w*|Special Prosecutor|OSP|Attorney-General|robber\w*|rob(bed|bing)?|burglar\w*|theft|thie(f|ves)|steal\w*|stole\w*|stolen|murder\w*|homicide|kill\w*|stab\w*|shot( dead)?|shoot\w*|gun\w*|gunm[ae]n|machete|fraud\w*|defraud\w*|scam\w*|romance scam|cyber\w*|money launder\w*|galamsey|illegal mining|narcotic\w*|drug\w*|cocaine|cannabis|wee|heroin|tramadol|traffick\w*|smuggl\w*|corrupt\w*|brib\w*|embezzl\w*|misappropriat\w*|EOCO|NACOC|CHRAJ|NIB|Interpol|mob (justice|action|attack)|mob|lynch\w*|kidnap\w*|abduct\w*|assault\w*|battery|arson|set ablaze|defile\w*|rape\w*|crash\w*|accident|hit-and-run|knockdown|immigration|deport\w*|crime\w*|criminal|offence\w*|offender\w*|investigat\w*|custody|detain\w*)\b/i;
+// Non-crime beats rejected before the AI budget when no crime language appears at all.
+const NON_CRIME_HINT = /\b(football|Black Stars|Premier League|GPL|AFCON|match|goal|coach|athlete|album|concert|movie|showbiz|celebrity|music|budget statement|campaign rally|primaries|manifesto)\b/i;
 
 const CATEGORY_FOR: Record<string, string> = {
   robbery: "property-crime", murder: "violent-crime", fraud_cyber: "fraud-scams", galamsey: "organised-crime",
