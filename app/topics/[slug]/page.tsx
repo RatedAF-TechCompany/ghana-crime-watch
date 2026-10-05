@@ -21,12 +21,15 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 export default async function TopicPage({ params }: { params: Params }) {
   const t = getTopic((await params).slug);
   if (!t) notFound();
-  const articles = await getTopicArticles(t.slug);
-  if (!articles.length) notFound();
+  // Never 404 a valid topic: a failed or empty fetch must not be cached as a missing page.
+  const articles = await getTopicArticles(t.slug).catch(() => []);
   return (
     <Layout>
       <HubPage kicker="Topic" title={`${t.label} in Ghana`} intro={t.intro} articles={articles}
         related={TOPICS.filter((x) => x.slug !== t.slug).map((x) => ({ label: x.label, href: `/topics/${x.slug}` }))} />
+      {articles.length === 0 && (
+        <p className="container mx-auto max-w-6xl px-4 pb-10 font-sans text-sm text-muted-foreground">No stories on this topic are available right now.</p>
+      )}
     </Layout>
   );
 }

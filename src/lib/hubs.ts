@@ -62,9 +62,16 @@ export const getTopicArticles = cache(async (slug: string, limit = 30) => {
 
 /** Court coverage must carry a Ghana place, court or agency signal. */
 export const getGhanaCourtArticles = cache(async (limit = 30) => {
-  const candidates = await getTopicArticles('court-cases', Math.max(limit * 4, 120));
-  return candidates
-    .filter((article) => Boolean(article.region) || GHANA_COURT_SIGNAL.test(`${article.title ?? ''} ${article.summary ?? ''}`))
+  // Same source as the /court-cases section, so /courts is never empty while that section has stories.
+  const supabase = createServerClient();
+  const { data: section } = await supabase.from('articles').select(LIST).eq('is_published', true)
+    .eq('category_slug', 'court-cases').order('published_at', { ascending: false }).limit(limit);
+  const candidates = await getTopicArticles('court-cases', Math.max(limit * 4, 120)).catch(() => []);
+  const extra = candidates.filter((article) => Boolean(article.region) || GHANA_COURT_SIGNAL.test(`${article.title ?? ''} ${article.summary ?? ''}`));
+  const seen = new Set<string>();
+  return [...(section ?? []), ...extra]
+    .filter((a) => (seen.has(a.id) ? false : (seen.add(a.id), true)))
+    .sort((a, b) => (b.published_at ?? '').localeCompare(a.published_at ?? ''))
     .slice(0, limit);
 });
 

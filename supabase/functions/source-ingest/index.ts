@@ -13,6 +13,25 @@ const MAX_ITEM_AGE_H = 48;
 const FIRST_POLL_MAX_AGE_H = 168;
 const SUMMARY_CHARS = 280;
 
+// Incident types used by the same-incident guard (place + incident within 48h = one story).
+const INCIDENT_TYPES: [string, RegExp][] = [
+  ["fire", /\b(fire|blaze|inferno|gutted|guts)\b/i], ["robbery", /\brobber\w*|robbed\b/i],
+  ["murder", /\b(murder\w*|killed|stabbed|shot dead|homicide)\b/i], ["crash", /\b(crash\w*|accident|collision)\b/i],
+  ["mob", /\b(mob|lynch\w*)\b/i], ["kidnap", /\b(kidnap\w*|abduct\w*)\b/i], ["flood", /\bflood\w*\b/i],
+];
+const NOT_PLACE = new Set(["Fire","Police","Court","Man","Woman","Two","Three","Four","Five","Suspect","Suspects","Minister","Ghana","Ghanaian","Service","Building","Shops","The","A","An","Of","In","At","On","For","After","Over","Near","As","Storey","Old","Traffic","Light","Mp","Ceo","Gh"]);
+function placeTokens(t: string): Set<string> {
+  return new Set((t.match(/\b[A-Z][a-z]{3,}\b/g) || []).filter((w) => !NOT_PLACE.has(w)).map((w) => w.toLowerCase()));
+}
+function sameIncident(a: string, b: string): boolean {
+  const ta = INCIDENT_TYPES.filter(([, re]) => re.test(a)).map(([k]) => k);
+  if (!ta.length || !INCIDENT_TYPES.some(([k, re]) => ta.includes(k) && re.test(b))) return false;
+  const pb = placeTokens(b);
+  return [...placeTokens(a)].some((p) => pb.has(p) && /^(?:[a-z]+)$/.test(p) && p.length >= 4 && isGhanaPlace(p));
+}
+const GHANA_PLACES = /^(accra|tema|kasoa|kumasi|tamale|takoradi|sekondi|koforidua|techiman|sunyani|bolgatanga|damongo|dambai|nalerigu|goaso|winneba|obuasi|ashaiman|madina|nkawkaw|aflao|keta|hohoe|yendi|tarkwa|prestea|konongo|ejisu|nsawam|suhum|mampong|wenchi|kintampo|salaga|bawku|navrongo|elmina|saltpond|swedru|dansoman|adenta|teshie|nungua|kaneshie|lapaz|amasaman|weija|dodowa|somanya|kpong|akosombo|anloga|sogakope|axim|bibiani|sefwi|berekum|dormaa|atebubu|nkoranza|ejura|offinso|bekwai)$/;
+function isGhanaPlace(p: string) { return GHANA_PLACES.test(p); }
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
@@ -316,6 +335,9 @@ Deno.serve(async (req) => {
       .eq("is_published", true).gte("published_at", startOfDay.toISOString()).eq("gate_report->>auto_published", "true");
     let autoCount = publishedToday || 0;
     let aiBudget = paused ? 0 : MAX_AI_ITEMS;
+    const { data: recentRows } = await supabase.from("articles").select("id, title")
+      .gte("created_at", new Date(Date.now() - 48 * 3600_000).toISOString()).neq("status", "rejected").limit(500);
+    const recentIncidents: { id: string; title: string }[] = recentRows || [];
 
     for (const item of queue || []) {
       const src: any = sourceById.get(item.source_id);
@@ -326,6 +348,12 @@ Deno.serve(async (req) => {
       const best = (similar || [])[0];
       if (best && best.sim > 0.6) {
         await supabase.from("raw_items").update({ status: "duplicate", reason: `matches article ${best.id}`, article_id: best.id, thread_id: best.thread_id }).eq("id", item.id);
+        stats.duplicates++; continue;
+      }
+      // Same-incident guard: same place + same incident type within 48h is one story.
+      const incidentMatch = recentIncidents.find((r) => sameIncident(item.title, r.title));
+      if (incidentMatch) {
+        await supabase.from("raw_items").update({ status: "duplicate", reason: `same incident as article ${incidentMatch.id}`, article_id: incidentMatch.id }).eq("id", item.id);
         stats.duplicates++; continue;
       }
       let threadId: string | null = best?.thread_id ?? null;
@@ -422,6 +450,7 @@ Deno.serve(async (req) => {
           seo_title: title.slice(0, 60), seo_description: (out.summary || "").slice(0, 155),
         }).select("id").single();
         if (artErr) throw artErr;
+        recentIncidents.push({ id: art.id, title: item.title });
 
         try {
           const image = await extractHeroImage({ articleUrl: item.url }, art.id, supabase);
