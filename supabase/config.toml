@@ -21,16 +21,10 @@ verify_jwt = false
 [functions.manual-article-submit]
 verify_jwt = true
 
-[functions.auto-comment]
-verify_jwt = false
-
 [functions.extract-cities]
 verify_jwt = false
 
 [functions.send-newsletter-digest]
-verify_jwt = false
-
-[functions.auto-tweet]
 verify_jwt = false
 
 [functions.ingest-edhub]
