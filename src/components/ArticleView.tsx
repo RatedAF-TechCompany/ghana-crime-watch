@@ -14,13 +14,15 @@ import { BookmarkButton } from "@/components/BookmarkButton";
 import { WhatsAppChannelCTA, useShouldShowWhatsAppCTA } from "@/components/WhatsAppChannelCTA";
 import { AdBanner } from "@/components/AdBanner";
 import { LiveDevelopingPill } from "@/components/LiveDevelopingPill";
-import { CaseTimeline } from "@/components/CaseTimeline";
 import { sanitizeArticleBody } from "@/lib/sanitize";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { getArticleImage } from "@/lib/article-image";
 import { ArticleImageFallback } from "@/components/ArticleImage";
+import { publishedUpdatedLabels } from "@/lib/article-meta";
 
-export default function ArticleView({ categorySlug, articleSlug, initialArticle }: { categorySlug: string; articleSlug: string; initialArticle?: any }) {
+type ThreadInfo = { thread_slug: string; is_live: boolean; live_ended_at: string | null } | null;
+
+export default function ArticleView({ categorySlug, articleSlug, initialArticle, thread = null, children }: { categorySlug: string; articleSlug: string; initialArticle?: any; thread?: ThreadInfo; children?: ReactNode }) {
   const { isPlaying, isPaused, isSupported, speak, stop, togglePlayPause } = useTextToSpeech();
 
   // Determine if WhatsApp CTA should be shown (25% probability, memoized per article)
@@ -72,45 +74,6 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle 
     trackView();
   }, [article?.id, article?.view_count]);
 
-  const { data: relatedArticles } = useQuery({
-    queryKey: ["related-articles", categorySlug, article?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("articles")
-        .select("id, title, article_slug, category_slug, published_at, hero_image")
-        .eq("category_slug", categorySlug!)
-        .eq("is_published", true)
-        .neq("id", article!.id)
-        .order("published_at", { ascending: false })
-        .limit(4);
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!categorySlug && !!article?.id,
-  });
-
-  const { data: threadData } = useQuery({
-    queryKey: ["article-thread", article?.thread_id],
-    queryFn: async () => {
-      const [{ data: thread }, { data: siblingArticles }] = await Promise.all([
-        supabase
-          .from("story_threads")
-          .select("id, thread_slug, title, is_live, live_ended_at")
-          .eq("id", article!.thread_id!)
-          .maybeSingle(),
-        supabase
-          .from("articles")
-          .select("id, title, article_slug, category_slug, published_at")
-          .eq("thread_id", article!.thread_id!)
-          .eq("is_published", true)
-          .order("published_at", { ascending: false }),
-      ]);
-
-      return { thread: thread ?? null, siblingArticles: siblingArticles ?? [] };
-    },
-    enabled: !!article?.thread_id,
-  });
 
   if (isLoading) {
     return (
@@ -137,8 +100,9 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle 
   }
 
   const categoryLabel = getCategoryLabel(article.category_slug);
-  const relativeTime = getRelativeTime(article.published_at!);
   const readingTime = getReadingTime(article.body);
+  const modifiedIso = article.content_updated_at || article.published_at;
+  const dateLabels = publishedUpdatedLabels(article.published_at!, modifiedIso);
 
   const processBodyText = (body: string) => {
     return body.replace(/\b(\d+(?:,\d{3})*(?:\.\d+)?)\b/g, '<mark>$1</mark>');
@@ -153,33 +117,38 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle 
         {article.title}
       </h1>
 
+      <p className="mb-5 text-center font-sans text-[13px] text-muted-foreground">
+        <time dateTime={article.published_at}>{dateLabels.published}</time>
+        {dateLabels.updated && (
+          <> · <time dateTime={modifiedIso!}>{dateLabels.updated}</time></>
+        )}
+      </p>
+
       {article.subtitle && (
         <p className="mx-auto mb-6 max-w-[720px] text-center font-body text-[19px] leading-[1.5] text-foreground/80 md:text-[21px]">
           {article.subtitle}
         </p>
       )}
 
-      {threadData?.thread && (
-        threadData.thread.is_live && !threadData.thread.live_ended_at ? (
-          <Link
-            href={`/live/${threadData.thread.thread_slug}`}
+      {thread && (
+        thread.is_live && !thread.live_ended_at ? (
+          <a
+            href={`/live/${thread.thread_slug}`}
             className="mb-6 flex items-center gap-2 rounded-md border-l-4 border-primary bg-muted px-4 py-3 text-sm font-semibold text-foreground hover:bg-muted/70"
           >
             <LiveDevelopingPill />
-            <span>This is a developing story — follow live updates</span>
-          </Link>
+            <span>This is a developing story. Follow live updates</span>
+          </a>
         ) : (
-          <div className="mb-6 rounded-md border-l-4 border-primary bg-muted px-4 py-3 text-sm text-foreground">
-            This story has been updated. See the full timeline below.
-          </div>
+          <a href={`/live/${thread.thread_slug}`} className="mb-6 block rounded-md border-l-4 border-primary bg-muted px-4 py-3 text-sm text-foreground hover:bg-muted/70">
+            This story has been updated. See the full timeline of updates.
+          </a>
         )
       )}
 
       <div className="mb-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-y border-border py-3 text-center">
         <p className="font-sans text-[12px] uppercase tracking-[0.14em] text-muted-fg">
           Reported by <span className="not-italic text-foreground">{article.author_name || "GhanaCrimes Data Desk"}</span>
-          <span className="mx-2">·</span>
-          {relativeTime}
           <span className="mx-2">·</span>
           {readingTime}
         </p>
@@ -294,50 +263,7 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle 
         </div>
       )}
 
-      {threadData && (
-        <CaseTimeline
-          currentArticleId={article.id}
-          articles={threadData.siblingArticles}
-          thread={threadData.thread}
-        />
-      )}
-
-      {relatedArticles && relatedArticles.length > 0 && (
-        <section className="mt-10 border-t border-border pt-8">
-          <h3 className="mb-6 text-xl font-bold text-foreground">
-            Read More in {categoryLabel}
-          </h3>
-
-          <div className="space-y-4">
-            {relatedArticles.map((related) => (
-              <Link
-                key={related.id}
-                href={`/${related.category_slug}/${related.article_slug}`}
-                className="group flex items-start gap-4 border-b border-border py-3 last:border-b-0"
-              >
-                <div className="min-w-0 flex-1">
-                  <h4 className="story-title text-base leading-snug group-hover:text-primary">
-                    {related.title}
-                  </h4>
-
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {getRelativeTime(related.published_at!)}
-                  </p>
-                </div>
-                <div className="h-16 w-24 flex-shrink-0 overflow-hidden">
-                  {(() => { const img = getArticleImage(related); return img ? (
-                    <img
-                      src={img}
-                      alt={related.title}
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                    />
-                  ) : <ArticleImageFallback categorySlug={related.category_slug} title={related.title} className="p-2 [&>span]:text-[8px] [&>span:nth-child(2)]:line-clamp-2" />; })()}
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
+      {children}
     </article>
   );
 }
