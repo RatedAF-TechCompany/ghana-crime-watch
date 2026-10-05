@@ -1,12 +1,12 @@
 import { createServerClient } from '@/lib/supabase/server';
-import { BASE_URL } from '@/lib/utils';
 import { NAV_CATEGORIES } from '@/lib/categories';
-import { ARTICLES_PER_SITEMAP, xmlResponse } from '@/lib/feeds';
+import { ARTICLES_PER_SITEMAP, SITEMAP_BASE as BASE_URL, countPublishedArticles, xmlResponse } from '@/lib/feeds';
 import { REGIONS, TOPICS } from '@/lib/hubs';
 import { EXPLAINERS } from '@/lib/explainers';
 import { isIndexableThread } from '@/lib/article-meta';
 
 export const revalidate = 600;
+export const dynamic = 'force-dynamic';
 
 const STATIC_PATHS = [
   '/',
@@ -82,20 +82,22 @@ export async function GET(_req: Request, { params }: { params: Promise<{ file: s
   const m = file.match(/^articles-(\d+)\.xml$/);
   if (!m) return new Response('Not found', { status: 404 });
   const page = parseInt(m[1], 10);
-  if (page < 1) return new Response('Not found', { status: 404 });
+  if (page < 1 || page > Math.max(1, Math.ceil((await countPublishedArticles()) / ARTICLES_PER_SITEMAP))) return new Response('Not found', { status: 404 });
 
   const start = (page - 1) * ARTICLES_PER_SITEMAP;
   const rows: { category_slug: string; article_slug: string; content_updated_at: string | null; published_at: string | null }[] = [];
   for (let off = 0; off < ARTICLES_PER_SITEMAP; off += 1000) {
+    const end = Math.min(off + 999, ARTICLES_PER_SITEMAP - 1);
     const { data } = await supabase
       .from('articles')
       .select('category_slug, article_slug, content_updated_at, published_at')
       .eq('is_published', true)
       .order('published_at', { ascending: false })
-      .range(start + off, start + off + 999);
+      .order('id', { ascending: true })
+      .range(start + off, start + end);
     if (!data || data.length === 0) break;
     rows.push(...data);
-    if (data.length < 1000) break;
+    if (data.length < end - off + 1) break;
   }
   if (rows.length === 0) return new Response('Not found', { status: 404 });
 

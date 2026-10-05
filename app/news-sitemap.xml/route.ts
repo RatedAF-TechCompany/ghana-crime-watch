@@ -1,7 +1,8 @@
 import { createServerClient } from '@/lib/supabase/server';
-import { BASE_URL } from '@/lib/utils';
+import { SITEMAP_BASE as BASE_URL, escapeXml } from '@/lib/feeds';
 
 export const revalidate = 600;
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const supabase = createServerClient();
@@ -20,7 +21,7 @@ export async function GET() {
     .map((a) => {
       const loc = `${BASE_URL}/${a.category_slug}/${a.article_slug}`;
       const pubDate = new Date(a.published_at).toISOString();
-      const title = a.title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const title = escapeXml(a.title);
       return `  <url>
     <loc>${loc}</loc>
     <news:news>
