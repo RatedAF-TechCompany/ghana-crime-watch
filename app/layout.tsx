@@ -12,7 +12,6 @@ export const metadata: Metadata = {
   description:
     'Stay informed with the latest crime news, police reports, court cases, and crime statistics from Ghana. Comprehensive coverage of violent crime, fraud, cybercrime, and more.',
   metadataBase: new URL(BASE_URL),
-  alternates: { types: { 'application/rss+xml': [{ url: '/rss.xml', title: 'GhanaCrimes RSS' }] } },
   openGraph: {
     siteName: 'GhanaCrimes',
     type: 'website',
@@ -45,6 +44,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="alternate" type="application/rss+xml" title="GhanaCrimes RSS" href="/rss.xml" />
+      </head>
       <body>
         <GoogleAnalytics />
         <Providers>{children}</Providers>
