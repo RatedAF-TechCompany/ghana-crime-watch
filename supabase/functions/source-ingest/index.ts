@@ -552,6 +552,7 @@ Deno.serve(async (req) => {
         }).select("id").single();
         if (artErr) throw artErr;
         recentIncidents.push({ id: art.id, title: item.title });
+        if (publishNow) (publishedRecent as any[] | null)?.push({ id: art.id, title, summary: out.summary || "" });
 
         try {
           const image = await extractHeroImage({ articleUrl: item.url }, art.id, supabase);
