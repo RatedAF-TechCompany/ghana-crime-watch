@@ -219,7 +219,7 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
                 <span key={u}>
                   {i > 0 && ", "}
                   <a href={u} target="_blank" rel="noopener noreferrer nofollow" className="text-primary underline underline-offset-2">
-                    {(() => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return "Original report"; } })()}
+                    {(() => { try { return `Original report at ${new URL(u).hostname.replace(/^www\./, "")}`; } catch { return "Original report"; } })()}
                   </a>
                 </span>
               ))}
