@@ -21,7 +21,8 @@ const PRIMARY_NAV: { label: string; to: string }[] = [
   { label: "Fraud", to: "/fraud-scams" },
   { label: "Cybercrime", to: "/cybercrime" },
   { label: "Drugs", to: "/drug-offences" },
-  { label: "Investigations", to: "/investigations" },
+  { label: "Map", to: "/map" },
+  { label: "Statistics", to: "/statistics" },
   { label: "Fraud Watch", to: "/fraud-watch" },
 ];
 
