@@ -44,7 +44,7 @@ export default async function AboutPage() {
             ))}
           </dl>
         ) : (
-          <p>GhanaCrimes is an independent online publication. Reports are published under the GhanaCrimes Newsroom byline.</p>
+          <p>Reports are published under the GhanaCrimes Newsroom byline. Full ownership and masthead details will be listed here.</p>
         )}
         <h2>Use of AI</h2>
         <p>We use automated tools to find and summarise published reports, with strict checks and editor review. Read <Link href="/ai-use">how we use AI</Link>.</p>
