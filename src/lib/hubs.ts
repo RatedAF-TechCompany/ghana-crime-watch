@@ -35,7 +35,7 @@ export type Topic = typeof TOPICS[number];
 
 const LIST = 'id, title, summary, category_slug, article_slug, published_at, hero_image, region';
 
-const GHANA_COURT_SIGNAL = /\b(?:ghana|ghanaian|accra|tema|kasoa|kumasi|tamale|cape coast|takoradi|sekondi|koforidua|ho|wa|bolgatanga|sunyani|techiman|damongo|dambai|nalerigu|goaso|sefwi wiawso|ghana police|judicial service|attorney[- ]general|office of the special prosecutor|eoco|nacoc|chraj|ghana immigration|ghana prisons|supreme court of ghana|court of appeal|high court|circuit court|district court)\b/i;
+const GHANA_COURT_SIGNAL = /\b(?:ghana|ghanaian|accra|tema|kasoa|kumasi|tamale|cape coast|takoradi|sekondi|koforidua|ho|wa|bolgatanga|sunyani|techiman|damongo|dambai|nalerigu|goaso|sefwi wiawso|ghana police|judicial service of ghana|ghana attorney[- ]general|office of the special prosecutor|eoco|nacoc|chraj|ghana immigration|ghana prisons|supreme court of ghana)\b/i;
 
 export const getRegion = (slug: string) => REGIONS.find((r) => r.slug === slug) ?? null;
 export const getTopic = (slug: string) => TOPICS.find((t) => t.slug === slug) ?? null;
