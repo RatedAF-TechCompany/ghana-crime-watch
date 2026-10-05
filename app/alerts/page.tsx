@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { Layout } from '@/components/Layout';
 import { EditorialPage } from '@/components/EditorialPage';
-import { NewsletterSignup } from '@/components/NewsletterSignup';
 import { BASE_URL } from '@/lib/utils';
 
 export const metadata: Metadata = {
@@ -16,20 +15,18 @@ export default function AlertsPage() {
       <EditorialPage
         kicker="Alerts"
         title="Crime alerts are coming"
-        summary="We are preparing regional and topic digests by email, WhatsApp and Telegram. They are not live yet."
+        summary="We are preparing regional and topic digests by email, WhatsApp and Telegram. They are not live yet, so subscriptions are not open."
         sections={[
           {
             heading: 'What you can do now',
             paragraphs: [
-              'Our existing daily email newsletter is already running. Sign up below to receive it; we will let subscribers know when the new alerts launch.',
-              'We store only your email address for the newsletter, and you can unsubscribe at any time.',
+              'This page will be updated when the alert service is available.',
+              'No email, WhatsApp or Telegram alerts are being sent from this page.',
             ],
           },
         ]}
         related={[{ label: 'Privacy policy', href: '/privacy' }, { label: 'RSS feed', href: '/rss.xml' }]}
-      >
-        <div className="mt-8"><NewsletterSignup /></div>
-      </EditorialPage>
+      />
     </Layout>
   );
 }

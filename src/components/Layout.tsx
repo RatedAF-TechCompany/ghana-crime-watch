@@ -20,7 +20,7 @@ const FOOTER_COLUMNS: { title: string; links: { label: string; to: string }[] }[
       { label: "Fraud Watch", to: "/fraud-watch" },
       { label: "Crime Map", to: "/map" },
       { label: "Statistics", to: "/statistics" },
-      { label: "Topics", to: "/topics/armed-robbery" },
+      { label: "Topics", to: "/topics" },
       { label: "Courts", to: "/courts" },
       { label: "Wanted", to: "/wanted" },
       { label: "Missing", to: "/missing" },

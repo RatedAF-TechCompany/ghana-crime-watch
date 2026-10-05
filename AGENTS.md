@@ -9,3 +9,4 @@
 - Article HTML is sanitised with `sanitize-html` (`src/lib/sanitize.ts`) because DOMPurify does not sanitise during server rendering.
 - Public form submissions (contact, tips, corrections) go to insert-only tables; only staff roles can read them, checked via `has_role`.
 - Approved comments are read through the `get_approved_comments` function; the comments table is not readable anonymously.
+- Legacy public section aliases use permanent redirects in `next.config.ts`, keeping redirect behavior centralized without middleware.

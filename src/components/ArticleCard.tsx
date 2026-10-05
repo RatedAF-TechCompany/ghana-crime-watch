@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getCategoryLabel } from "@/lib/categories";
-import { getRelativeTime } from "@/lib/time";
+import { getPublishedTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { getArticleImage } from "@/lib/article-image";
 
@@ -24,7 +24,7 @@ interface ArticleCardProps {
 
 export function ArticleCard({ article, variant, showImage, className }: ArticleCardProps) {
   const categoryLabel = getCategoryLabel(article.category_slug);
-  const relativeTime = getRelativeTime(article.published_at);
+  const publishedTime = getPublishedTime(article.published_at);
   const v: Variant = variant ?? (showImage ? "grid" : "compact");
   const href = `/${article.category_slug}/${article.article_slug}`;
   const imageUrl = getArticleImage(article);
@@ -42,7 +42,7 @@ export function ArticleCard({ article, variant, showImage, className }: ArticleC
             {article.title}
           </h3>
           <div className="mt-1.5 meta-text">
-            <span>{relativeTime}</span>
+            <time dateTime={article.published_at}>{publishedTime}</time>
           </div>
         </Link>
       </article>
@@ -95,7 +95,7 @@ export function ArticleCard({ article, variant, showImage, className }: ArticleC
             {article.title}
           </h3>
           <div className="mt-2 meta-text">
-            <span>{relativeTime}</span>
+            <time dateTime={article.published_at}>{publishedTime}</time>
           </div>
         </div>
       </Link>

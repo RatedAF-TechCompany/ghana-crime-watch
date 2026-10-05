@@ -25,6 +25,8 @@ const STATIC_PATHS = [
   '/safety',
   '/alerts',
   '/explainers',
+  '/regions',
+  '/topics',
 ];
 
 function urlset(urls: { loc: string; lastmod?: string | null }[]) {

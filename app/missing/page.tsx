@@ -20,6 +20,7 @@ export default async function MissingPage() {
         kicker="Official notices"
         title="Missing persons"
         intro="Missing persons appeals from the Ghana Police Service or INTERPOL, listed only from their own public notices, each with a link to the original."
+        emergencyNote="For an emergency or to report urgent information, call 191 or 18555. These are Ghana Police Service emergency numbers."
         notices={notices}
         officialLinks={[
           { label: 'Ghana Police Service', href: 'https://police.gov.gh' },
