@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
 import { Layout } from '@/components/Layout';
 import { HubPage } from '@/components/HubPage';
-import { getTopicArticles } from '@/lib/hubs';
+import { getGhanaCourtArticles } from '@/lib/hubs';
 import { BASE_URL } from '@/lib/utils';
 
-export const revalidate = 300;
+export const revalidate = 600;
 
 export const metadata: Metadata = {
   title: 'Courts: recent court coverage in Ghana',
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 export default async function CourtsPage() {
-  const articles = await getTopicArticles('court-cases', 30);
+  const articles = await getGhanaCourtArticles(30);
   return (
     <Layout>
       <HubPage

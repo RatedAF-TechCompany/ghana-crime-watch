@@ -4,7 +4,7 @@ import { NoticesPage } from '@/components/NoticesPage';
 import { getNotices } from '@/lib/notices';
 import { BASE_URL } from '@/lib/utils';
 
-export const revalidate = 300;
+export const revalidate = 900;
 
 export const metadata: Metadata = {
   title: 'Missing persons: official notices',

@@ -7,6 +7,7 @@ import { BASE_URL } from '@/lib/utils';
 
 type Params = Promise<{ slug: string }>;
 export const dynamicParams = false;
+export const revalidate = 900;
 
 export function generateStaticParams() {
   return EXPLAINERS.map((e) => ({ slug: e.slug }));

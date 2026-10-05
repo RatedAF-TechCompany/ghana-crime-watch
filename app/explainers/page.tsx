@@ -4,6 +4,8 @@ import { Layout } from '@/components/Layout';
 import { EXPLAINERS } from '@/lib/explainers';
 import { BASE_URL } from '@/lib/utils';
 
+export const revalidate = 900;
+
 export const metadata: Metadata = {
   title: 'Explainers',
   description: 'Plain-language guides to how crime, policing and justice work in Ghana.',

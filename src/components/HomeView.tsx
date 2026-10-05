@@ -20,6 +20,7 @@ import Link from "next/link";
 import { getCategoryLabel } from "@/lib/categories";
 import { getRelativeTime } from "@/lib/time";
 import { ArrowUpRight } from "lucide-react";
+import { ToolsDataStrip } from "@/components/ToolsDataStrip";
 
 const ARTICLES_PER_PAGE = 30;
 
@@ -126,6 +127,8 @@ export default function HomeView({ initialArticles }: { initialArticles?: any[] 
           </div>
         </aside>
       </section>
+
+      <ToolsDataStrip />
 
       {/* Live Now */}
       <LiveNowModule />
