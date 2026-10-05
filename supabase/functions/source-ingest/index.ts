@@ -338,7 +338,8 @@ Deno.serve(async (req) => {
         stats.sources_failed.push(s.name);
       } finally {
         stats.sources_polled++;
-        await supabase.from("sources").update({ last_polled_at: new Date().toISOString(), last_status: status }).eq("id", s.id);
+        const failed = status.startsWith("error:") || status === "blocked_by_robots";
+        await supabase.from("sources").update({ last_polled_at: new Date().toISOString(), last_status: status, consecutive_failures: failed ? (s.consecutive_failures ?? 0) + 1 : 0 }).eq("id", s.id);
       }
     }));
 
