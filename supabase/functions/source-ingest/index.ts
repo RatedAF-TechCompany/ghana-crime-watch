@@ -313,7 +313,8 @@ Deno.serve(async (req) => {
       // Cheap keyword pre-filter: skip obvious non-crime items without spending AI credits
       const pre = `${item.title} ${transientText.get(item.id) || item.summary || ""}`;
       if (!CRIME_HINT.test(pre)) {
-        await supabase.from("raw_items").update({ status: "rejected", reason: "not_in_crime_scope (keyword prefilter)" }).eq("id", item.id);
+        const why = NON_CRIME_HINT.test(pre) ? "non_crime_beat (keyword prefilter)" : "not_in_crime_scope (keyword prefilter)";
+        await supabase.from("raw_items").update({ status: "rejected", reason: why }).eq("id", item.id);
         stats.rejected++; continue;
       }
 
