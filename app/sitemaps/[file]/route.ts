@@ -48,11 +48,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ file: s
       .select('id, thread_slug, content_updated_at')
       .or(`is_live.eq.true,live_ended_at.gte.${thirtyDaysAgo}`);
     const ids = (threads ?? []).map((t) => t.id);
-    const { data: ups } = ids.length
-      ? await supabase.from('thread_updates').select('thread_id').in('thread_id', ids).limit(10000)
-      : { data: [] as { thread_id: string }[] };
+    // Page through updates: the API returns at most 1000 rows per request.
     const counts = new Map<string, number>();
-    for (const u of ups ?? []) counts.set(u.thread_id, (counts.get(u.thread_id) ?? 0) + 1);
+    for (let i = 0; i < ids.length; i += 100) {
+      const chunk = ids.slice(i, i + 100);
+      for (let off = 0; ; off += 1000) {
+        const { data: ups } = await supabase.from('thread_updates').select('thread_id').in('thread_id', chunk).range(off, off + 999);
+        for (const u of ups ?? []) counts.set(u.thread_id, (counts.get(u.thread_id) ?? 0) + 1);
+        if (!ups || ups.length < 1000) break;
+      }
+    }
     const indexable = (threads ?? []).filter((t) => isIndexableThread(t.thread_slug, counts.get(t.id) ?? 0));
 
     const pages = [
