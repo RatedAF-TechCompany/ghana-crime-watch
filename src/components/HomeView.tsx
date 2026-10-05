@@ -1,4 +1,5 @@
 'use client';
+import { formatGhanaDate, formatGhanaTime } from '@/lib/article-meta';
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { HeroArticle } from "@/components/HeroArticle";
