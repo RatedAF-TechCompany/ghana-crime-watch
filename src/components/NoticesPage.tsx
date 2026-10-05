@@ -39,10 +39,18 @@ export function NoticesPage({ kicker, title, intro, notices, officialLinks }: Pr
               )}
               <div>
                 <h2 className="font-serif text-lg font-bold text-foreground">{n.person_name}</h2>
-                {n.details && <p className="mt-1 font-sans text-sm text-muted-foreground">{n.details}</p>}
-                <p className="mt-2 font-sans text-xs text-muted-foreground">
-                  Source: <a href={n.official_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{n.agency} notice</a>
+                {n.details && (
+                  <p className="mt-1 font-sans text-sm text-foreground">
+                    <span className="font-semibold">Alleged offence: </span>{n.details}
+                  </p>
+                )}
+                <p className="mt-1 font-sans text-xs text-muted-foreground">Agency: {n.agency}</p>
+                <p className="mt-1 font-sans text-xs text-muted-foreground">
+                  Source: <a href={n.official_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Official {n.agency} notice</a>
                   {' '}(seen {new Date(n.date_seen).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })})
+                </p>
+                <p className="mt-2 font-sans text-[11px] italic text-muted-foreground">
+                  This is an official police notice, not a finding of guilt by GhanaCrimes. The person is presumed innocent unless convicted by a court.
                 </p>
               </div>
             </li>
