@@ -64,7 +64,7 @@ export function Layout({ children }: LayoutProps) {
   const [searchOpen, setSearchOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen max-w-full flex-col overflow-x-hidden bg-background">
       <Header
         onMenuClick={() => setMenuOpen(true)}
         onSearchClick={() => setSearchOpen(true)}

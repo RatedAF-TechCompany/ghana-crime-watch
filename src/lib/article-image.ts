@@ -1,7 +1,6 @@
 import breakingNewsAsset from "@/assets/breaking-news.png.asset.json";
 
 export const BREAKING_NEWS_IMAGE = breakingNewsAsset.url;
-export const PLACEHOLDER_CARD_IMAGE = "/placeholder-card.svg";
 
 /** Only images hosted in our own storage are allowed. Never hot-link other publishers. */
 const SELF_HOSTED_PREFIX = "https://zninjnjujptjxdikehun.supabase.co/storage/";
@@ -23,11 +22,12 @@ export function isSelfHostedImage(url: string | null | undefined): boolean {
  * Image policy:
  * - Self-hosted hero_image when present.
  * - breaking-news uses the provided breaking-news graphic.
- * - Everything else gets a neutral branded placeholder card.
+ * - Everything else returns null so the UI renders a category-coloured text card.
  * Third-party (hot-linked) URLs are never rendered.
  */
-export function getArticleImage(article: ArticleLike | null | undefined): string {
-  if (isSelfHostedImage(article?.hero_image)) return article!.hero_image!;
+export function getArticleImage(article: ArticleLike | null | undefined): string | null {
+  const image = article?.hero_image;
+  if (isSelfHostedImage(image)) return image ?? null;
   if (isBreakingNews(article)) return BREAKING_NEWS_IMAGE;
-  return PLACEHOLDER_CARD_IMAGE;
+  return null;
 }

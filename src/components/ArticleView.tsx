@@ -18,6 +18,7 @@ import { CaseTimeline } from "@/components/CaseTimeline";
 import { sanitizeArticleBody } from "@/lib/sanitize";
 import { useEffect, useRef } from "react";
 import { getArticleImage } from "@/lib/article-image";
+import { ArticleImageFallback } from "@/components/ArticleImage";
 
 export default function ArticleView({ categorySlug, articleSlug, initialArticle }: { categorySlug: string; articleSlug: string; initialArticle?: any }) {
   const { isPlaying, isPaused, isSupported, speak, stop, togglePlayPause } = useTextToSpeech();
@@ -211,13 +212,17 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle 
         </div>
       </div>
 
-      {(() => { const img = getArticleImage(article); return img && (
-        <div className="mb-8 w-full overflow-hidden">
+      {(() => { const img = getArticleImage(article); return (
+        <div className="mb-8 aspect-[16/9] w-full overflow-hidden">
+          {img ? (
           <img
             src={img}
             alt={article.title}
             className="h-full w-full object-cover"
           />
+          ) : (
+            <ArticleImageFallback categorySlug={article.category_slug} title={article.title} className="p-8" />
+          )}
         </div>
       ); })()}
 
@@ -320,13 +325,13 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle 
                   </p>
                 </div>
                 <div className="h-16 w-24 flex-shrink-0 overflow-hidden">
-                  {(() => { const img = getArticleImage(related); return img && (
+                  {(() => { const img = getArticleImage(related); return img ? (
                     <img
                       src={img}
                       alt={related.title}
                       className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
                     />
-                  ); })()}
+                  ) : <ArticleImageFallback categorySlug={related.category_slug} title={related.title} className="p-2 [&>span]:text-[8px] [&>span:nth-child(2)]:line-clamp-2" />; })()}
                 </div>
               </Link>
             ))}
