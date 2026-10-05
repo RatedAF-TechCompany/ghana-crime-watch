@@ -71,6 +71,23 @@ export default function HomeView({ initialArticles }: { initialArticles?: any[] 
     <div className="space-y-14">
       <h1 className="font-serif text-3xl font-bold text-foreground md:text-4xl">Ghana crime news</h1>
 
+      {/* Just in: newest first, exact publish times */}
+      <section aria-labelledby="just-in" className="border-y border-border py-4">
+        <h2 id="just-in" className="mb-3 font-sans text-xs font-bold uppercase tracking-[0.16em] text-primary">Just in</h2>
+        <ol className="grid gap-x-8 gap-y-2 md:grid-cols-2">
+          {articles.slice(0, 8).map((a) => (
+            <li key={a.id} className="flex gap-3 text-sm">
+              {a.published_at && (
+                <time dateTime={a.published_at} className="w-28 shrink-0 font-sans text-xs tabular-nums text-muted-foreground">
+                  {formatGhanaTime(a.published_at)}, {formatGhanaDate(a.published_at).replace(/ \d{4}$/, '')}
+                </time>
+              )}
+              <a href={`/${a.category_slug}/${a.article_slug}`} className="leading-snug hover:text-primary">{a.title}</a>
+            </li>
+          ))}
+        </ol>
+      </section>
+
       {/* Three-column front page */}
       <section className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-10">
         {/* Left: stacked secondaries */}
