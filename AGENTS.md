@@ -16,3 +16,6 @@
 - Articles without a self-hosted hero use the generated `/api/og/[id]` 1200x675 card for social and JSON-LD images; `/og-image.png` is never used on articles.
 - Article "Follow this story"/"Related" lists and live threads are server-rendered plain links for crawlers; threads with under 3 updates or a "qa-test"/"-test-" slug marker are noindex and left out of sitemaps.
 - Ingest merges a new source into a published article from the last 72h (title similarity >= 0.45, or same person + same court/town/agency) as a dated Update paragraph instead of creating a new URL.
+- Sources of type `discovery` (e.g. news search feeds) never publish alone: items wait as `discovery` until a primary source has the same story, then go to review or merge; robots.txt is always honoured.
+- Auto-publish has no daily cap; volume is controlled by one URL per incident (merge into the published article) instead.
+- About masthead facts come only from the `masthead` site setting; nothing is shown that the publisher has not supplied.
