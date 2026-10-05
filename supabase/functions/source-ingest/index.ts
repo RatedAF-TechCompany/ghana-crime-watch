@@ -29,7 +29,7 @@ function sameIncident(a: string, b: string): boolean {
   const pb = placeTokens(b);
   return [...placeTokens(a)].some((p) => pb.has(p) && /^(?:[a-z]+)$/.test(p) && p.length >= 4 && isGhanaPlace(p));
 }
-const GHANA_PLACES = /^(accra|tema|kasoa|kumasi|tamale|takoradi|sekondi|koforidua|techiman|sunyani|bolgatanga|damongo|dambai|nalerigu|goaso|winneba|obuasi|ashaiman|madina|nkawkaw|aflao|keta|hohoe|yendi|tarkwa|prestea|konongo|ejisu|nsawam|suhum|akim|oda|mampong|wenchi|kintampo|salaga|bawku|navrongo|elmina|saltpond|swedru|dansoman|adenta|teshie|nungua|kaneshie|lapaz|amasaman|weija|dodowa|somanya|kpong|akosombo|anloga|sogakope|half|axim|bibiani|sefwi|berekum|dormaa|atebubu|nkoranza|ejura|offinso|bekwai|agona|cape|coast|volta|ashanti|eastern|western|central|northern|savannah|bono|ahafo|oti)$/;
+const GHANA_PLACES = /^(accra|tema|kasoa|kumasi|tamale|takoradi|sekondi|koforidua|techiman|sunyani|bolgatanga|damongo|dambai|nalerigu|goaso|winneba|obuasi|ashaiman|madina|nkawkaw|aflao|keta|hohoe|yendi|tarkwa|prestea|konongo|ejisu|nsawam|suhum|mampong|wenchi|kintampo|salaga|bawku|navrongo|elmina|saltpond|swedru|dansoman|adenta|teshie|nungua|kaneshie|lapaz|amasaman|weija|dodowa|somanya|kpong|akosombo|anloga|sogakope|axim|bibiani|sefwi|berekum|dormaa|atebubu|nkoranza|ejura|offinso|bekwai)$/;
 function isGhanaPlace(p: string) { return GHANA_PLACES.test(p); }
 
 const json = (body: unknown, status = 200) =>
