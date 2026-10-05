@@ -1136,6 +1136,7 @@ export type Database = {
         Row: {
           active: boolean
           api_url: string | null
+          consecutive_failures: number
           created_at: string
           domain: string
           feed_url: string | null
@@ -1154,6 +1155,7 @@ export type Database = {
         Insert: {
           active?: boolean
           api_url?: string | null
+          consecutive_failures?: number
           created_at?: string
           domain: string
           feed_url?: string | null
@@ -1172,6 +1174,7 @@ export type Database = {
         Update: {
           active?: boolean
           api_url?: string | null
+          consecutive_failures?: number
           created_at?: string
           domain?: string
           feed_url?: string | null
