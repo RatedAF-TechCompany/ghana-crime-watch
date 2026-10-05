@@ -189,16 +189,6 @@
   }
   .most-read-number { @apply pale-rank-number; }
 
-  /* Nav diagonal slash separator */
-  .nav-slash + .nav-slash::before {
-    content: "/";
-    display: inline-block;
-    color: hsl(var(--foreground) / 0.35);
-    margin: 0 0.75rem 0 0.5rem;
-    transform: skewX(-16deg);
-    font-weight: 300;
-  }
-
   /* Decorative long hatched rule above sections */
   .hatched-rule {
     height: 14px;

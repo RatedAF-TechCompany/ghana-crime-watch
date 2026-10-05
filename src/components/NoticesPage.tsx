@@ -53,7 +53,7 @@ export function NoticesPage({ kicker, title, intro, notices, officialLinks, emer
                 <p className="mt-1 font-sans text-xs text-muted-foreground">Agency: {n.agency}</p>
                 <p className="mt-1 font-sans text-xs text-muted-foreground">
                   Source: <a href={n.official_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Official {n.agency} notice</a>
-                  {' '}· Notice or warrant date: <time dateTime={n.date_seen}>{new Date(`${n.date_seen}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}</time>
+                  {' '}· Official notice date or date seen: <time dateTime={n.date_seen}>{new Date(`${n.date_seen}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}</time>
                 </p>
                 <p className="mt-2 font-sans text-[11px] italic text-muted-foreground">
                   This is an official police notice, not a finding of guilt by GhanaCrimes. The person is presumed innocent unless convicted by a court.
