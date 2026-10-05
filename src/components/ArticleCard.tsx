@@ -3,6 +3,7 @@ import { getCategoryLabel } from "@/lib/categories";
 import { getPublishedTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { getArticleImage } from "@/lib/article-image";
+import { ArticleImageFallback } from "@/components/ArticleImage";
 
 type Variant = "grid" | "lead" | "secondary" | "compact" | "stacked" | "list-item";
 
@@ -57,16 +58,18 @@ export function ArticleCard({ article, variant, showImage, className }: ArticleC
           <h3 className="story-title text-[19px] leading-[1.18] group-hover:text-primary sm:text-[21px]">
             {article.title}
           </h3>
-          {imageUrl && (
-            <div className="mt-3 aspect-[4/3] w-full overflow-hidden">
+          <div className="mt-3 aspect-[4/3] w-full overflow-hidden">
+            {imageUrl ? (
               <img
                 src={imageUrl}
                 alt=""
                 loading="lazy"
                 className="h-full w-full object-cover"
               />
-            </div>
-          )}
+            ) : (
+              <ArticleImageFallback categorySlug={article.category_slug} title={article.title} />
+            )}
+          </div>
         </Link>
       </article>
     );
@@ -79,16 +82,18 @@ export function ArticleCard({ article, variant, showImage, className }: ArticleC
   return (
     <article className={cn("group flex flex-col", className)}>
       <Link href={href} className="flex flex-col">
-        {imageUrl && (
-          <div className="aspect-[4/3] w-full overflow-hidden">
+        <div className="aspect-[4/3] w-full overflow-hidden">
+          {imageUrl ? (
             <img
               src={imageUrl}
               alt={article.title}
               loading="lazy"
               className="h-full w-full object-cover"
             />
-          </div>
-        )}
+          ) : (
+            <ArticleImageFallback categorySlug={article.category_slug} title={article.title} />
+          )}
+        </div>
         <div className="pt-3 pb-4">
           {kicker}
           <h3 className={cn("story-title group-hover:text-primary", titleSize)}>

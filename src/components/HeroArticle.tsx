@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getCategoryLabel } from "@/lib/categories";
 import { getPublishedTime } from "@/lib/time";
 import { getArticleImage } from "@/lib/article-image";
+import { ArticleImageFallback } from "@/components/ArticleImage";
 
 interface HeroArticleProps {
   article: {
@@ -35,11 +36,15 @@ export function HeroArticle({ article }: HeroArticleProps) {
 
         {(() => {
           const img = getArticleImage(article);
-          return img ? (
+          return (
             <div className="mt-4 aspect-[4/5] w-full overflow-hidden">
+              {img ? (
               <img src={img} alt={article.title} className="h-full w-full object-cover" />
+              ) : (
+                <ArticleImageFallback categorySlug={article.category_slug} title={article.title} className="p-7" />
+              )}
             </div>
-          ) : null;
+          );
         })()}
 
         <div className="mt-4 meta-text">

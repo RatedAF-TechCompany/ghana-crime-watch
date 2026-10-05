@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.gate-backfill]
 verify_jwt = false
+
+[functions.backfill-hero-images]
+verify_jwt = false

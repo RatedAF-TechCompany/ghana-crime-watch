@@ -4,7 +4,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { AiCreditError, callGateway, newUsage, parseJson } from "../_shared/ai-usage.ts";
-import { detectRegion, runGate, stripHtml, wordCount, type Analysis } from "../_shared/editorial-gate.ts";
+import { detectRegion, runGate, stripEditorialFiller, stripHtml, wordCount, type Analysis } from "../_shared/editorial-gate.ts";
+import { extractHeroImage } from "../_shared/extract-image.ts";
 
 const UA = "GhanaCrimesBot/1.0 (+https://www.ghanacrimes.com/about)";
 const MAX_AI_ITEMS = 12;
@@ -168,6 +169,28 @@ const CATEGORY_FOR: Record<string, string> = {
   mob_violence: "violent-crime", court_judgement: "court-cases",
 };
 
+function hasValidSourceUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" && parsed.hostname.length > 3;
+  } catch {
+    return false;
+  }
+}
+
+function categoryFor(analysis: Analysis, sourceText: string, domain: string): string {
+  if (domain === "ghanaprisons.gov.gh") return "prison-news";
+  const text = sourceText.toLowerCase();
+  const politicalRhetoric = /\b(rally|manifesto|campaign|party congress|primaries|political opponent|propaganda|campaign promise)\b/.test(text);
+  const concreteCrimeAction = /\b(arrest\w*|charged?|court|trial|bail|remand\w*|investigat\w*|complaint|warrant|convict\w*|sentenc\w*)\b/.test(text);
+  if (politicalRhetoric && !concreteCrimeAction) return "";
+  if (/\b(kidnap\w*|abduct\w*)\b/.test(text)) return "violent-crime";
+  if (/\b(court|judge|magistrate|trial|bail|remand\w*|sentenc\w*|convict\w*)\b/.test(text)) return "court-cases";
+  if (analysis.is_entertainment && !analysis.is_crime) return "";
+  if (analysis.offence_type === "fraud_cyber" && !/\b(fraud\w*|defraud\w*|scam\w*|false pretence|money launder\w*|embezzl\w*)\b/.test(text)) return "police-reports";
+  return CATEGORY_FOR[analysis.offence_type || ""] || "police-reports";
+}
+
 /** Parse the first balanced JSON object; tolerates trailing text after it. */
 function extractJson<T>(content: string): T {
   try { return parseJson<T>(content); } catch { /* fall through */ }
@@ -265,6 +288,7 @@ Deno.serve(async (req) => {
         // First poll of a newly added source: allow a one-time 7-day backlog into review.
         const maxAgeH = s.last_polled_at ? MAX_ITEM_AGE_H : FIRST_POLL_MAX_AGE_H;
         for (const it of items.slice(0, 30)) {
+          if (!hasValidSourceUrl(it.url)) { stats.rejected++; continue; }
           if (it.published_at && Date.now() - new Date(it.published_at).getTime() > maxAgeH * 3600_000) { stats.too_old++; continue; }
           const urlHash = await sha(it.url.replace(/[?#].*$/, "").replace(/\/$/, ""));
           const { data: ins, error } = await supabase.from("raw_items").insert({
@@ -351,8 +375,8 @@ Deno.serve(async (req) => {
         });
         stats.ai_calls++;
         const out = extractJson<{ analysis: Analysis; title: string; summary: string; body: string }>(content);
-        const body = (out.body || "").replace(/[\u2013\u2014]/g, ", ").trim();
-        const title = (out.title || item.title).replace(/[\u2013\u2014]/g, ", ").trim().slice(0, 120);
+        const body = stripEditorialFiller((out.body || "").replace(/[\u2013\u2014]/g, ", ")).trim();
+        const title = stripEditorialFiller((out.title || item.title).replace(/[\u2013\u2014]/g, ", ")).trim().slice(0, 120);
         const gate = runGate({ analysis: out.analysis || {}, draftTitle: title, draftBody: body, sourceText, isOfficial: src.trust_tier === 1, corroboratingSources: corroborating });
         stats.gated++;
 
@@ -382,7 +406,11 @@ Deno.serve(async (req) => {
           if (!ex) break;
           slug = `${slugify(title)}-${n}`;
         }
-        const category = src.domain === "ghanaprisons.gov.gh" ? "prison-news" : (CATEGORY_FOR[out.analysis?.offence_type || ""] || "police-reports");
+        const category = categoryFor(out.analysis || {}, sourceText, src.domain);
+        if (!category) {
+          await supabase.from("raw_items").update({ status: "rejected", reason: "non_crime_entertainment_or_political_rhetoric", gate_report: report }).eq("id", item.id);
+          stats.rejected++; continue;
+        }
         const html = body.split(/\n\s*\n/).map((p) => `<p>${p.replace(/</g, "&lt;")}</p>`).join("");
 
         const { data: art, error: artErr } = await supabase.from("articles").insert({
@@ -394,6 +422,13 @@ Deno.serve(async (req) => {
           seo_title: title.slice(0, 60), seo_description: (out.summary || "").slice(0, 155),
         }).select("id").single();
         if (artErr) throw artErr;
+
+        try {
+          const image = await extractHeroImage({ articleUrl: item.url }, art.id, supabase);
+          if (image.url) await supabase.from("articles").update({ hero_image: image.url }).eq("id", art.id);
+        } catch {
+          // No safe source image: the public UI renders a category-coloured text card.
+        }
 
         await supabase.from("raw_items").update({ status: publishNow ? "published" : "review", article_id: art.id, thread_id: threadId, gate_report: report, reason: gate.soft_flags.join(", ") || report.held_reason || null }).eq("id", item.id);
         await supabase.from("audit_logs").insert({ action: publishNow ? "auto_published" : "sent_to_review", resource_type: "article", resource_id: art.id, details: { raw_item_id: item.id, flags: gate.soft_flags, source: src.name } });

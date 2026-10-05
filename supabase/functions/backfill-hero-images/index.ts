@@ -1,5 +1,5 @@
-// Backfill hero_image for existing articles where it is null.
-// POST body (all optional): { days?: number, limit?: number, dry_run?: boolean }
+// Backfill safely re-hosted source images for the most recent published articles.
+// POST body (all optional): { days?: number, limit?: number, latest?: boolean, dry_run?: boolean }
 // Uses the shared extractor — no AI, no new API keys.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -18,21 +18,43 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
+  const cronSecret = req.headers.get("x-cron-secret");
+  let authed = false;
+  if (cronSecret) {
+    const { data } = await supabase.rpc("verify_cron_secret", { _secret: cronSecret });
+    authed = data === true;
+  } else {
+    const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+    const { data } = await supabase.auth.getUser(token);
+    if (data.user) {
+      const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id);
+      authed = (roles || []).some((row: any) => row.role === "admin" || row.role === "editor");
+    }
+  }
+  if (!authed) {
+    return new Response(JSON.stringify({ error: "unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   let body: any = {};
   try { body = await req.json(); } catch { /* no body */ }
   const days = Number.isFinite(body.days) ? body.days : 30;
   const limit = Math.min(Number.isFinite(body.limit) ? body.limit : 100, 500);
   const dryRun = !!body.dry_run;
+  const latest = body.latest !== false;
 
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
-  const { data: rows, error } = await supabase
+  let query = supabase
     .from("articles")
     .select("id, article_slug, hero_image, source_url, published_at")
-    .is("hero_image", null)
+    .eq("is_published", true)
     .gte("published_at", cutoff)
     .order("published_at", { ascending: false })
     .limit(limit);
+  if (!latest) query = query.is("hero_image", null);
+  const { data: rows, error } = await query;
 
   if (error) {
     return new Response(JSON.stringify({ error: error.message }), {
@@ -43,10 +65,10 @@ serve(async (req) => {
   const results: any[] = [];
   let updated = 0;
 
-  for (const row of rows || []) {
+  const processRow = async (row: any) => {
     if (!row.source_url) {
       results.push({ id: row.id, skipped: "no_source_url" });
-      continue;
+      return;
     }
     try {
       const r = await extractHeroImage(
@@ -66,8 +88,12 @@ serve(async (req) => {
     } catch (e) {
       results.push({ id: row.id, error: e instanceof Error ? e.message : "unknown" });
     }
-    // polite pacing
-    await new Promise((res) => setTimeout(res, 250));
+  };
+
+  // Small concurrent batches keep the request bounded without hammering publishers.
+  const work = rows || [];
+  for (let i = 0; i < work.length; i += 5) {
+    await Promise.all(work.slice(i, i + 5).map(processRow));
   }
 
   return new Response(JSON.stringify({

@@ -18,6 +18,7 @@ export const MINOR_HINT = /\b(minor|juvenile|\d{1,2}-year-old (girl|boy|pupil|st
 export const SCHOOL_NAME = /\b[A-Z][\w'.]+(?: [A-Z][\w'.]+)* (Senior High|Junior High|Basic|Primary|SHS|JHS|M\/A|D\/A|R\/C|Methodist|Presby|Anglican) ?(School)?\b/;
 export const ENTERTAINMENT = /\b(celebrity|showbiz|musician|rapper|actress|actor|album|music video|concert|movie|nollywood|kumawood|reality show|talent show|award show|red carpet|gospel artist)\b/i;
 export const CONVICTED = /\b(convicted|sentenced|found guilty|jailed|imprisoned for|pleaded guilty)\b/i;
+export const FILLER_PHRASES = /\b(in a significant development|in a shocking turn of events|in an unprecedented move|in a dramatic turn|it is worth noting that|it should be noted that|this incident highlights|this development underscores|sending shockwaves through|the community has been left reeling)\b/gi;
 
 export function stripHtml(s: string): string {
   return (s || "")
@@ -30,6 +31,30 @@ export function stripHtml(s: string): string {
 
 export function wordCount(s: string): number {
   return (s.match(/\S+/g) || []).length;
+}
+
+export function stripEditorialFiller(s: string): string {
+  return (s || "")
+    .replace(FILLER_PHRASES, "")
+    .replace(/\s+([,.;:])/g, "$1")
+    .replace(/(^|[.!?]\s+),?\s*/g, "$1")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function significantWords(s: string): Set<string> {
+  const stop = new Set(["about", "after", "against", "alleged", "amid", "and", "are", "been", "before", "court", "from", "ghana", "into", "over", "police", "said", "says", "that", "the", "their", "this", "under", "were", "with"]);
+  return new Set((s.toLowerCase().match(/[a-z]{4,}/g) || []).filter((w) => !stop.has(w)));
+}
+
+/** Headline and opening sentence must describe the same event, not merely share generic crime words. */
+export function headlineMatchesLead(title: string, body: string): boolean {
+  const titleWords = significantWords(title);
+  const leadWords = significantWords((body || "").split(/(?<=[.!?])\s+/)[0] || "");
+  if (!titleWords.size || !leadWords.size) return false;
+  let shared = 0;
+  for (const word of titleWords) if (leadWords.has(word)) shared++;
+  return shared >= Math.min(2, titleWords.size);
 }
 
 const norm = (s: string) => s.toLowerCase().replace(/[,’']/g, "").replace(/\s+/g, " ");
@@ -144,6 +169,9 @@ export function runGate(opts: {
   const missing = unsupportedFacts(draft, `${sourceText}`);
   if (missing.length) hard.push(`unsupported_facts:${missing.join("|")}`);
   if (!/according to/i.test(draftBody)) soft.push("missing_attribution");
+  if (!headlineMatchesLead(draftTitle, draftBody)) soft.push("headline_lead_mismatch");
+  if (FILLER_PHRASES.test(draft)) soft.push("editorial_filler");
+  FILLER_PHRASES.lastIndex = 0;
   const wc = wordCount(draftBody);
   if (wc < 80 || wc > 180) soft.push(`word_count_${wc}`);
   if (a.suspect_named && !isOfficial && corroboratingSources < 1) soft.push("suspect_named_single_media_source");

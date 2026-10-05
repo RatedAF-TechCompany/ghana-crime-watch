@@ -74,17 +74,17 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
     <header className="w-full bg-background">
       {/* Main header row */}
       <div className="border-b border-border">
-        <div className="mx-auto flex max-w-editorial items-center justify-between gap-6 px-4 py-5 md:px-8 md:py-7">
+        <div className="mx-auto flex min-w-0 max-w-editorial items-center justify-between gap-3 px-4 py-5 md:px-8 md:py-7">
           {/* Left cluster: masthead + hamburger */}
-          <div className="flex items-center gap-4">
-            <Link href="/" className="block">
+          <div className="flex min-w-0 items-center gap-3">
+            <Link href="/" className="block min-w-0">
               <span className="masthead-word text-[32px] md:text-[48px]">GhanaCrimes</span>
             </Link>
             <Button
               variant="ghost"
               size="icon"
               onClick={onMenuClick}
-              className="h-9 w-9 lg:hidden"
+              className="h-9 w-9 shrink-0 [@media(min-width:1025px)]:hidden"
               aria-label="Open menu"
             >
               <Menu className="h-5 w-5" strokeWidth={1.5} />
@@ -92,8 +92,8 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
           </div>
 
           {/* Centre nav (desktop) */}
-          <nav className="hidden flex-1 items-center justify-center lg:flex">
-            <ul className="flex items-center gap-4 xl:gap-6">
+          <nav className="hidden min-w-0 flex-1 items-center justify-center [@media(min-width:1025px)]:flex">
+            <ul className="flex min-w-0 items-center gap-3 xl:gap-5">
               {PRIMARY_NAV.map((item) => (
                 <li key={item.to}>
                   <Link
@@ -111,7 +111,7 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
           </nav>
 
           {/* Right cluster */}
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <Button
               variant="ghost"
               size="icon"
