@@ -13,14 +13,14 @@ export async function GET() {
     .eq('is_published', true);
   const { data: latest } = await supabase
     .from('articles')
-    .select('published_at')
+    .select('content_updated_at')
     .eq('is_published', true)
-    .order('published_at', { ascending: false })
+    .order('content_updated_at', { ascending: false })
     .limit(1)
     .maybeSingle();
 
   const pages = Math.max(1, Math.ceil((count ?? 0) / ARTICLES_PER_SITEMAP));
-  const lastmod = latest?.published_at ? new Date(latest.published_at).toISOString() : null;
+  const lastmod = latest?.content_updated_at ? new Date(latest.content_updated_at).toISOString() : null;
   const entry = (loc: string, mod?: string | null) =>
     `  <sitemap><loc>${loc}</loc>${mod ? `<lastmod>${mod}</lastmod>` : ''}</sitemap>`;
 

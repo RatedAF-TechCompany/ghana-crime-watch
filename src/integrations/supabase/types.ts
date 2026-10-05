@@ -49,6 +49,7 @@ export type Database = {
           body: string
           case_status: string | null
           category_slug: string
+          content_updated_at: string | null
           created_at: string
           gate_report: Json | null
           hero_image: string | null
@@ -79,6 +80,7 @@ export type Database = {
           body: string
           case_status?: string | null
           category_slug: string
+          content_updated_at?: string | null
           created_at?: string
           gate_report?: Json | null
           hero_image?: string | null
@@ -109,6 +111,7 @@ export type Database = {
           body?: string
           case_status?: string | null
           category_slug?: string
+          content_updated_at?: string | null
           created_at?: string
           gate_report?: Json | null
           hero_image?: string | null
@@ -1197,6 +1200,7 @@ export type Database = {
       }
       story_threads: {
         Row: {
+          content_updated_at: string | null
           created_at: string
           created_by: string
           id: string
@@ -1209,6 +1213,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          content_updated_at?: string | null
           created_at?: string
           created_by?: string
           id?: string
@@ -1221,6 +1226,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          content_updated_at?: string | null
           created_at?: string
           created_by?: string
           id?: string

@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { Layout } from '@/components/Layout';
 import { HubPage } from '@/components/HubPage';
 import { BASE_URL } from '@/lib/utils';
+import { OG_HEIGHT, OG_WIDTH, hubSocialImage } from '@/lib/article-meta';
 import { TOPICS, getTopic, getTopicArticles } from '@/lib/hubs';
 
 export const revalidate = 600;
@@ -15,7 +16,13 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const t = getTopic((await params).slug);
   if (!t) return { title: 'Page not found', robots: { index: false } };
-  return { title: `${t.label} in Ghana`, description: t.intro, alternates: { canonical: `${BASE_URL}/topics/${t.slug}` } };
+  const image = { url: hubSocialImage(`topic-${t.slug}`), width: OG_WIDTH, height: OG_HEIGHT };
+  const title = `${t.label} in Ghana`;
+  return {
+    title, description: t.intro, alternates: { canonical: `${BASE_URL}/topics/${t.slug}` },
+    openGraph: { title, description: t.intro, url: `${BASE_URL}/topics/${t.slug}`, images: [image] },
+    twitter: { card: 'summary_large_image', title, description: t.intro, images: [image] },
+  };
 }
 
 export default async function TopicPage({ params }: { params: Params }) {

@@ -12,6 +12,13 @@ export const metadata: Metadata = {
   description:
     'Stay informed with the latest crime news, police reports, court cases, and crime statistics from Ghana. Comprehensive coverage of violent crime, fraud, cybercrime, and more.',
   metadataBase: new URL(BASE_URL),
+  robots: {
+    index: true,
+    follow: true,
+    'max-image-preview': 'large',
+    'max-snippet': -1,
+    'max-video-preview': -1,
+  },
   openGraph: {
     siteName: 'GhanaCrimes',
     type: 'website',

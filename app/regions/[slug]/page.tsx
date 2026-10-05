@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { Layout } from '@/components/Layout';
 import { HubPage } from '@/components/HubPage';
 import { BASE_URL } from '@/lib/utils';
+import { OG_HEIGHT, OG_WIDTH, hubSocialImage } from '@/lib/article-meta';
 import { REGIONS, getRegion, getRegionArticles } from '@/lib/hubs';
 
 export const revalidate = 600;
@@ -19,6 +20,8 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     title: `Crime news from the ${r.name} Region`,
     description: `Latest crime and court reports from the ${r.name} Region of Ghana.`,
     alternates: { canonical: `${BASE_URL}/regions/${r.slug}` },
+    openGraph: { url: `${BASE_URL}/regions/${r.slug}`, images: [{ url: hubSocialImage(`region-${r.slug}`), width: OG_WIDTH, height: OG_HEIGHT }] },
+    twitter: { card: 'summary_large_image', images: [hubSocialImage(`region-${r.slug}`)] },
   };
 }
 

@@ -4,18 +4,36 @@ import { Layout } from '@/components/Layout';
 import { BASE_URL } from '@/lib/utils';
 import ArticleView from '@/components/ArticleView';
 import { JsonLd } from '@/components/JsonLd';
-import { getArticle, findSlugRedirect } from '@/lib/server-data';
+import { getArticle, findSlugRedirect, getArticleContext } from '@/lib/server-data';
 import { getCategoryLabel, isValidCategory } from '@/lib/categories';
-import { isSelfHostedImage } from '@/lib/article-image';
+import { OG_HEIGHT, OG_WIDTH, articleModified, articleSocialImage, formatGhanaDate, regionForName, topicForText } from '@/lib/article-meta';
 
 export const revalidate = 300;
 
 type Params = Promise<{ categorySlug: string; articleSlug: string }>;
 
-function socialImageFor(hero: string | null | undefined) {
-  return isSelfHostedImage(hero) && hero?.startsWith('http')
-    ? `${BASE_URL}/api/og-image?url=${encodeURIComponent(hero)}`
-    : `${BASE_URL}/og-image.png`;
+function imageMeta(article: any) {
+  const img = articleSocialImage(article);
+  return img.generated ? { url: img.url, width: OG_WIDTH, height: OG_HEIGHT } : { url: img.url };
+}
+
+type LinkRow = { id: string; title: string; category_slug: string; article_slug: string; published_at: string | null };
+
+function LinkList({ title, rows }: { title: string; rows: LinkRow[] }) {
+  if (!rows.length) return null;
+  return (
+    <section className="mt-10 border-t border-border pt-6">
+      {title && <h2 className="mb-4 font-headline text-xl font-bold text-foreground">{title}</h2>}
+      <ul className="space-y-3">
+        {rows.map((r) => (
+          <li key={r.id} className="border-b border-border pb-3 last:border-b-0">
+            <a href={`/${r.category_slug}/${r.article_slug}`} className="story-title text-base leading-snug hover:text-primary">{r.title}</a>
+            {r.published_at && <p className="mt-1 text-xs text-muted-foreground">{formatGhanaDate(r.published_at)}</p>}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
@@ -25,7 +43,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
   const title = article.seo_title || article.title;
   const description = article.seo_description || article.summary || '';
-  const socialImage = socialImageFor(article.hero_image);
+  const socialImage = imageMeta(article);
   const canonical = `${BASE_URL}/${categorySlug}/${articleSlug}`;
 
   return {
@@ -38,9 +56,9 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
       url: canonical,
       type: 'article',
       publishedTime: article.published_at ?? undefined,
-      modifiedTime: article.updated_at ?? undefined,
+      modifiedTime: articleModified(article) ?? undefined,
       authors: [article.author_name || 'GhanaCrimes Data Desk'],
-      images: [{ url: socialImage }],
+      images: [socialImage],
     },
     twitter: { card: 'summary_large_image', title, description, images: [socialImage] },
   };
@@ -60,6 +78,10 @@ export default async function ArticlePage({ params }: { params: Params }) {
   const canonical = `${BASE_URL}/${categorySlug}/${articleSlug}`;
   const title = article.seo_title || article.title;
   const authorName = article.author_name || 'GhanaCrimes Data Desk';
+  const topic = topicForText(`${article.title} ${article.summary ?? ''}`);
+  const regionHub = regionForName(article.region);
+  const ctx = await getArticleContext(article, topic?.terms ?? null);
+  const img = imageMeta(article);
 
   return (
     <Layout>
@@ -70,9 +92,9 @@ export default async function ArticlePage({ params }: { params: Params }) {
             '@type': 'NewsArticle',
             headline: title.slice(0, 110),
             description: article.seo_description || article.summary,
-            image: [socialImageFor(article.hero_image)],
+            image: [{ '@type': 'ImageObject', ...img }],
             datePublished: article.published_at,
-            dateModified: article.updated_at || article.published_at,
+            dateModified: articleModified(article),
             author: { '@type': 'Organization', name: authorName, url: `${BASE_URL}/about` },
             publisher: {
               '@type': 'Organization',
@@ -98,7 +120,22 @@ export default async function ArticlePage({ params }: { params: Params }) {
           },
         ]}
       />
-      <ArticleView categorySlug={categorySlug} articleSlug={articleSlug} initialArticle={article} />
+      <ArticleView categorySlug={categorySlug} articleSlug={articleSlug} initialArticle={article} thread={ctx.thread}>
+        {ctx.thread && (
+          <section className="mt-10 border-t border-border pt-6">
+            <h2 className="mb-3 font-headline text-xl font-bold text-foreground">Follow this story</h2>
+            <p className="mb-3 text-sm"><a href={`/live/${ctx.thread.thread_slug}`} className="text-primary underline underline-offset-2">All updates: {ctx.thread.title}</a></p>
+            <LinkList title="" rows={ctx.siblings} />
+          </section>
+        )}
+        <LinkList title="Related" rows={ctx.related} />
+        {(regionHub || topic) && (
+          <nav aria-label="More coverage" className="mt-6 flex flex-wrap gap-4 font-sans text-sm">
+            {regionHub && <a href={`/regions/${regionHub.slug}`} className="text-primary underline underline-offset-2">More from the {regionHub.name} Region</a>}
+            {topic && <a href={`/topics/${topic.slug}`} className="text-primary underline underline-offset-2">More on {topic.label}</a>}
+          </nav>
+        )}
+      </ArticleView>
     </Layout>
   );
 }
