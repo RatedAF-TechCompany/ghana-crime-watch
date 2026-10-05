@@ -66,11 +66,10 @@ export async function getHomeArticles() {
 
 export async function getCategoryArticles(categorySlug: string) {
   const supabase = createServerClient();
-  const { data } = await supabase
-    .from('articles')
-    .select(LIST_COLUMNS)
-    .eq('is_published', true)
-    .eq('category_slug', categorySlug)
+  // 'top-stories' means the latest published stories across all crime sections.
+  let q = supabase.from('articles').select(LIST_COLUMNS).eq('is_published', true);
+  if (categorySlug !== 'top-stories') q = q.eq('category_slug', categorySlug);
+  const { data } = await q
     .order('published_at', { ascending: false })
     .range(0, CATEGORY_PAGE_SIZE);
   return data ?? [];

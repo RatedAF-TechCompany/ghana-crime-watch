@@ -782,6 +782,7 @@ export type Database = {
           id: string
           is_published: boolean
           kind: string
+          notice_year: number | null
           official_url: string
           person_name: string
           photo_url: string | null
@@ -796,6 +797,7 @@ export type Database = {
           id?: string
           is_published?: boolean
           kind: string
+          notice_year?: number | null
           official_url: string
           person_name: string
           photo_url?: string | null
@@ -810,6 +812,7 @@ export type Database = {
           id?: string
           is_published?: boolean
           kind?: string
+          notice_year?: number | null
           official_url?: string
           person_name?: string
           photo_url?: string | null

@@ -1,0 +1,1 @@
+ALTER TABLE public.official_notices ADD COLUMN IF NOT EXISTS notice_year integer;

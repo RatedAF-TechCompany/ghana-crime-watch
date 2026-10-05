@@ -47,16 +47,19 @@ export function NoticesPage({ kicker, title, intro, notices, officialLinks, emer
                 <h2 className="font-serif text-lg font-bold text-foreground">{n.person_name}</h2>
                 {n.details && (
                   <p className="mt-1 font-sans text-sm text-foreground">
-                    <span className="font-semibold">Alleged offence: </span>{n.details}
+                    <span className="font-semibold">{n.kind === 'missing' ? 'Details: ' : 'Alleged offence: '}</span>{n.details}
                   </p>
                 )}
                 <p className="mt-1 font-sans text-xs text-muted-foreground">Agency: {n.agency}</p>
                 <p className="mt-1 font-sans text-xs text-muted-foreground">
                   Source: <a href={n.official_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Official {n.agency} notice</a>
-                  {' '}· Official notice date or date seen: <time dateTime={n.date_seen}>{new Date(`${n.date_seen}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}</time>
+                  {' '}· Original notice: {n.notice_year ? <span>{n.notice_year}</span> : <span>date not stated</span>}
+                  {' '}· Last checked on the official site: <time dateTime={n.date_seen}>{new Date(`${n.date_seen}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}</time>
                 </p>
                 <p className="mt-2 font-sans text-[11px] italic text-muted-foreground">
-                  This is an official police notice, not a finding of guilt by GhanaCrimes. The person is presumed innocent unless convicted by a court.
+                  {n.kind === 'missing'
+                    ? 'This is an official missing person notice. If you have information, contact the police on 191 or 18555.'
+                    : 'This is an official police notice, not a finding of guilt by GhanaCrimes. The person is presumed innocent unless convicted by a court.'}
                 </p>
               </div>
             </li>
@@ -71,9 +74,9 @@ export function NoticesPage({ kicker, title, intro, notices, officialLinks, emer
             <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" className="font-sans text-sm text-primary hover:underline">{l.label}</a>
           ))}
         </div>
-        <p className="mt-4 font-sans text-xs text-muted-foreground">
+        {!/missing/i.test(title) && <p className="mt-4 font-sans text-xs text-muted-foreground">
           Being named in a wanted notice is not a finding of guilt. Everyone is presumed innocent until proven guilty in court.
-        </p>
+        </p>}
       </div>
     </div>
   );

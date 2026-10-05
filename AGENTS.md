@@ -10,3 +10,5 @@
 - Public form submissions (contact, tips, corrections) go to insert-only tables; only staff roles can read them, checked via `has_role`.
 - Approved comments are read through the `get_approved_comments` function; the comments table is not readable anonymously.
 - Legacy public section aliases use permanent redirects in `next.config.ts`, keeping redirect behavior centralized without middleware.
+- Logged-out /admin is HTTP-redirected to /auth by `middleware.ts` using a client-set `gc_session` hint cookie; real authorization stays in AdminGate and RLS, because sessions live in localStorage, not server cookies.
+- `/top-stories` lists the latest published stories across all sections, not a single category filter.

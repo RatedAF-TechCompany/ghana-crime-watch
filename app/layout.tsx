@@ -44,6 +44,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="alternate" type="application/rss+xml" title="GhanaCrimes RSS" href="/rss.xml" />
+      </head>
       <body>
         <GoogleAnalytics />
         <Providers>{children}</Providers>
