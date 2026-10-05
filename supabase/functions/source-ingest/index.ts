@@ -100,6 +100,18 @@ async function fetchText(url: string, ms = 15000): Promise<string> {
   }
 }
 
+const BOT_CHALLENGE = /One moment,? please|Challenge Validation|cf-chl|Just a moment\.\.\.|Just a moment|challenge-platform|Attention Required/i;
+
+/** Robots rule matching per RFC 9309: '*' matches any run, trailing '$' anchors; rules are path prefixes. */
+export function robotsRuleMatches(rule: string, path: string): boolean {
+  if (!rule) return false;
+  const anchored = rule.endsWith("$");
+  const body = anchored ? rule.slice(0, -1) : rule;
+  if (!body.startsWith("/") && !body.startsWith("*")) return false; // malformed rule: ignore, never block whole site
+  const re = new RegExp("^" + body.split("*").map((p) => p.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join(".*") + (anchored ? "$" : ""));
+  return re.test(path);
+}
+
 // ---- robots.txt (User-agent: * Disallow rules) ----
 const robotsCache = new Map<string, string[]>();
 async function allowedByRobots(url: string): Promise<boolean> {
@@ -121,7 +133,7 @@ async function allowedByRobots(url: string): Promise<boolean> {
       robotsCache.set(u.host, rules);
     }
     const path = u.pathname + u.search;
-    return !robotsCache.get(u.host)!.some((r) => r === "/" || path.startsWith(r.replace(/\*.*$/, "")));
+    return !robotsCache.get(u.host)!.some((r) => robotsRuleMatches(r, path));
   } catch {
     return false;
   }
@@ -289,19 +301,23 @@ Deno.serve(async (req) => {
   try {
     // ---- 1. poll sources ----
     const { data: sources } = await supabase.from("sources").select("*").eq("active", true)
-      .or("feed_url.not.is.null,api_url.not.is.null");
+      .or("feed_url.not.is.null,api_url.not.is.null,rss_url.not.is.null");
     const due = (sources || []).filter((s: any) =>
       !s.last_polled_at || Date.now() - new Date(s.last_polled_at).getTime() >= (s.poll_minutes - 1) * 60_000);
     const sourceById = new Map((sources || []).map((s: any) => [s.id, s]));
     const transientText = new Map<string, string>(); // url_hash -> full source text (memory only)
 
     await Promise.all(due.map(async (s: any) => {
-      const url = s.feed_url || s.api_url;
+      const url = s.feed_url || s.rss_url || s.api_url;
+      const isJson = !s.feed_url && !s.rss_url && !!s.api_url;
       let status = "ok";
       try {
         if (!(await allowedByRobots(url))) { status = "blocked_by_robots"; return; }
         const body = await fetchText(url);
-        const items = s.api_url && !s.feed_url ? parseWpJson(body) : parseFeed(body);
+        const head = body.slice(0, 4000);
+        if (BOT_CHALLENGE.test(head)) throw new Error("bot_challenge");
+        if (isJson ? !/^\s*\[/.test(body) : !/<rss|<feed|<rdf:RDF/i.test(head)) throw new Error("not_a_feed");
+        const items = isJson ? parseWpJson(body) : parseFeed(body);
         status = `ok:${items.length}`;
         stats.items_fetched += items.length;
         // First poll of a newly added source: allow a one-time 7-day backlog into review.
@@ -322,7 +338,8 @@ Deno.serve(async (req) => {
         stats.sources_failed.push(s.name);
       } finally {
         stats.sources_polled++;
-        await supabase.from("sources").update({ last_polled_at: new Date().toISOString(), last_status: status }).eq("id", s.id);
+        const failed = status.startsWith("error:") || status === "blocked_by_robots";
+        await supabase.from("sources").update({ last_polled_at: new Date().toISOString(), last_status: status, consecutive_failures: failed ? (s.consecutive_failures ?? 0) + 1 : 0 }).eq("id", s.id);
       }
     }));
 
