@@ -2,10 +2,30 @@ import { createServerClient } from '@/lib/supabase/server';
 import { BASE_URL } from '@/lib/utils';
 import { NAV_CATEGORIES } from '@/lib/categories';
 import { ARTICLES_PER_SITEMAP, xmlResponse } from '@/lib/feeds';
+import { REGIONS, TOPICS } from '@/lib/hubs';
+import { EXPLAINERS } from '@/lib/explainers';
 
 export const revalidate = 600;
 
-const STATIC_PATHS = ['/', '/about', '/editorial-policy', '/corrections', '/contact', '/tips', '/privacy', '/terms', '/fraud-watch'];
+const STATIC_PATHS = [
+  '/',
+  '/about',
+  '/editorial-policy',
+  '/corrections',
+  '/contact',
+  '/tips',
+  '/privacy',
+  '/terms',
+  '/fraud-watch',
+  '/map',
+  '/statistics',
+  '/courts',
+  '/wanted',
+  '/missing',
+  '/safety',
+  '/alerts',
+  '/explainers',
+];
 
 function urlset(urls: { loc: string; lastmod?: string | null }[]) {
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -24,13 +44,23 @@ export async function GET(_req: Request, { params }: { params: Promise<{ file: s
       .from('story_threads')
       .select('thread_slug, updated_at')
       .or(`is_live.eq.true,live_ended_at.gte.${thirtyDaysAgo}`);
-    return xmlResponse(
-      urlset([
-        ...STATIC_PATHS.map((p) => ({ loc: `${BASE_URL}${p}` })),
-        ...NAV_CATEGORIES.map((c) => ({ loc: `${BASE_URL}/${c.slug}` })),
-        ...(threads ?? []).map((t) => ({ loc: `${BASE_URL}/live/${t.thread_slug}`, lastmod: t.updated_at ? new Date(t.updated_at).toISOString() : null })),
-      ]),
-    );
+    
+    const pages = [
+      ...STATIC_PATHS.map((p) => ({ loc: `${BASE_URL}${p}` })),
+      ...NAV_CATEGORIES.map((c) => ({ loc: `${BASE_URL}/${c.slug}` })),
+      ...REGIONS.map((r) => ({ loc: `${BASE_URL}/regions/${r.slug}` })),
+      ...TOPICS.map((t) => ({ loc: `${BASE_URL}/topics/${t.slug}` })),
+      ...EXPLAINERS.map((e) => ({ 
+        loc: `${BASE_URL}/explainers/${e.slug}`,
+        lastmod: new Date(e.updated).toISOString()
+      })),
+      ...(threads ?? []).map((t) => ({ 
+        loc: `${BASE_URL}/live/${t.thread_slug}`, 
+        lastmod: t.updated_at ? new Date(t.updated_at).toISOString() : null 
+      })),
+    ];
+
+    return xmlResponse(urlset(pages));
   }
 
   const m = file.match(/^articles-(\d+)\.xml$/);
@@ -38,7 +68,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ file: s
   const page = parseInt(m[1], 10);
   if (page < 1) return new Response('Not found', { status: 404 });
 
-  // PostgREST caps a single response at 1000 rows; page through in chunks.
   const start = (page - 1) * ARTICLES_PER_SITEMAP;
   const rows: { category_slug: string; article_slug: string; updated_at: string | null; published_at: string | null }[] = [];
   for (let off = 0; off < ARTICLES_PER_SITEMAP; off += 1000) {

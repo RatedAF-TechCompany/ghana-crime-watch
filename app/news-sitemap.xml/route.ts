@@ -1,6 +1,8 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { BASE_URL } from '@/lib/utils';
 
+export const revalidate = 600;
+
 export async function GET() {
   const supabase = createServerClient();
 
@@ -42,7 +44,7 @@ ${urls}
   return new Response(xml, {
     headers: {
       'Content-Type': 'application/xml',
-      'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+      'Cache-Control': 'public, max-age=600, s-maxage=600',
     },
   });
 }
