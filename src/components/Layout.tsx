@@ -35,6 +35,7 @@ const FOOTER_COLUMNS: { title: string; links: { label: string; to: string }[] }[
     links: [
       { label: "About GhanaCrimes", to: "/about" },
       { label: "Editorial Policy", to: "/editorial-policy" },
+      { label: "How We Use AI", to: "/ai-use" },
       { label: "Corrections", to: "/corrections" },
     ],
   },

@@ -12,6 +12,7 @@ const STATIC_PATHS = [
   '/',
   '/about',
   '/editorial-policy',
+  '/ai-use',
   '/corrections',
   '/contact',
   '/tips',
