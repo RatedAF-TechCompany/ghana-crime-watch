@@ -23,6 +23,10 @@ const PRIMARY_NAV: { label: string; to: string }[] = [
   { label: "Drugs", to: "/drug-offences" },
   { label: "Map", to: "/map" },
   { label: "Statistics", to: "/statistics" },
+  { label: "Courts", to: "/courts" },
+  { label: "Wanted", to: "/wanted" },
+  { label: "Safety", to: "/safety" },
+  { label: "Explainers", to: "/explainers" },
   { label: "Fraud Watch", to: "/fraud-watch" },
 ];
 
