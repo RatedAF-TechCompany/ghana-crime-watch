@@ -12,6 +12,7 @@ export interface OfficialNotice {
   official_url: string;
   photo_url: string | null;
   date_seen: string;
+  notice_year: number | null;
 }
 
 /** Only admin-entered notices copied from police.gov.gh or interpol.int (enforced in the database). */
@@ -19,7 +20,7 @@ export const getNotices = cache(async (kind: NoticeKind): Promise<OfficialNotice
   const supabase = createServerClient() as any;
   const { data } = await supabase
     .from('official_notices')
-    .select('id, kind, person_name, details, agency, official_url, photo_url, date_seen')
+    .select('id, kind, person_name, details, agency, official_url, photo_url, date_seen, notice_year')
     .eq('kind', kind)
     .eq('is_published', true)
     .order('date_seen', { ascending: false })
