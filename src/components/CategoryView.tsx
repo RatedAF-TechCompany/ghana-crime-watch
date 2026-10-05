@@ -19,11 +19,13 @@ export default function CategoryView({ categorySlug, initialArticles }: { catego
   const { data: articles, isLoading } = useQuery({
     queryKey: ["articles-cat", categorySlug, page],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("articles")
         .select("id, title, summary, body, category_slug, article_slug, published_at, hero_image")
-        .eq("is_published", true)
-        .eq("category_slug", categorySlug!)
+        .eq("is_published", true);
+      // 'top-stories' means the latest published stories across all crime sections.
+      if (categorySlug !== "top-stories") q = q.eq("category_slug", categorySlug!);
+      const { data, error } = await q
         .order("published_at", { ascending: false })
         .range(page * ARTICLES_PER_PAGE, (page + 1) * ARTICLES_PER_PAGE);
       if (error) throw error;
