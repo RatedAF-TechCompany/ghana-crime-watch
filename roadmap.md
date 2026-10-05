@@ -13,3 +13,11 @@
 - [x] Add legacy section redirects and topic/region indexes
 - [x] Clarify Missing, Alerts, and Wanted information
 - [x] Add new indexes to the sitemap and verify the public experience
+
+## Follow-up quality pass
+- [ ] Fix tablet navigation, overflow, and logged-out Admin visibility
+- [ ] Replace blank images and backfill the latest 50 published articles
+- [ ] Tighten headline, sourcing, Ghana/crime, and category quality gates
+- [ ] Move ingestion to every 10 minutes and repair or add verified feeds
+- [ ] Unpublish near-duplicate twins while retaining the best-sourced article
+- [ ] Run and report one ingestion test
