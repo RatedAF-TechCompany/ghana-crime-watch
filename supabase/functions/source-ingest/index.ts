@@ -9,6 +9,7 @@ import { detectRegion, runGate, stripHtml, wordCount, type Analysis } from "../_
 const UA = "GhanaCrimesBot/1.0 (+https://www.ghanacrimes.com/about)";
 const MAX_AI_ITEMS = 12;
 const MAX_ITEM_AGE_H = 48;
+const FIRST_POLL_MAX_AGE_H = 168;
 const SUMMARY_CHARS = 280;
 
 const json = (body: unknown, status = 200) =>
@@ -261,8 +262,10 @@ Deno.serve(async (req) => {
         const items = s.api_url && !s.feed_url ? parseWpJson(body) : parseFeed(body);
         status = `ok:${items.length}`;
         stats.items_fetched += items.length;
+        // First poll of a newly added source: allow a one-time 7-day backlog into review.
+        const maxAgeH = s.last_polled_at ? MAX_ITEM_AGE_H : FIRST_POLL_MAX_AGE_H;
         for (const it of items.slice(0, 30)) {
-          if (it.published_at && Date.now() - new Date(it.published_at).getTime() > MAX_ITEM_AGE_H * 3600_000) { stats.too_old++; continue; }
+          if (it.published_at && Date.now() - new Date(it.published_at).getTime() > maxAgeH * 3600_000) { stats.too_old++; continue; }
           const urlHash = await sha(it.url.replace(/[?#].*$/, "").replace(/\/$/, ""));
           const { data: ins, error } = await supabase.from("raw_items").insert({
             source_id: s.id, url: it.url, url_hash: urlHash, title: it.title.slice(0, 300),
