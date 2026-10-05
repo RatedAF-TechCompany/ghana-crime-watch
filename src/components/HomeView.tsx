@@ -5,7 +5,6 @@ import { HeroArticle } from "@/components/HeroArticle";
 import { ArticleCard } from "@/components/ArticleCard";
 import { MostReadArticles } from "@/components/MostReadArticles";
 import { EditorialSectionHeading } from "@/components/editorial/EditorialSectionHeading";
-import { NewsletterSignup } from "@/components/NewsletterSignup";
 import { AdBanner } from "@/components/AdBanner";
 import { LiveNowModule } from "@/components/LiveNowModule";
 import { Button } from "@/components/ui/button";
@@ -133,8 +132,6 @@ export default function HomeView({ initialArticles }: { initialArticles?: any[] 
       {/* Most popular + Writers */}
       <MostReadArticles />
 
-      {/* Newsletter band */}
-      <div><NewsletterSignup /></div>
 
       {/* More headlines */}
       {overflow.length > 0 && (
