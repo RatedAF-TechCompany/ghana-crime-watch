@@ -32,6 +32,33 @@ function sameIncident(a: string, b: string): boolean {
 const GHANA_PLACES = /^(accra|tema|kasoa|kumasi|tamale|takoradi|sekondi|koforidua|techiman|sunyani|bolgatanga|damongo|dambai|nalerigu|goaso|winneba|obuasi|ashaiman|madina|nkawkaw|aflao|keta|hohoe|yendi|tarkwa|prestea|konongo|ejisu|nsawam|suhum|mampong|wenchi|kintampo|salaga|bawku|navrongo|elmina|saltpond|swedru|dansoman|adenta|teshie|nungua|kaneshie|lapaz|amasaman|weija|dodowa|somanya|kpong|akosombo|anloga|sogakope|axim|bibiani|sefwi|berekum|dormaa|atebubu|nkoranza|ejura|offinso|bekwai)$/;
 function isGhanaPlace(p: string) { return GHANA_PLACES.test(p); }
 
+// Same-story signals for merging a new source into an existing published article.
+const AGENCY_OR_COURT = /\b(high court|circuit court|district court|supreme court|court of appeal|magistrate court|ghana police|police service|eoco|nacoc|chraj|special prosecutor|osp|ghana immigration|ghana prisons|attorney[- ]general|cid)\b/gi;
+const NAME_STOP = new Set(["Ghana","Police","Court","High","Circuit","District","Supreme","Region","Regional","Municipal","Service","Office","Special","Prosecutor","Accra","Kumasi","The","Mr","Mrs","Ms","Dr","Hon","Chief","Inspector","Superintendent","Minister","President","Judge","Justice"]);
+function personNames(t: string): Set<string> {
+  const out = new Set<string>();
+  for (const m of t.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}\b/g) || []) {
+    const parts = m.split(/\s+/).filter((w) => !NAME_STOP.has(w));
+    if (parts.length >= 2) out.add(parts.join(" ").toLowerCase());
+  }
+  return out;
+}
+function placesAndAgencies(t: string): Set<string> {
+  const out = new Set<string>([...placeTokens(t)].filter(isGhanaPlace));
+  for (const m of t.match(AGENCY_OR_COURT) || []) out.add(m.toLowerCase());
+  return out;
+}
+function sharesPersonAndVenue(a: string, b: string): boolean {
+  const pa = personNames(a), pb = personNames(b);
+  if (![...pa].some((x) => pb.has(x))) return false;
+  const va = placesAndAgencies(a), vb = placesAndAgencies(b);
+  return [...va].some((x) => vb.has(x));
+}
+const escHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+function gmtTime(d = new Date()) {
+  return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")} GMT`;
+}
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
@@ -251,12 +278,17 @@ Rules for the draft:
 - Never name the victim of a sexual offence or domestic violence. Never give any identifying detail (name, school, community, relatives) of anyone under 18.
 - No home addresses, phone numbers or graphic descriptions of injuries or bodies.
 - No commentary on guilt, evidence strength or likely outcomes of pending cases.
+- Every sentence must be directly supported by the SOURCE TEXT. If a sentence cannot be traced to the source, leave it out. A shorter article is better than an unsupported one.
+- No generic filler or boilerplate. Never write phrases like "continues to work to ensure public safety", "highlights the risks", "has been informed", "aims to deter", "the judge considered the evidence", "serves as a reminder", "remains committed to", "urged the public to remain vigilant".
+- Headline and body must agree exactly on every name, role, age and place. Do not put a detail in the headline that the body does not state.
+- Mention charges, the court and the next hearing date ONLY when the SOURCE TEXT states them. Never guess or imply them.
 - No emojis, no em dashes or en dashes. Never mention AI.
 Analysis fields describe the SOURCE TEXT:
 offence_type must be one of: robbery, murder, fraud_cyber, galamsey, narcotics, corruption, road_crash_arrest, mob_violence, court_judgement, or null if none fits (road crashes count only with arrests or charges).
+politics_without_enforcement is true when the main subject is party politics, campaign claims, policy talk or political rhetoric and the SOURCE TEXT reports no arrest, charge, court case, police action or official investigation.
 case_status one of: reported, arrested, charged, remanded, on_trial, convicted, acquitted, unknown.
 JSON shape:
-{"analysis":{"is_ghana":bool,"ghanaian_central":bool,"region":string|null,"district":string|null,"is_entertainment":bool,"is_crime":bool,"offence_type":string|null,"case_status":string,"sexual_or_domestic_violence":bool,"victim_named":bool,"minor_involved":bool,"minor_identifiable":bool,"suspect_named":bool,"pending_case_commentary":bool,"graphic_content":bool},
+{"analysis":{"is_ghana":bool,"ghanaian_central":bool,"region":string|null,"district":string|null,"is_entertainment":bool,"politics_without_enforcement":bool,"is_crime":bool,"offence_type":string|null,"case_status":string,"sexual_or_domestic_violence":bool,"victim_named":bool,"minor_involved":bool,"minor_identifiable":bool,"suspect_named":bool,"pending_case_commentary":bool,"graphic_content":bool},
 "title":"neutral headline under 90 characters","summary":"one sentence standfirst","body":"80-180 word article, paragraphs separated by blank lines"}`;
 
 Deno.serve(async (req) => {
@@ -355,6 +387,34 @@ Deno.serve(async (req) => {
     const { data: recentRows } = await supabase.from("articles").select("id, title")
       .gte("created_at", new Date(Date.now() - 48 * 3600_000).toISOString()).neq("status", "rejected").limit(500);
     const recentIncidents: { id: string; title: string }[] = recentRows || [];
+    const { data: publishedRecent } = await supabase.from("articles").select("id, title, summary")
+      .eq("is_published", true).gte("published_at", new Date(Date.now() - 72 * 3600_000).toISOString()).limit(500);
+    const merges: { article_id: string; raw_item_id: string; source: string; reason: string }[] = [];
+
+    // Append a new source to an existing published article instead of creating a new URL.
+    const mergeInto = async (articleId: string, item: any, src: any, reason: string) => {
+      const { data: art } = await supabase.from("articles").select("id, body, source_url, source_urls, thread_id, title").eq("id", articleId).maybeSingle();
+      if (!art) return false;
+      const urls: string[] = Array.from(new Set([...(art.source_urls || []), art.source_url, item.url].filter(Boolean)));
+      if ((art.source_urls || []).includes(item.url) || art.source_url === item.url) {
+        await supabase.from("raw_items").update({ status: "duplicate", reason: `already sourced in ${art.id}`, article_id: art.id }).eq("id", item.id);
+        stats.duplicates++; return true;
+      }
+      const para = `<p><strong>Update (${gmtTime()}):</strong> ${escHtml(src.name)} also reported on this story under the headline "${escHtml(item.title)}". <a href="${escHtml(item.url)}" target="_blank" rel="noopener noreferrer nofollow">Read the ${escHtml(src.name)} report</a>.</p>`;
+      let threadId = art.thread_id;
+      if (!threadId) {
+        const { data: t } = await supabase.from("story_threads").insert({ thread_slug: `${slugify(art.title).slice(0, 60)}-${Date.now().toString(36)}`, title: art.title, created_by: "source-ingest" }).select("id").single();
+        threadId = t?.id ?? null;
+      }
+      // Body change fires the content_updated_at trigger.
+      await supabase.from("articles").update({ body: `${art.body}${para}`, source_urls: urls, thread_id: threadId }).eq("id", art.id);
+      if (threadId) {
+        await supabase.from("thread_updates").insert({ thread_id: threadId, title: item.title.slice(0, 200), body: para, source_article_id: art.id, published_at: new Date().toISOString() });
+      }
+      await supabase.from("raw_items").update({ status: "merged", reason, article_id: art.id, thread_id: threadId }).eq("id", item.id);
+      merges.push({ article_id: art.id, raw_item_id: item.id, source: src.name, reason });
+      return true;
+    };
 
     for (const item of queue || []) {
       const src: any = sourceById.get(item.source_id);
@@ -363,6 +423,15 @@ Deno.serve(async (req) => {
       // Dedup against recent articles (title similarity) and story threads
       const { data: similar } = await supabase.rpc("find_similar_articles", { _title: item.title, _hours: 72 });
       const best = (similar || [])[0];
+      // Merge into an already-published article: title similarity >= 0.45, or same named person + same court/town/agency.
+      const publishedIds = new Set((publishedRecent || []).map((a: any) => a.id));
+      const simPublished = (similar || []).find((r: any) => r.sim >= 0.45 && publishedIds.has(r.id));
+      const itemText = `${item.title} ${item.summary || ""}`;
+      const personMatch = simPublished ? null : (publishedRecent || []).find((a: any) => sharesPersonAndVenue(itemText, `${a.title} ${a.summary || ""}`));
+      const mergeTarget = simPublished?.id || personMatch?.id;
+      if (mergeTarget && await mergeInto(mergeTarget, item, src, simPublished ? `title_similarity:${Number(simPublished.sim).toFixed(2)}` : "same_person_and_venue")) {
+        stats.thread_updates++; continue;
+      }
       if (best && best.sim > 0.6) {
         await supabase.from("raw_items").update({ status: "duplicate", reason: `matches article ${best.id}`, article_id: best.id, thread_id: best.thread_id }).eq("id", item.id);
         stats.duplicates++; continue;
@@ -491,8 +560,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    await supabase.from("pipeline_runs").update({ status: "ok", finished_at: new Date().toISOString(), stats: { ...stats, usage } }).eq("id", run!.id);
-    return json({ ok: true, stats, usage });
+    (stats as any).merged = merges.length;
+    await supabase.from("pipeline_runs").update({ status: "ok", finished_at: new Date().toISOString(), stats: { ...stats, merges, usage } }).eq("id", run!.id);
+    return json({ ok: true, stats, merges, usage });
   } catch (e) {
     await supabase.from("pipeline_runs").update({ status: "error", finished_at: new Date().toISOString(), error: String((e as Error).message || e), stats }).eq("id", run!.id);
     return json({ error: String((e as Error).message || e), stats }, 500);
