@@ -23,7 +23,7 @@ function LinkList({ title, rows }: { title: string; rows: LinkRow[] }) {
   if (!rows.length) return null;
   return (
     <section className="mt-10 border-t border-border pt-6">
-      <h2 className="mb-4 font-headline text-xl font-bold text-foreground">{title}</h2>
+      {title && <h2 className="mb-4 font-headline text-xl font-bold text-foreground">{title}</h2>}
       <ul className="space-y-3">
         {rows.map((r) => (
           <li key={r.id} className="border-b border-border pb-3 last:border-b-0">
