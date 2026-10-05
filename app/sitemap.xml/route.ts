@@ -18,14 +18,8 @@ export async function GET() {
   const { data: latestThread } = await supabase.from('story_threads').select('content_updated_at')
     .order('content_updated_at', { ascending: false, nullsFirst: false }).limit(1).maybeSingle();
 
-  // Per-chunk lastmod: newest content_updated_at within each chunk (chunks are ordered by published_at desc, id).
-  const chunkMods: (string | null)[] = [];
-  for (let i = 0; i < pages; i++) {
-    const { data } = await supabase.from('articles').select('published_at')
-      .eq('is_published', true).order('published_at', { ascending: false }).order('id', { ascending: true })
-      .range(i * ARTICLES_PER_SITEMAP, i * ARTICLES_PER_SITEMAP).maybeSingle();
-    chunkMods.push(i === 0 ? iso(latest?.content_updated_at || latest?.published_at) : iso(data?.published_at));
-  }
+  // Only chunk 1 gets a lastmod: it always holds the newest stories. Older chunks omit it rather than guess.
+  const chunkMods = Array.from({ length: pages }, (_, i) => (i === 0 ? iso(latest?.content_updated_at || latest?.published_at) : null));
 
   const entry = (loc: string, mod?: string | null) =>
     `  <sitemap><loc>${loc}</loc>${mod ? `<lastmod>${mod}</lastmod>` : ''}</sitemap>`;
