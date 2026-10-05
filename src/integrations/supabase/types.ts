@@ -772,6 +772,51 @@ export type Database = {
           },
         ]
       }
+      official_notices: {
+        Row: {
+          agency: string
+          created_at: string
+          created_by: string | null
+          date_seen: string
+          details: string | null
+          id: string
+          is_published: boolean
+          kind: string
+          official_url: string
+          person_name: string
+          photo_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          agency: string
+          created_at?: string
+          created_by?: string | null
+          date_seen: string
+          details?: string | null
+          id?: string
+          is_published?: boolean
+          kind: string
+          official_url: string
+          person_name: string
+          photo_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agency?: string
+          created_at?: string
+          created_by?: string | null
+          date_seen?: string
+          details?: string | null
+          id?: string
+          is_published?: boolean
+          kind?: string
+          official_url?: string
+          person_name?: string
+          photo_url?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       pipeline_runs: {
         Row: {
           error: string | null
