@@ -5,7 +5,7 @@ import HomeView from '@/components/HomeView';
 import { JsonLd } from '@/components/JsonLd';
 import { getHomeArticles } from '@/lib/server-data';
 
-export const revalidate = 60;
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: 'GhanaCrimes - Ghana Crime News & Reports',

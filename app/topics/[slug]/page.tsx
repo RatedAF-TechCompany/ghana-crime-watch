@@ -5,7 +5,7 @@ import { HubPage } from '@/components/HubPage';
 import { BASE_URL } from '@/lib/utils';
 import { TOPICS, getTopic, getTopicArticles } from '@/lib/hubs';
 
-export const revalidate = 300;
+export const revalidate = 600;
 type Params = Promise<{ slug: string }>;
 
 export function generateStaticParams() {

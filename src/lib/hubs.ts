@@ -33,7 +33,9 @@ export const TOPICS = [
 
 export type Topic = typeof TOPICS[number];
 
-const LIST = 'id, title, summary, category_slug, article_slug, published_at, hero_image';
+const LIST = 'id, title, summary, category_slug, article_slug, published_at, hero_image, region';
+
+const GHANA_COURT_SIGNAL = /\b(?:ghana|ghanaian|accra|tema|kasoa|kumasi|tamale|cape coast|takoradi|sekondi|koforidua|ho|wa|bolgatanga|sunyani|techiman|damongo|dambai|nalerigu|goaso|sefwi wiawso|ghana police|judicial service|attorney[- ]general|office of the special prosecutor|eoco|nacoc|chraj|ghana immigration|ghana prisons|supreme court of ghana|court of appeal|high court|circuit court|district court)\b/i;
 
 export const getRegion = (slug: string) => REGIONS.find((r) => r.slug === slug) ?? null;
 export const getTopic = (slug: string) => TOPICS.find((t) => t.slug === slug) ?? null;
@@ -56,6 +58,14 @@ export const getTopicArticles = cache(async (slug: string, limit = 30) => {
   const { data } = await supabase.from('articles').select(LIST).eq('is_published', true).or(topicFilter(t))
     .order('published_at', { ascending: false }).limit(limit);
   return data ?? [];
+});
+
+/** Court coverage must carry a Ghana place, court or agency signal. */
+export const getGhanaCourtArticles = cache(async (limit = 30) => {
+  const candidates = await getTopicArticles('court-cases', Math.max(limit * 4, 120));
+  return candidates
+    .filter((article) => Boolean(article.region) || GHANA_COURT_SIGNAL.test(`${article.title ?? ''} ${article.summary ?? ''}`))
+    .slice(0, limit);
 });
 
 /** Counts of published stories (not incidents) tagged to each region, optionally since a date. */
