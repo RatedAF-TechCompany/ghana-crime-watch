@@ -281,6 +281,11 @@ export default function DashboardView() {
             </Button>
           )}
           {(userRole === 'admin' || userRole === 'editor') && (
+            <Button variant="outline" size="sm" onClick={() => router.push('/admin/missed')}>
+              Missed Stories
+            </Button>
+          )}
+          {(userRole === 'admin' || userRole === 'editor') && (
             <Button variant="outline" size="sm" onClick={() => router.push('/admin/tweet-ingest-health')}>
               <ShieldAlert className="h-4 w-4 mr-2" />
               Ingest Health
