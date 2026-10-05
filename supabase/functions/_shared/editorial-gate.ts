@@ -33,8 +33,17 @@ export function wordCount(s: string): number {
   return (s.match(/\S+/g) || []).length;
 }
 
+/** Generic filler: any sentence containing one of these is dropped whole (never supported by a source). */
+export const BANNED_SENTENCE = /(continues? to work to ensure public safety|highlights? the risks|has been informed|aims? to deter|the judge considered the evidence|underscores? the (importance|need)|serves? as a reminder|remains? committed to|urged? the public to remain vigilant)/i;
+
+export function dropBannedSentences(s: string): string {
+  return (s || "").split(/\n\s*\n/).map((para) =>
+    (para.match(/[^.!?]+[.!?]+["')]*\s*|[^.!?]+$/g) || [para]).filter((x) => !BANNED_SENTENCE.test(x)).join("").trim()
+  ).filter(Boolean).join("\n\n");
+}
+
 export function stripEditorialFiller(s: string): string {
-  return (s || "")
+  return dropBannedSentences(s || "")
     .replace(FILLER_PHRASES, "")
     .replace(/\s+([,.;:])/g, "$1")
     .replace(/(^|[.!?]\s+),?\s*/g, "$1")
@@ -93,6 +102,7 @@ export interface Analysis {
   region?: string | null;
   district?: string | null;
   is_entertainment?: boolean;
+  politics_without_enforcement?: boolean;
   is_crime?: boolean;
   offence_type?: string | null;
   case_status?: string | null;
@@ -160,6 +170,7 @@ export function runGate(opts: {
   const detectedRegion = a.region || detectRegion(sourceText);
   if (a.is_ghana === false && !a.ghanaian_central && !ghanaSignal) hard.push("not_ghana");
   if (a.is_entertainment || (ENTERTAINMENT.test(sourceText) && !a.is_crime)) hard.push("entertainment");
+  if (a.politics_without_enforcement) hard.push("party_politics_or_policy_no_enforcement");
   if (!detectedRegion && !ghanaSignal) soft.push("region_unresolved");
 
   // b) Crime only
