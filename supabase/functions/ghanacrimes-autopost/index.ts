@@ -221,6 +221,22 @@ BODY EXCERPT: ${excerpt}`;
 
 
 // ---------- Main ----------
+// Turn any thrown value (Error, PostgREST error object, string) into a readable string.
+function errStr(e: unknown): string {
+  if (e instanceof AiCreditError) return `AI gateway ${e.status}: ${e.message}`;
+  if (e instanceof Error) return e.message || e.name;
+  if (e && typeof e === "object") {
+    const o = e as Record<string, unknown>;
+    if ("message" in o || "code" in o) {
+      return JSON.stringify({ message: o.message ?? null, code: o.code ?? null, details: o.details ?? null, hint: o.hint ?? null });
+    }
+    try { return JSON.stringify(o); } catch { return String(o); }
+  }
+  return String(e);
+}
+
+const MAX_PER_RUN = 2;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -237,40 +253,44 @@ serve(async (req) => {
   } catch { /* ignore */ }
 
   const log = async (status: string, message: string, url: string | null = null) => {
-    await supabase.from("run_logs").insert({
+    const { error } = await supabase.from("run_logs").insert({
       run_time: started, status, selected_article_url: url, message,
     });
+    if (error) console.error("run_logs insert failed:", errStr(error));
   };
 
   try {
-    // 1. Pull recent published articles
+    // 1. Gate-passed articles published in the last 24h, newest first
+    const since = new Date(Date.now() - 24 * 3600e3).toISOString();
     const { data: articles, error: aerr } = await supabase
       .from("articles")
       .select("id,title,summary,body,category_slug,article_slug,published_at,gate_report")
       .eq("is_published", true)
-      // Only articles that went through the editorial gate (auto-published with zero flags, or editor-approved from review).
       .not("gate_report->>raw_item_id", "is", null)
+      .gte("published_at", since)
       .order("published_at", { ascending: false })
-      .limit(30);
+      .limit(50);
     if (aerr) throw aerr;
     if (!articles?.length) {
-      await log("no_candidate", "No published articles found.");
+      await log("no_candidate", "No gate-passed articles published in the last 24 hours.");
       return json({ ok: true, status: "no_candidate" });
     }
 
     // 2. Exclude already-posted URLs
     const urls = articles.map(a => buildArticleUrl(a.category_slug, a.article_slug));
-    const { data: alreadyPosted } = await supabase
-      .from("posted_articles")
-      .select("article_url")
-      .in("article_url", urls);
-    const posted = new Set((alreadyPosted || []).map(r => r.article_url));
+    const { data: alreadyPosted, error: perr } = await supabase
+      .from("posted_articles").select("article_url,status").in("article_url", urls);
+    if (perr) throw perr;
+    // Previews don't block a real post later; posted and errors do (no auto-retry of a failed tweet).
+    const posted = new Set((alreadyPosted || [])
+      .filter(r => mode === "preview" ? true : r.status !== "preview")
+      .map(r => r.article_url));
 
     // 3. Qualify newest-first
-    let chosen: typeof articles[number] | null = null;
-    let chosenUrl = "";
+    const chosen: Array<{ a: typeof articles[number]; url: string }> = [];
     const skips: string[] = [];
     for (const a of articles) {
+      if (chosen.length >= MAX_PER_RUN) break;
       const url = buildArticleUrl(a.category_slug, a.article_slug);
       if (posted.has(url)) { skips.push(`${a.title}: already posted`); continue; }
       const g: any = (a as any).gate_report || {};
@@ -279,69 +299,105 @@ serve(async (req) => {
       if (!looksAboutGhana(combined)) { skips.push(`${a.title}: not Ghana-relevant`); continue; }
       if (!isCrimeAngle(combined, a.category_slug)) { skips.push(`${a.title}: not a crime angle`); continue; }
       if (!hasConcreteFact(combined)) { skips.push(`${a.title}: no concrete fact`); continue; }
-      chosen = a; chosenUrl = url; break;
+      chosen.push({ a, url });
     }
-
-    if (!chosen) {
-      await log("no_candidate", `No new qualifying GhanaCrimes article found. Checked ${articles.length}. ${skips.slice(0, 5).join(" | ")}`);
+    if (!chosen.length) {
+      await log("no_candidate", `No new qualifying article. Checked ${articles.length}. ${skips.slice(0, 5).join(" | ")}`);
       return json({ ok: true, status: "no_candidate", skipped: skips });
     }
 
-    // 4. Generate post
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!lovableKey) throw new Error("LOVABLE_API_KEY not configured");
-    const postText = await generatePost(lovableKey, chosen.title, chosen.summary || "", chosen.body || "", chosenUrl, chosen.published_at);
-
-    // 5. Decide whether to post
-    const { data: toggle } = await supabase
-      .from("site_settings").select("value").eq("key", "auto_post_enabled").maybeSingle();
-    const autoEnabled = (toggle?.value ?? "true") !== "false";
+    // 4. Settings: toggle + daily cap
+    const { data: settings, error: serr } = await supabase
+      .from("site_settings").select("key,value").in("key", ["auto_post_enabled", "autopost_daily_cap"]);
+    if (serr) throw serr;
+    const setting = (k: string) => settings?.find(r => r.key === k)?.value;
+    const autoEnabled = String(setting("auto_post_enabled") ?? "true").replace(/"/g, "") !== "false";
+    const cap = Number(String(setting("autopost_daily_cap") ?? "16").replace(/"/g, "")) || 16;
     const wantPreview = mode === "preview" || (mode === "auto" && !autoEnabled);
 
-    if (wantPreview) {
-      const { error: ie } = await supabase.from("posted_articles").insert({
-        article_url: chosenUrl, article_title: chosen.title, post_text: postText,
-        posted_to_x: false, status: "preview",
-      });
-      if (ie) throw ie;
-      await log("preview", `Preview generated (mode=${mode}, autoEnabled=${autoEnabled}).`, chosenUrl);
-      return json({ ok: true, status: "preview", article_url: chosenUrl, post_text: postText });
+    let remaining = MAX_PER_RUN;
+    if (!wantPreview) {
+      const dayStart = new Date(); dayStart.setUTCHours(0, 0, 0, 0);
+      const { count, error: cerr } = await supabase.from("posted_articles")
+        .select("id", { count: "exact", head: true })
+        .eq("posted_to_x", true).gte("posted_at", dayStart.toISOString());
+      if (cerr) throw cerr;
+      const today = count ?? 0;
+      if (today >= cap) {
+        await log("cap_reached", `Daily cap reached: ${today}/${cap} posts today (UTC). Nothing posted.`);
+        return json({ ok: true, status: "cap_reached", today, cap });
+      }
+      remaining = Math.min(MAX_PER_RUN, cap - today);
     }
 
-    // 6. Post to X
+    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+    if (!lovableKey) throw new Error("LOVABLE_API_KEY not configured");
     const ck = Deno.env.get("TWITTER_CONSUMER_KEY");
     const cs = Deno.env.get("TWITTER_CONSUMER_SECRET");
     const at = Deno.env.get("TWITTER_ACCESS_TOKEN");
     const ats = Deno.env.get("TWITTER_ACCESS_TOKEN_SECRET");
-    if (!ck || !cs || !at || !ats) throw new Error("Twitter credentials not configured");
+    if (!wantPreview && (!ck || !cs || !at || !ats)) throw new Error("Twitter credentials not configured");
 
-    const tUrl = "https://api.x.com/2/tweets";
-    const auth = await oauthHeader("POST", tUrl, ck, cs, at, ats);
-    const tRes = await fetch(tUrl, {
-      method: "POST",
-      headers: { Authorization: auth, "Content-Type": "application/json" },
-      body: JSON.stringify({ text: postText }),
-    });
-    const tBody = await tRes.text();
-    if (!tRes.ok) {
-      await supabase.from("posted_articles").insert({
-        article_url: chosenUrl, article_title: chosen.title, post_text: postText,
-        posted_to_x: false, status: "error", error_message: `X ${tRes.status}: ${tBody.slice(0, 500)}`,
+    const results: unknown[] = [];
+    for (const { a, url } of chosen.slice(0, remaining)) {
+      let postText: string;
+      try {
+        postText = await generatePost(lovableKey, a.title, a.summary || "", a.body || "", url, a.published_at);
+      } catch (e) {
+        const m = errStr(e);
+        await log("error", `AI gateway failure: ${m}`, url);
+        if (e instanceof AiCreditError) break;
+        results.push({ url, status: "error", error: m });
+        continue;
+      }
+
+      if (wantPreview) {
+        const { error: ie } = await supabase.from("posted_articles").insert({
+          article_url: url, article_title: a.title, post_text: postText, posted_to_x: false, status: "preview",
+        });
+        if (ie) throw ie;
+        await log("preview", `Preview generated (mode=${mode}, autoEnabled=${autoEnabled}).`, url);
+        results.push({ url, status: "preview", post_text: postText });
+        continue;
+      }
+
+      const tUrl = "https://api.x.com/2/tweets";
+      const auth = await oauthHeader("POST", tUrl, ck!, cs!, at!, ats!);
+      const tRes = await fetch(tUrl, {
+        method: "POST",
+        headers: { Authorization: auth, "Content-Type": "application/json" },
+        body: JSON.stringify({ text: postText }),
       });
-      await log("error", `X API error ${tRes.status}: ${tBody.slice(0, 300)}`, chosenUrl);
-      return json({ ok: false, status: "error", error: tBody }, 500);
+      const tBody = await tRes.text();
+      if (!tRes.ok) {
+        const m = `X API ${tRes.status}: ${tBody.slice(0, 500)}`;
+        await supabase.from("posted_articles").upsert({
+          article_url: url, article_title: a.title, post_text: postText,
+          posted_to_x: false, status: "error", error_message: m,
+        }, { onConflict: "article_url" });
+        if (tRes.status === 429 || tRes.status === 402) {
+          await log("error", `${tRes.status === 429 ? "X rate limit" : "X payment required"}, stopping this run. ${m}`, url);
+          results.push({ url, status: "error", error: m });
+          break;
+        }
+        await log("error", m, url);
+        results.push({ url, status: "error", error: m });
+        continue;
+      }
+      const tweetId = JSON.parse(tBody)?.data?.id;
+      const { error: ie } = await supabase.from("posted_articles").upsert({
+        article_url: url, article_title: a.title, post_text: postText,
+        posted_to_x: true, x_post_id: tweetId, status: "posted", posted_at: new Date().toISOString(), error_message: null,
+      }, { onConflict: "article_url" });
+      if (ie) await log("error", `Posted to X (id=${tweetId}) but saving failed: ${errStr(ie)}`, url);
+      else await log("posted", `Posted to X (id=${tweetId}).`, url);
+      results.push({ url, status: "posted", x_post_id: tweetId, post_text: postText });
     }
-    const tweet = JSON.parse(tBody);
-    const tweetId = tweet?.data?.id;
 
-    await supabase.from("posted_articles").insert({
-      article_url: chosenUrl, article_title: chosen.title, post_text: postText,
-      posted_to_x: true, x_post_id: tweetId, status: "posted", posted_at: new Date().toISOString(),
-    });
-    await log("posted", `Posted to X (id=${tweetId}).`, chosenUrl);
-    return json({ ok: true, status: "posted", x_post_id: tweetId, article_url: chosenUrl, post_text: postText });
+    const status = wantPreview ? "preview" : (results.some((r: any) => r.status === "posted") ? "posted" : "error");
+    return json({ ok: true, status, results });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = errStr(err);
     console.error("ghanacrimes-autopost error:", msg);
     await log("error", msg);
     return json({ ok: false, error: msg }, 500);

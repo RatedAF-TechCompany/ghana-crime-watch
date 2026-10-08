@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -46,6 +47,7 @@ export default function AutopostView() {
   const [logs, setLogs] = useState<RunLog[]>([]);
   const [enabled, setEnabled] = useState(true);
   const [running, setRunning] = useState(false);
+  const [cap, setCap] = useState('16');
 
   useEffect(() => {
     (async () => {
@@ -67,7 +69,9 @@ export default function AutopostView() {
       .from('site_settings').select('value').eq('key', 'auto_post_enabled').maybeSingle();
     setPosts((postsRes.data as PostedArticle[]) || []);
     setLogs((logsRes.data as RunLog[]) || []);
-    setEnabled(((settingRes.data?.value as string) ?? 'true') !== 'false');
+    setEnabled(String(settingRes.data?.value ?? 'true').replace(/"/g, '') !== 'false');
+    const capRes = await supabase.from('site_settings').select('value').eq('key', 'autopost_daily_cap').maybeSingle();
+    if (capRes.data) setCap(String(capRes.data.value).replace(/"/g, ''));
   }, []);
 
   useEffect(() => {
@@ -89,6 +93,14 @@ export default function AutopostView() {
     } else {
       toast({ title: `AutoPost ${next ? 'enabled' : 'disabled'}` });
     }
+  };
+
+  const saveCap = async () => {
+    const n = parseInt(cap, 10);
+    if (!Number.isFinite(n) || n < 0) { toast({ title: 'Enter a whole number', variant: 'destructive' }); return; }
+    const { error } = await supabase.from('site_settings').update({ value: n }).eq('key', 'autopost_daily_cap');
+    if (error) toast({ title: 'Failed to save cap', description: error.message, variant: 'destructive' });
+    else toast({ title: `Daily cap set to ${n}` });
   };
 
   const run = async (mode: 'manual' | 'preview') => {
@@ -120,7 +132,7 @@ export default function AutopostView() {
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">GhanaCrimes</p>
         <h1 className="font-serif text-4xl font-semibold">AutoPost</h1>
         <p className="mt-2 text-sm text-muted-foreground max-w-2xl">
-          Every six hours, the system scans the newsroom for the newest qualifying crime story and drafts a single social post for X. Preview any run without posting; disable the toggle to pause posting entirely.
+          Every 15 minutes, the system posts up to two new qualifying crime stories from the last 24 hours to X, within the daily cap. Preview any run without posting; disable the toggle to pause posting entirely.
         </p>
       </header>
 
@@ -138,13 +150,18 @@ export default function AutopostView() {
             <Switch checked={enabled} onCheckedChange={toggleEnabled} />
           </div>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-3">
+        <CardContent className="flex flex-wrap items-center gap-3">
           <Button onClick={() => run('manual')} disabled={running}>
             {running ? 'Running...' : 'Run Now'}
           </Button>
           <Button variant="outline" onClick={() => run('preview')} disabled={running}>
             Preview Only
           </Button>
+          <div className="flex items-center gap-2 ml-auto">
+            <span className="text-sm">Max X posts per UTC day</span>
+            <Input type="number" min={0} value={cap} onChange={e => setCap(e.target.value)} className="w-20" />
+            <Button variant="outline" onClick={saveCap}>Save</Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -243,7 +260,7 @@ export default function AutopostView() {
                 <TableRow key={l.id}>
                   <TableCell className="text-xs whitespace-nowrap">{getRelativeTime(l.run_time)}</TableCell>
                   <TableCell><Badge variant={statusVariant(l.status)}>{l.status}</Badge></TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{l.message}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground whitespace-pre-wrap break-words max-w-xl">{l.message}</TableCell>
                 </TableRow>
               ))}
               {logs.length === 0 && (
