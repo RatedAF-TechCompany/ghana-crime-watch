@@ -75,7 +75,16 @@ const STOP_CAPS = new Set([
   "August","September","October","November","December","Court","High","Circuit","District","Region","Regional","Command","Service",
   "GhanaCrimes","Division","Unit","Officer","Inspector","Superintendent","Chief","Deputy","Commissioner","Assistant","Sergeant","Corporal",
   "Constable","General","Director","Public","Relations","Republic","Act","Section","Criminal","Offences","Investigation","Department",
+  "Courts","MTTD","EOCO","OSP","CID","NACOC","CHRAJ","Greater","Accra","Ashanti","Western","Eastern","Central","Volta","Oti","Northern",
+  "Savannah","North","East","West","Upper","Bono","Ahafo","Citi","Newsroom","GhanaWeb","News","Agency","Adom","Online","MyJoyOnline",
+  "MyJoy","Joy","JoyNews","Graphic","Daily","Guide","Network","Starr","Pulse","Modern","Times","Chronicle","Report","Radio",
 ]);
+
+/** Extra allowed tokens (publisher names from the sources table), set per run by the caller. */
+const EXTRA_ALLOWED = new Set<string>();
+export function allowSourceNames(names: string[]): void {
+  for (const n of names) for (const w of (n || "").split(/[^A-Za-z]+/)) if (w) EXTRA_ALLOWED.add(w.toLowerCase());
+}
 
 /** Every number and proper-noun token in the draft must appear in the source text. */
 export function unsupportedFacts(draft: string, source: string): string[] {
@@ -89,7 +98,7 @@ export function unsupportedFacts(draft: string, source: string): string[] {
     const words = sentence.split(/[\s\-\/]+/).slice(1); // skip sentence-initial capital
     for (const w of words) {
       const clean = w.replace(/['’]s$/i, "").replace(/[^A-Za-z]/g, "");
-      if (!/^[A-Z][a-z]{2,}/.test(clean) || STOP_CAPS.has(clean)) continue;
+      if (!/^[A-Z][a-z]{2,}/.test(clean) || STOP_CAPS.has(clean) || EXTRA_ALLOWED.has(clean.toLowerCase())) continue;
       if (!src.includes(clean.toLowerCase())) missing.add(clean);
     }
   }
@@ -115,7 +124,8 @@ export interface Analysis {
   graphic_content?: boolean;
 }
 
-export const OFFENCES = ["robbery","murder","fraud_cyber","galamsey","narcotics","corruption","road_crash_arrest","mob_violence","court_judgement"];
+export const OFFENCES = ["robbery","murder","fraud_cyber","galamsey","narcotics","corruption","road_crash_arrest","mob_violence","court_judgement",
+  "kidnapping","assault","sexual_offence","arson","human_trafficking","cybercrime","firearms","road_crash","law_enforcement"];
 
 // Ghana regions with well-known towns/districts, used to resolve location without the LLM.
 export const REGION_TOWNS: Record<string, string[]> = {

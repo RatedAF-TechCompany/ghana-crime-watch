@@ -58,6 +58,7 @@ export type Database = {
           offence_type: string | null
           published_at: string | null
           region: string | null
+          reject_reason: string | null
           seo_description: string | null
           seo_title: string | null
           source_published_at: string | null
@@ -89,6 +90,7 @@ export type Database = {
           offence_type?: string | null
           published_at?: string | null
           region?: string | null
+          reject_reason?: string | null
           seo_description?: string | null
           seo_title?: string | null
           source_published_at?: string | null
@@ -120,6 +122,7 @@ export type Database = {
           offence_type?: string | null
           published_at?: string | null
           region?: string | null
+          reject_reason?: string | null
           seo_description?: string | null
           seo_title?: string | null
           source_published_at?: string | null

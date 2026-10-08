@@ -4,11 +4,13 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { AiCreditError, callGateway, newUsage, parseJson } from "../_shared/ai-usage.ts";
-import { detectRegion, runGate, stripEditorialFiller, stripHtml, wordCount, type Analysis } from "../_shared/editorial-gate.ts";
+import { allowSourceNames, detectRegion, runGate, stripEditorialFiller, stripHtml, wordCount, type Analysis } from "../_shared/editorial-gate.ts";
 import { extractHeroImage } from "../_shared/extract-image.ts";
 
 const UA = "GhanaCrimesBot/1.0 (+https://www.ghanacrimes.com/about)";
-const MAX_AI_ITEMS = 12;
+const MAX_AI_ITEMS = 20;
+const RUN_BUDGET_MS = 110_000; // stop early, well under the function timeout
+const FRESH_WINDOW_H = 6;
 const MAX_ITEM_AGE_H = 48;
 const FIRST_POLL_MAX_AGE_H = 168;
 const SUMMARY_CHARS = 280;
@@ -217,7 +219,7 @@ async function fetchPageText(url: string): Promise<string> {
   }
 }
 
-const CRIME_HINT = /\b(police|polic(e|ing) raid|arrest\w*|suspect\w*|wanted|court\w*|judge|magistrate|remand\w*|charged|charges|convict\w*|sentenc\w*|jail\w*|prison\w*|inmate\w*|bail|bailiffs?|prosecut\w*|Special Prosecutor|OSP|Attorney-General|robber\w*|rob(bed|bing)?|burglar\w*|theft|thie(f|ves)|steal\w*|stole\w*|stolen|murder\w*|homicide|kill\w*|stab\w*|shot( dead)?|shoot\w*|gun\w*|gunm[ae]n|machete|fraud\w*|defraud\w*|scam\w*|romance scam|cyber\w*|money launder\w*|galamsey|illegal mining|narcotic\w*|drug\w*|cocaine|cannabis|wee|heroin|tramadol|traffick\w*|smuggl\w*|corrupt\w*|brib\w*|embezzl\w*|misappropriat\w*|EOCO|NACOC|CHRAJ|NIB|Interpol|mob (justice|action|attack)|mob|lynch\w*|kidnap\w*|abduct\w*|assault\w*|battery|arson|set ablaze|defile\w*|rape\w*|crash\w*|accident|hit-and-run|knockdown|immigration|deport\w*|crime\w*|criminal|offence\w*|offender\w*|investigat\w*|custody|detain\w*)\b/i;
+const CRIME_HINT = /\b(police|polic(e|ing) raid|arrest\w*|suspect\w*|wanted|court\w*|judge|magistrate|remand\w*|charged|charges|convict\w*|sentenc\w*|jail\w*|prison\w*|inmate\w*|bail|bailiffs?|prosecut\w*|Special Prosecutor|OSP|Attorney-General|robber\w*|rob(bed|bing)?|burglar\w*|theft|thie(f|ves)|steal\w*|stole\w*|stolen|murder\w*|homicide|kill\w*|stab\w*|shot( dead)?|shoot\w*|gun\w*|gunm[ae]n|machete|fraud\w*|defraud\w*|scam\w*|romance scam|cyber\w*|money launder\w*|galamsey|illegal mining|narcotic\w*|drug\w*|cocaine|cannabis|wee|heroin|tramadol|traffick\w*|smuggl\w*|corrupt\w*|brib\w*|embezzl\w*|misappropriat\w*|EOCO|NACOC|CHRAJ|NIB|Interpol|mob (justice|action|attack)|mob|lynch\w*|kidnap\w*|abduct\w*|assault\w*|battery|arson|set ablaze|defile\w*|rape\w*|crash\w*|accident|hit-and-run|fatal\w*|died|dead|attack\w*|violen\w*|sexual\w*|harass\w*|firearms?|weapons?|ammunition|pistol|rifle|surrender|MTTD|enforcement|directive|swoop|crackdown|customs|probe\w*|CID|knockdown|immigration|deport\w*|crime\w*|criminal|offence\w*|offender\w*|investigat\w*|custody|detain\w*)\b/i;
 // Non-crime beats rejected before the AI budget when no crime language appears at all.
 const NON_CRIME_HINT = /\b(football|Black Stars|Premier League|GPL|AFCON|match|goal|coach|athlete|album|concert|movie|showbiz|celebrity|music|budget statement|campaign rally|primaries|manifesto)\b/i;
 
@@ -225,7 +227,13 @@ const CATEGORY_FOR: Record<string, string> = {
   robbery: "property-crime", murder: "violent-crime", fraud_cyber: "fraud-scams", galamsey: "organised-crime",
   narcotics: "drug-offences", corruption: "white-collar-crime", road_crash_arrest: "traffic-offences",
   mob_violence: "violent-crime", court_judgement: "court-cases",
+  kidnapping: "violent-crime", assault: "violent-crime", sexual_offence: "violent-crime", arson: "property-crime",
+  human_trafficking: "organised-crime", cybercrime: "cybercrime", firearms: "violent-crime", road_crash: "traffic-offences",
+  law_enforcement: "police-reports",
 };
+// Court proceedings only: charges in court, plea, bail, remand, trial, ruling, sentence.
+const COURT_PROCEEDINGS = /\b(arraign\w*|in court|before (the|a|an) [\w ]{0,30}(court|judge|magistrate)|court (ruled|ordered|adjourned|granted|remanded|convicted|acquitted|sentenced|heard)|pleaded|plea|bail|remand\w*|trial|ruling|judg(e)?ment|sentenc\w*|convicted|acquitted|charge sheet)\b/i;
+const TRAFFIC_ENFORCEMENT = /\b(MTTD|motorists?|drivers?|traffic|road safety|speeding|okada|vehicles?)\b/i;
 
 function hasValidSourceUrl(url: string): boolean {
   try {
@@ -243,7 +251,9 @@ function categoryFor(analysis: Analysis, sourceText: string, domain: string): st
   const concreteCrimeAction = /\b(arrest\w*|charged?|court|trial|bail|remand\w*|investigat\w*|complaint|warrant|convict\w*|sentenc\w*)\b/.test(text);
   if (politicalRhetoric && !concreteCrimeAction) return "";
   if (/\b(kidnap\w*|abduct\w*)\b/.test(text)) return "violent-crime";
-  if (/\b(court|judge|magistrate|trial|bail|remand\w*|sentenc\w*|convict\w*)\b/.test(text)) return "court-cases";
+  if (COURT_PROCEEDINGS.test(text) && (analysis.offence_type === "court_judgement" || ["remanded", "on_trial", "convicted", "acquitted", "charged"].includes(analysis.case_status || ""))) return "court-cases";
+  if (analysis.offence_type === "law_enforcement" && TRAFFIC_ENFORCEMENT.test(text)) return "traffic-offences";
+  if (analysis.offence_type === "court_judgement") return "police-reports";
   if (analysis.is_entertainment && !analysis.is_crime) return "";
   if (analysis.offence_type === "fraud_cyber" && !/\b(fraud\w*|defraud\w*|scam\w*|false pretence|money launder\w*|embezzl\w*)\b/.test(text)) return "police-reports";
   return CATEGORY_FOR[analysis.offence_type || ""] || "police-reports";
@@ -284,7 +294,7 @@ Rules for the draft:
 - Mention charges, the court and the next hearing date ONLY when the SOURCE TEXT states them. Never guess or imply them.
 - No emojis, no em dashes or en dashes. Never mention AI.
 Analysis fields describe the SOURCE TEXT:
-offence_type must be one of: robbery, murder, fraud_cyber, galamsey, narcotics, corruption, road_crash_arrest, mob_violence, court_judgement, or null if none fits (road crashes count only with arrests or charges).
+offence_type must be one of: robbery, murder, fraud_cyber, galamsey, narcotics, corruption, road_crash_arrest, mob_violence, court_judgement, kidnapping, assault, sexual_offence, arson, human_trafficking, cybercrime, firearms, road_crash, law_enforcement, or null if none fits. Use court_judgement only for court proceedings (charges in court, plea, bail, remand, trial, ruling, sentence). road_crash counts only when people died or there was enforcement (arrest, charge, police action). law_enforcement covers police and law-enforcement operations or directives (e.g. MTTD enforcement, police appeals to surrender guns, crime statistics from official bodies). Customs, port and revenue probes are corruption or fraud_cyber. Party politics with no enforcement action is not crime (offence_type null).
 politics_without_enforcement is true when the main subject is party politics, campaign claims, policy talk or political rhetoric and the SOURCE TEXT reports no arrest, charge, court case, police action or official investigation.
 case_status one of: reported, arrested, charged, remanded, on_trial, convicted, acquitted, unknown.
 JSON shape:
@@ -312,13 +322,34 @@ Deno.serve(async (req) => {
   }
   if (!authed) return json({ error: "unauthorized" }, 401);
 
+  const startedAt = Date.now();
+  // Mark runs stuck in 'running' for over 15 minutes as timed out.
+  await supabase.from("pipeline_runs").update({ status: "timeout", finished_at: new Date().toISOString() })
+    .eq("status", "running").lt("started_at", new Date(Date.now() - 15 * 60_000).toISOString());
+
   // ---- settings + pause guard ----
   const { data: settingsRows } = await supabase.from("site_settings").select("key,value")
-    .in("key", ["auto_publish_enabled", "auto_publish_daily_cap", "ingest_paused"]);
+    .in("key", ["auto_publish_enabled", "auto_publish_daily_cap", "ingest_paused", "ingest_paused_reason", "ingest_last_probe"]);
   const settings = Object.fromEntries((settingsRows || []).map((s: any) => [s.key, s.value]));
   const autoEnabled = settings.auto_publish_enabled !== false;
   const dailyCap = Number(settings.auto_publish_daily_cap ?? 20);
-  const paused = settings.ingest_paused === true;
+  let paused = settings.ingest_paused === true;
+  // Recovery: if paused automatically by an AI 402, probe once an hour and resume when it works.
+  if (paused && settings.ingest_paused_reason === "ai_402") {
+    const lastProbe = settings.ingest_last_probe ? new Date(settings.ingest_last_probe).getTime() : 0;
+    if (!lastProbe || Date.now() - lastProbe >= 60 * 60_000) {
+      await supabase.from("site_settings").update({ value: new Date().toISOString() }).eq("key", "ingest_last_probe");
+      try {
+        await callGateway(Deno.env.get("LOVABLE_API_KEY")!, newUsage(), { system: "Reply with OK.", user: "OK", max_tokens: 5, retryOn429: false });
+        await supabase.from("site_settings").update({ value: false }).eq("key", "ingest_paused");
+        await supabase.from("site_settings").update({ value: "" }).eq("key", "ingest_paused_reason");
+        await supabase.from("run_logs").insert({ status: "ingest_resumed", message: "source-ingest: AI gateway probe succeeded; ingest_paused cleared automatically" });
+        paused = false;
+      } catch (e) {
+        await supabase.from("run_logs").insert({ status: "ingest_probe_failed", message: `source-ingest: AI gateway probe failed: ${String((e as Error).message || e).slice(0, 300)}` });
+      }
+    }
+  }
 
   // ---- single-flight lock ----
   const { data: running } = await supabase.from("pipeline_runs").select("id")
@@ -376,8 +407,15 @@ Deno.serve(async (req) => {
     }));
 
     // ---- 2. dedupe + gate + draft ----
-    const { data: queue } = await supabase.from("raw_items").select("*").eq("status", "new").lt("attempts", 3)
-      .order("fetched_at", { ascending: true }).limit(40);
+    const freshCut = new Date(Date.now() - FRESH_WINDOW_H * 3600_000).toISOString();
+    const [{ data: freshQ }, { data: olderQ }] = await Promise.all([
+      supabase.from("raw_items").select("*").eq("status", "new").lt("attempts", 3).gte("fetched_at", freshCut).order("fetched_at", { ascending: false }).limit(60),
+      supabase.from("raw_items").select("*").eq("status", "new").lt("attempts", 3).lt("fetched_at", freshCut).order("fetched_at", { ascending: false }).limit(30),
+    ]);
+    const queue = [...(freshQ || []), ...(olderQ || [])];
+    // Publisher names count as supported facts in attribution ("according to Citi Newsroom").
+    const { data: allSources } = await supabase.from("sources").select("name");
+    allowSourceNames((allSources || []).map((x: any) => x.name));
 
     const startOfDay = new Date(); startOfDay.setUTCHours(0, 0, 0, 0);
     const { count: publishedToday } = await supabase.from("articles").select("id", { count: "exact", head: true })
@@ -389,6 +427,43 @@ Deno.serve(async (req) => {
     const recentIncidents: { id: string; title: string }[] = recentRows || [];
     const { data: publishedRecent } = await supabase.from("articles").select("id, title, summary")
       .eq("is_published", true).gte("published_at", new Date(Date.now() - 72 * 3600_000).toISOString()).limit(500);
+    const { data: reviewRows } = await supabase.from("articles").select("id, title, summary, source_url, source_urls, gate_report")
+      .eq("status", "review").gte("created_at", new Date(Date.now() - 72 * 3600_000).toISOString()).limit(300);
+    const reviewDrafts: any[] = reviewRows || [];
+    const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
+    // Soft flags that still need a human even when the story is corroborated (victim/minor protection, graphic, contempt).
+    const NEEDS_HUMAN = /^(sensitive_case_check|graphic_source_material|pending_case_commentary|guilty_language|evidence_speculation|headline_lead_mismatch|missing_attribution|editorial_filler)/;
+    (stats as any).corroborated = 0; (stats as any).corroborated_published = 0; (stats as any).inactive_source = 0;
+
+    // Attach a second outlet to a review draft; publish if 2+ independent outlets (or tier-1) and nothing needs a human.
+    const corroborate = async (draft: any, item: any, src: any, reason: string) => {
+      const urls: string[] = Array.from(new Set([...(draft.source_urls || []), draft.source_url, item.url].filter(Boolean)));
+      const outlets = new Set(urls.map(host).filter((h) => h && h !== "news.google.com"));
+      const g = { ...(draft.gate_report || {}) };
+      g.corroborating_sources = Math.max(0, outlets.size - 1);
+      g.corroborated_by = Array.from(new Set([...(g.corroborated_by || []), src.name]));
+      const flags: string[] = (g.soft_flags || []).filter((f: string) => !/^suspect_named_single_media_source/.test(f));
+      g.soft_flags = flags;
+      const hard = (g.hard_fails || []).length > 0;
+      const eligible = !hard && !flags.some((f) => NEEDS_HUMAN.test(f)) && (outlets.size >= 2 || g.source_tier === 1 || src.trust_tier === 1);
+      const publishNow = eligible && autoEnabled;
+      g.auto_publish_eligible = eligible;
+      if (publishNow) { g.auto_published = true; g.corroboration_published_at = new Date().toISOString(); delete g.held_reason; }
+      const upd: any = { source_urls: urls, gate_report: g };
+      if (publishNow) upd.status = "published";
+      const { error } = await supabase.from("articles").update(upd).eq("id", draft.id).eq("status", "review");
+      if (error) return false;
+      draft.source_urls = urls; draft.gate_report = g;
+      await supabase.from("raw_items").update({ status: "merged", reason: `corroborates review draft ${draft.id} (${reason})`, article_id: draft.id }).eq("id", item.id);
+      await supabase.from("audit_logs").insert({ action: publishNow ? "corroborated_auto_published" : "corroboration_added", resource_type: "article", resource_id: draft.id, details: { raw_item_id: item.id, source: src.name, outlets: [...outlets], reason, remaining_flags: flags } });
+      (stats as any).corroborated++;
+      if (publishNow) {
+        (stats as any).corroborated_published++; stats.published++;
+        reviewDrafts.splice(reviewDrafts.indexOf(draft), 1);
+        (publishedRecent as any[] | null)?.push({ id: draft.id, title: draft.title, summary: draft.summary || "" });
+      }
+      return true;
+    };
     const merges: { article_id: string; raw_item_id: string; source: string; reason: string }[] = [];
 
     // Append a new source to an existing published article instead of creating a new URL.
@@ -417,8 +492,13 @@ Deno.serve(async (req) => {
     };
 
     for (const item of queue || []) {
+      if (Date.now() - startedAt > RUN_BUDGET_MS) { (stats as any).stopped = "time_budget_110s"; break; }
       const src: any = sourceById.get(item.source_id);
-      if (!src) continue;
+      if (!src) {
+        // Deactivated source: do not let its items block the queue.
+        await supabase.from("raw_items").update({ status: "rejected", reason: "source inactive" }).eq("id", item.id);
+        (stats as any).inactive_source++; continue;
+      }
 
       // Dedup against recent articles (title similarity) and story threads
       const { data: similar } = await supabase.rpc("find_similar_articles", { _title: item.title, _hours: 72 });
@@ -431,6 +511,21 @@ Deno.serve(async (req) => {
       const mergeTarget = simPublished?.id || personMatch?.id;
       if (mergeTarget && await mergeInto(mergeTarget, item, src, simPublished ? `title_similarity:${Number(simPublished.sim).toFixed(2)}` : "same_person_and_venue")) {
         stats.thread_updates++; continue;
+      }
+      // Corroboration of a draft still in review, from a different outlet.
+      if (src.type !== "discovery") {
+        const reviewIds = new Set(reviewDrafts.map((d) => d.id));
+        const simReview = (similar || []).find((r: any) => r.sim >= 0.45 && reviewIds.has(r.id));
+        let target = simReview ? reviewDrafts.find((d) => d.id === simReview.id) : null;
+        let why = simReview ? `title_similarity:${Number(simReview.sim).toFixed(2)}` : "";
+        if (!target) {
+          target = reviewDrafts.find((d) => sameIncident(item.title, d.title) || sharesPersonAndVenue(itemText, `${d.title} ${d.summary || ""}`)) || null;
+          why = "same_incident";
+        }
+        if (target) {
+          const existingHosts = new Set([...(target.source_urls || []), target.source_url].filter(Boolean).map(host));
+          if (!existingHosts.has(host(item.url)) && await corroborate(target, item, src, why)) continue;
+        }
       }
       if (best && best.sim > 0.6) {
         await supabase.from("raw_items").update({ status: "duplicate", reason: `matches article ${best.id}`, article_id: best.id, thread_id: best.thread_id }).eq("id", item.id);
@@ -566,7 +661,12 @@ Deno.serve(async (req) => {
         if (publishNow) { stats.published++; autoCount++; } else stats.review++;
       } catch (e) {
         if (e instanceof AiCreditError) {
-          if (e.status === 402) await supabase.from("site_settings").update({ value: true }).eq("key", "ingest_paused");
+          if (e.status === 402) {
+            await supabase.from("site_settings").update({ value: true }).eq("key", "ingest_paused");
+            await supabase.from("site_settings").update({ value: "ai_402" }).eq("key", "ingest_paused_reason");
+            await supabase.from("site_settings").update({ value: new Date().toISOString() }).eq("key", "ingest_last_probe");
+            await supabase.from("run_logs").insert({ status: "ingest_paused", message: `source-ingest: paused automatically after AI 402: ${e.message}` });
+          }
           stats.errors++;
           (stats as any).stopped = e.message;
           break;
