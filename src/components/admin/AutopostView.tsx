@@ -48,6 +48,7 @@ export default function AutopostView() {
   const [enabled, setEnabled] = useState(true);
   const [running, setRunning] = useState(false);
   const [cap, setCap] = useState('16');
+  const [minScore, setMinScore] = useState('5');
   const [day, setDay] = useState<{ pub: number; posted: number }>({ pub: 0, posted: 0 });
 
   useEffect(() => {
@@ -73,6 +74,8 @@ export default function AutopostView() {
     setEnabled(String(settingRes.data?.value ?? 'true').replace(/"/g, '') !== 'false');
     const capRes = await supabase.from('site_settings').select('value').eq('key', 'autopost_daily_cap').maybeSingle();
     if (capRes.data) setCap(String(capRes.data.value).replace(/"/g, ''));
+    const minRes = await supabase.from('site_settings').select('value').eq('key', 'autopost_min_score').maybeSingle();
+    if (minRes.data) setMinScore(String(minRes.data.value).replace(/"/g, ''));
     const dayStart = new Date(); dayStart.setUTCHours(0, 0, 0, 0);
     const [pubRes, postedRes] = await Promise.all([
       supabase.from('articles').select('id', { count: 'exact', head: true }).eq('is_published', true).gte('published_at', dayStart.toISOString()),
@@ -108,6 +111,14 @@ export default function AutopostView() {
     const { error } = await supabase.from('site_settings').update({ value: n }).eq('key', 'autopost_daily_cap');
     if (error) toast({ title: 'Failed to save cap', description: error.message, variant: 'destructive' });
     else toast({ title: `Daily cap set to ${n}` });
+  };
+
+  const saveMinScore = async () => {
+    const n = parseInt(minScore, 10);
+    if (!Number.isFinite(n) || n < 1) { toast({ title: 'Enter a whole number of 1 or more', variant: 'destructive' }); return; }
+    const { error } = await supabase.from('site_settings').update({ value: n }).eq('key', 'autopost_min_score');
+    if (error) toast({ title: 'Failed to save minimum score', description: error.message, variant: 'destructive' });
+    else toast({ title: `Minimum score set to ${n}` });
   };
 
   const run = async (mode: 'manual' | 'preview') => {
@@ -167,10 +178,15 @@ export default function AutopostView() {
           <span className="text-sm text-muted-foreground">
             Today (UTC): published {day.pub} / posted {day.posted} / limit {Math.min(parseInt(cap, 10) || 16, day.pub > 0 ? Math.max(1, Math.ceil(day.pub / 2)) : 0)}
           </span>
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-2">
             <span className="text-sm">Max X posts per UTC day</span>
             <Input type="number" min={0} value={cap} onChange={e => setCap(e.target.value)} className="w-20" />
             <Button variant="outline" onClick={saveCap}>Save</Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm">Minimum score</span>
+            <Input type="number" min={1} value={minScore} onChange={e => setMinScore(e.target.value)} className="w-20" />
+            <Button variant="outline" onClick={saveMinScore}>Save</Button>
           </div>
         </CardContent>
       </Card>
