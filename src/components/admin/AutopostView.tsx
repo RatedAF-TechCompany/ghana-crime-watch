@@ -48,6 +48,7 @@ export default function AutopostView() {
   const [enabled, setEnabled] = useState(true);
   const [running, setRunning] = useState(false);
   const [cap, setCap] = useState('16');
+  const [day, setDay] = useState<{ pub: number; posted: number }>({ pub: 0, posted: 0 });
 
   useEffect(() => {
     (async () => {
@@ -72,6 +73,12 @@ export default function AutopostView() {
     setEnabled(String(settingRes.data?.value ?? 'true').replace(/"/g, '') !== 'false');
     const capRes = await supabase.from('site_settings').select('value').eq('key', 'autopost_daily_cap').maybeSingle();
     if (capRes.data) setCap(String(capRes.data.value).replace(/"/g, ''));
+    const dayStart = new Date(); dayStart.setUTCHours(0, 0, 0, 0);
+    const [pubRes, postedRes] = await Promise.all([
+      supabase.from('articles').select('id', { count: 'exact', head: true }).eq('is_published', true).gte('published_at', dayStart.toISOString()),
+      supabase.from('posted_articles').select('id', { count: 'exact', head: true }).eq('posted_to_x', true).gte('posted_at', dayStart.toISOString()),
+    ]);
+    setDay({ pub: pubRes.count ?? 0, posted: postedRes.count ?? 0 });
   }, []);
 
   useEffect(() => {
@@ -132,7 +139,7 @@ export default function AutopostView() {
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">GhanaCrimes</p>
         <h1 className="font-serif text-4xl font-semibold">AutoPost</h1>
         <p className="mt-2 text-sm text-muted-foreground max-w-2xl">
-          Every 15 minutes, the system posts up to two new qualifying crime stories from the last 24 hours to X, within the daily cap. Preview any run without posting; disable the toggle to pause posting entirely.
+          Every 15 minutes, the system posts up to two of the highest-scoring new stories (score 3+) from the last 24 hours to X. Daily limit is the lower of the cap and half of today's published stories. Preview any run without posting; disable the toggle to pause posting entirely.
         </p>
       </header>
 
@@ -157,6 +164,9 @@ export default function AutopostView() {
           <Button variant="outline" onClick={() => run('preview')} disabled={running}>
             Preview Only
           </Button>
+          <span className="text-sm text-muted-foreground">
+            Today (UTC): published {day.pub} / posted {day.posted} / limit {Math.min(parseInt(cap, 10) || 16, day.pub > 0 ? Math.max(1, Math.ceil(day.pub / 2)) : 0)}
+          </span>
           <div className="flex items-center gap-2 ml-auto">
             <span className="text-sm">Max X posts per UTC day</span>
             <Input type="number" min={0} value={cap} onChange={e => setCap(e.target.value)} className="w-20" />
