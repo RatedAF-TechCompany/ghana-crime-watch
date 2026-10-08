@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callGateway, newUsage, AiCreditError } from "../_shared/ai-usage.ts";
 
 
 const corsHeaders = {
@@ -154,76 +153,81 @@ function formulaFor(type: StoryType): string {
   }
 }
 
-async function generatePost(
-  lovableKey: string,
-  title: string,
-  summary: string,
-  body: string,
-  articleUrl: string,
-  _publishedAt: string | null,
-): Promise<string> {
-  const excerpt = (body || "").slice(0, 1500);
-
-  const system = `You write X posts for GhanaCrimes, a serious Ghanaian crime and public-safety publication.
-
-TWEET GENERATION RULES (all must hold):
-- Hook format only: ONE sentence, maximum 150 characters, sentence case.
-- No hashtags. No emojis. No exclamation marks. No "BREAKING:" or similar labels. No quotes around the sentence.
-- Tone: calm, declarative, dry — New Yorker style. Plain British register, observational.
-- Create curiosity to drive the click. Do NOT summarise the story. Do NOT use "read more", "find out", "click to see", "here's what happened" or any preamble.
-- No em dashes or en dashes. Use commas or full stops.
-- Active voice. Never state guilt as fact before conviction.
-- Do not name minors. Do not name victims of sexual offences.
-
-OUTPUT: Return ONLY the single hook sentence. No URL. No line breaks. No surrounding punctuation beyond a single closing full stop.`;
-
-  const user = `TITLE: ${title}
-SUMMARY: ${summary || "(none)"}
-BODY EXCERPT: ${excerpt}`;
-
-  const usage = newUsage();
-  const { content } = await callGateway(lovableKey, usage, {
-    system,
-    user,
-    max_tokens: 120,
-    temperature: 0.7,
-    json: false,
-  });
-  let text: string = (content || "").trim();
-
-
-  // Sanitize
-  text = text
-    .replace(/^["'`“”‘’]+|["'`“”‘’]+$/g, "")
-    .replace(/[\u2014\u2013\u2012]/g, ",")           // em/en dashes
-    .replace(/\s*#\w+/g, "")                          // hashtags
-    .replace(/!+/g, ".")                              // exclamation marks
-    .replace(/^\s*(breaking|update|just in|developing)\s*:?\s*/i, "")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  // Strip all emoji
-  text = text.replace(
-    /[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}\u{1F900}-\u{1F9FF}\u{2702}-\u{27B0}]/gu,
-    "",
-  ).replace(/\s+/g, " ").trim();
-
-  // Enforce 150-char hook cap
-  if (text.length > 150) {
-    const cut = text.lastIndexOf(" ", 148);
-    text = text.slice(0, cut > 90 ? cut : 148).replace(/[.,;:!?\s]+$/, "") + ".";
+// ---------- Significance score (editor rules, 8 Oct 2026) ----------
+const MIN_SCORE = 3;
+function hostOf(u: string): string {
+  try { return new URL(u).hostname.replace(/^www\./, "").split(".").slice(-2).join("."); } catch { return ""; }
+}
+function scoreArticle(a: any): { score: number; reasons: string[] } {
+  const reasons: string[] = [];
+  let score = 0;
+  const g = a.gate_report || {};
+  const text = `${a.title} ${a.summary || ""} ${(a.body || "").replace(/<[^>]+>/g, " ")}`.toLowerCase();
+  const head = `${a.title} ${a.summary || ""}`.toLowerCase();
+  const off = String(a.offence_type || g.analysis?.offence_type || "").toLowerCase();
+  const cs = String(a.case_status || "").toLowerCase();
+  const cat = String(a.category_slug || "");
+  const hosts = new Set([...(a.source_urls || []), a.source_url].filter(Boolean).map(hostOf).filter(Boolean));
+  if (hosts.size >= 2 || Number(g.corroborating_sources || 0) >= 1 || Number(g.source_tier) === 1) {
+    score += 3; reasons.push(Number(g.source_tier) === 1 ? "+3 official source" : `+3 corroborated (${hosts.size} outlets)`);
   }
-  if (!text) throw new Error("AI returned empty post");
-  if (!/[.?]$/.test(text)) text += ".";
-
-  return `${text}\n${articleUrl}`;
+  if (/murder|homicide|kidnap|abduct|armed_robbery|robbery|sexual|rape|defile|arson|trafficking/.test(off) || cat === "violent-crime" ||
+      /\b(murder|killed|killing|shot dead|shooting|stabbed to death|kidnap|abduct|armed robbery|rape|defile|arson|human trafficking)/.test(head)) {
+    score += 3; reasons.push("+3 violent crime");
+  }
+  if (/charged|plea|convicted|sentenced|acquitted|on_trial|ruling|remanded/.test(cs) || cat === "court-cases" ||
+      /\b(sentenced|convicted|jailed|pleads? (not )?guilty|charged with|court rules|verdict|acquitted)\b/.test(head)) {
+    score += 2; reasons.push("+2 court/charge");
+  }
+  const bigMoney = (() => {
+    const re = /(gh[s₵¢]|ghc|ghs|cedis?|us\$|\$|usd)\s*([\d.,]+)\s*(million|m|billion|bn|k)?/gi;
+    let m; while ((m = re.exec(text))) {
+      let n = parseFloat(m[2].replace(/,/g, "")); if (isNaN(n)) continue;
+      const u = (m[3] || "").toLowerCase();
+      if (u === "million" || u === "m") n *= 1e6; else if (u === "billion" || u === "bn") n *= 1e9; else if (u === "k") n *= 1e3;
+      const usd = /us\$|\$|usd/i.test(m[1]);
+      if (usd ? n >= 1e5 : n >= 1e6) return true;
+    }
+    return false;
+  })();
+  const official = /\b(mp|minister|director[- ]general|ceo of|official|mce|dce|commissioner|judge|officer|public servant|ministry|authority|assembly|state-owned|government)\b/.test(head);
+  if ((/fraud|corruption|money_laundering|bribery/.test(off) || /fraud|corruption|white-collar/.test(cat)) && (bigMoney || official)) {
+    score += 2; reasons.push(bigMoney ? "+2 major fraud/corruption (amount)" : "+2 fraud/corruption involving official");
+  }
+  const arrestN = head.match(/\b(\d+|three|four|five|six|seven|eight|nine|ten|dozens?)\s+(suspects?|people|persons|men|women|youths|foreigners|galamseyers)\b[^.]{0,40}\b(arrest|nabbed|picked up|detained|held)/) ||
+    head.match(/\barrest(s|ed)?\s+(\d+|three|four|five|six|seven|eight|nine|ten|dozens?)\b/);
+  const n0 = arrestN ? (arrestN[1].match(/^\d+$/) ? Number(arrestN[1]) : 99) : 0;
+  const n1 = arrestN && arrestN[2]?.match(/^\d+$/) ? Number(arrestN[2]) : 0;
+  if (/\b(raid|swoop|crackdown|operation|seiz|intercept|retriev)/.test(head) && /\b(police|eoco|osp|nacoc|naimos|military|soldiers|task force|customs|cid)\b/.test(head) || (arrestN && Math.max(n0, n1) >= 3)) {
+    score += 2; reasons.push("+2 enforcement operation");
+  }
+  const body = String(a.body || "");
+  const lastP = body.trim().split(/<\/p>/i).filter(x => x.trim()).pop() || "";
+  if (/<strong>Update \(/.test(lastP) && /also reported on this story/.test(lastP)) { score -= 3; reasons.push("-3 latest change is merged update"); }
+  return { score, reasons };
 }
 
+// ---------- Tweet text (no AI) ----------
+const TEXT_MAX = 150;
+function trimWords(s: string, max: number): string {
+  s = s.replace(/\s+/g, " ").trim();
+  if (s.length <= max) return s;
+  const cut = s.lastIndexOf(" ", max);
+  s = s.slice(0, cut > 0 ? cut : max);
+  return s.replace(/[\s,;:\-–—'"“‘(]+$/, "").replace(/\b(a|an|the|of|in|to|for|and|or|at|on|by|with|as)$/i, "").trim();
+}
+function buildPostText(title: string, url: string): string {
+  let t = trimWords(title.replace(/[\u2014\u2013]/g, ","), TEXT_MAX);
+  const tags = " #Ghana #GhanaCrimes";
+  if ((t + tags).length <= TEXT_MAX) t += tags;
+  if (t.length > TEXT_MAX) t = trimWords(t, TEXT_MAX); // hard check
+  if (t.length > TEXT_MAX) t = t.slice(0, TEXT_MAX);
+  return `${t} ${url}`;
+}
 
 // ---------- Main ----------
 // Turn any thrown value (Error, PostgREST error object, string) into a readable string.
 function errStr(e: unknown): string {
-  if (e instanceof AiCreditError) return `AI gateway ${e.status}: ${e.message}`;
   if (e instanceof Error) return e.message || e.name;
   if (e && typeof e === "object") {
     const o = e as Record<string, unknown>;
@@ -264,7 +268,7 @@ serve(async (req) => {
     const since = new Date(Date.now() - 24 * 3600e3).toISOString();
     const { data: articles, error: aerr } = await supabase
       .from("articles")
-      .select("id,title,summary,body,category_slug,article_slug,published_at,gate_report")
+      .select("id,title,summary,body,category_slug,article_slug,published_at,gate_report,source_url,source_urls,offence_type,case_status")
       .eq("is_published", true)
       .not("gate_report->>raw_item_id", "is", null)
       .gte("published_at", since)
@@ -288,16 +292,19 @@ serve(async (req) => {
 
     // 3. Eligible = published in last 24h, not already posted, has title + valid URL,
     // not a test/placeholder item. The publish gate already judged quality.
-    const chosen: Array<{ a: typeof articles[number]; url: string }> = [];
+    const chosen: Array<{ a: typeof articles[number]; url: string; score: number; reasons: string[] }> = [];
     const skips: string[] = [];
     for (const a of articles) {
-      if (chosen.length >= MAX_PER_RUN) break;
       if (!a.title || !a.category_slug || !a.article_slug) { skips.push("untitled or missing slug: skipped"); continue; }
       const url = buildArticleUrl(a.category_slug, a.article_slug);
       if (posted.has(url)) { skips.push(`${a.title}: already posted`); continue; }
       if (/qa-test|-test-|placeholder/i.test(a.article_slug) || /^\[?test\b/i.test(a.title)) { skips.push(`${a.title}: test/placeholder item`); continue; }
-      chosen.push({ a, url });
+      const { score, reasons } = scoreArticle(a);
+      if (score < MIN_SCORE) { skips.push(`${a.title}: score ${score} (${reasons.join(", ") || "no signals"})`); continue; }
+      chosen.push({ a, url, score, reasons });
     }
+    // Highest score first; ties go to the newest (articles already newest-first; sort is stable).
+    chosen.sort((x, y) => y.score - x.score);
     if (!chosen.length) {
       await log("no_candidate", `No new qualifying article. Checked ${articles.length}. ${skips.slice(0, 5).join(" | ")}`);
       return json({ ok: true, status: "no_candidate", skipped: skips });
@@ -320,15 +327,19 @@ serve(async (req) => {
         .eq("posted_to_x", true).gte("posted_at", dayStart.toISOString());
       if (cerr) throw cerr;
       const today = count ?? 0;
-      if (today >= cap) {
-        await log("cap_reached", `Daily cap reached: ${today}/${cap} posts today (UTC). Nothing posted.`);
-        return json({ ok: true, status: "cap_reached", today, cap });
+      const { count: pubCount, error: pcerr } = await supabase.from("articles")
+        .select("id", { count: "exact", head: true })
+        .eq("is_published", true).gte("published_at", dayStart.toISOString());
+      if (pcerr) throw pcerr;
+      const pub = pubCount ?? 0;
+      const limit = Math.min(cap, pub > 0 ? Math.max(1, Math.ceil(pub * 0.5)) : 0);
+      if (today >= limit) {
+        await log("cap_reached", `Daily limit reached: published ${pub} / posted ${today} / limit ${limit} (min of cap ${cap} and 50% of published, UTC day). Nothing posted.`);
+        return json({ ok: true, status: "cap_reached", today, limit, published: pub, cap });
       }
-      remaining = Math.min(MAX_PER_RUN, cap - today);
+      remaining = Math.min(MAX_PER_RUN, limit - today);
     }
 
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!lovableKey) throw new Error("LOVABLE_API_KEY not configured");
     const ck = Deno.env.get("TWITTER_CONSUMER_KEY");
     const cs = Deno.env.get("TWITTER_CONSUMER_SECRET");
     const at = Deno.env.get("TWITTER_ACCESS_TOKEN");
@@ -336,30 +347,16 @@ serve(async (req) => {
     if (!wantPreview && (!ck || !cs || !at || !ats)) throw new Error("Twitter credentials not configured");
 
     const results: unknown[] = [];
-    for (const { a, url } of chosen.slice(0, remaining)) {
-      let postText: string;
-      try {
-        postText = await generatePost(lovableKey, a.title, a.summary || "", a.body || "", url, a.published_at);
-      } catch (e) {
-        // AI failed (e.g. 402/429) — fall back to a plain factual template instead of failing the run.
-        const m = errStr(e);
-        const suffix = `\n${url} #Ghana #GhanaCrimes`;
-        const maxTitle = 280 - suffix.length;
-        let t = a.title.trim();
-        if (t.length > maxTitle) {
-          const cut = t.lastIndexOf(" ", maxTitle - 1);
-          t = t.slice(0, cut > 60 ? cut : maxTitle - 1).replace(/[.,;:!?\s]+$/, "");
-        }
-        postText = `${t}${suffix}`;
-        await log("fallback", `AI post generation failed (${m}); used plain title template.`, url);
-      }
+    for (const { a, url, score, reasons } of chosen.slice(0, remaining)) {
+      const postText = buildPostText(a.title, url);
+      const why = `score ${score} (${reasons.join(", ")})`;
 
       if (wantPreview) {
         const { error: ie } = await supabase.from("posted_articles").insert({
           article_url: url, article_title: a.title, post_text: postText, posted_to_x: false, status: "preview",
         });
         if (ie) throw ie;
-        await log("preview", `Preview generated (mode=${mode}, autoEnabled=${autoEnabled}).`, url);
+        await log("preview", `Preview generated, ${why} (mode=${mode}, autoEnabled=${autoEnabled}).`, url);
         results.push({ url, status: "preview", post_text: postText });
         continue;
       }
@@ -393,7 +390,7 @@ serve(async (req) => {
         posted_to_x: true, x_post_id: tweetId, status: "posted", posted_at: new Date().toISOString(), error_message: null,
       }, { onConflict: "article_url" });
       if (ie) await log("error", `Posted to X (id=${tweetId}) but saving failed: ${errStr(ie)}`, url);
-      else await log("posted", `Posted to X (id=${tweetId}).`, url);
+      else await log("posted", `Posted to X (id=${tweetId}), ${why}.`, url);
       results.push({ url, status: "posted", x_post_id: tweetId, post_text: postText });
     }
 
