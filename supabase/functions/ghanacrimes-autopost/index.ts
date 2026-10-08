@@ -286,19 +286,16 @@ serve(async (req) => {
       .filter(r => mode === "preview" ? true : r.status !== "preview")
       .map(r => r.article_url));
 
-    // 3. Qualify newest-first
+    // 3. Eligible = published in last 24h, not already posted, has title + valid URL,
+    // not a test/placeholder item. The publish gate already judged quality.
     const chosen: Array<{ a: typeof articles[number]; url: string }> = [];
     const skips: string[] = [];
     for (const a of articles) {
       if (chosen.length >= MAX_PER_RUN) break;
+      if (!a.title || !a.category_slug || !a.article_slug) { skips.push("untitled or missing slug: skipped"); continue; }
       const url = buildArticleUrl(a.category_slug, a.article_slug);
       if (posted.has(url)) { skips.push(`${a.title}: already posted`); continue; }
-      const g: any = (a as any).gate_report || {};
-      if ((g.hard_fails || []).length || (g.backfill?.hard_fails || []).length) { skips.push(`${a.title}: failed editorial gate`); continue; }
-      const combined = `${a.title}\n${a.summary || ""}\n${(a.body || "").slice(0, 3000)}`;
-      if (!looksAboutGhana(combined)) { skips.push(`${a.title}: not Ghana-relevant`); continue; }
-      if (!isCrimeAngle(combined, a.category_slug)) { skips.push(`${a.title}: not a crime angle`); continue; }
-      if (!hasConcreteFact(combined)) { skips.push(`${a.title}: no concrete fact`); continue; }
+      if (/qa-test|-test-|placeholder/i.test(a.article_slug) || /^\[?test\b/i.test(a.title)) { skips.push(`${a.title}: test/placeholder item`); continue; }
       chosen.push({ a, url });
     }
     if (!chosen.length) {
