@@ -371,10 +371,10 @@ serve(async (req) => {
       const tBody = await tRes.text();
       if (!tRes.ok) {
         const m = `X API ${tRes.status}: ${tBody.slice(0, 500)}`;
-        await supabase.from("posted_articles").insert({
+        await supabase.from("posted_articles").upsert({
           article_url: url, article_title: a.title, post_text: postText,
           posted_to_x: false, status: "error", error_message: m,
-        });
+        }, { onConflict: "article_url" });
         if (tRes.status === 429 || tRes.status === 402) {
           await log("error", `${tRes.status === 429 ? "X rate limit" : "X payment required"}, stopping this run. ${m}`, url);
           results.push({ url, status: "error", error: m });
@@ -385,10 +385,10 @@ serve(async (req) => {
         continue;
       }
       const tweetId = JSON.parse(tBody)?.data?.id;
-      const { error: ie } = await supabase.from("posted_articles").insert({
+      const { error: ie } = await supabase.from("posted_articles").upsert({
         article_url: url, article_title: a.title, post_text: postText,
-        posted_to_x: true, x_post_id: tweetId, status: "posted", posted_at: new Date().toISOString(),
-      });
+        posted_to_x: true, x_post_id: tweetId, status: "posted", posted_at: new Date().toISOString(), error_message: null,
+      }, { onConflict: "article_url" });
       if (ie) await log("error", `Posted to X (id=${tweetId}) but saving failed: ${errStr(ie)}`, url);
       else await log("posted", `Posted to X (id=${tweetId}).`, url);
       results.push({ url, status: "posted", x_post_id: tweetId, post_text: postText });
