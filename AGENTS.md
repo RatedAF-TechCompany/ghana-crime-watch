@@ -19,3 +19,4 @@
 - Sources of type `discovery` (e.g. news search feeds) never publish alone: items wait as `discovery` until a primary source has the same story, then go to review or merge; robots.txt is always honoured.
 - Auto-publish has no daily cap; volume is controlled by one URL per incident (merge into the published article) instead.
 - About masthead facts come only from the `masthead` site setting; nothing is shown that the publisher has not supplied.
+- AutoPost runs every 15 min, posts at most 2 gate-passed stories from the last 24h per run, stops at the site_settings autopost_daily_cap and on X 429/402; errors are logged as readable strings.
