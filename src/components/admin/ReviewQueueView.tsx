@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { getRelativeTime } from '@/lib/time';
 
 const db = supabase as any;
+const REJECT_REASONS = ['Not Ghana', 'Duplicate', 'Politics/policy', 'Unverified', 'Not crime', 'Other'];
 const strip = (h: string) => (h || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
 /** Words in the draft that do not appear in the source are highlighted for the editor. */
@@ -44,6 +45,10 @@ export default function ReviewQueueView() {
   const [autoOn, setAutoOn] = useState(true);
   const [cap, setCap] = useState(20);
   const [busy, setBusy] = useState('');
+  const [rejecting, setRejecting] = useState<string | null>(null);
+  const [rejReason, setRejReason] = useState('Not Ghana');
+  const [rejNote, setRejNote] = useState('');
+  const [rejectedArticles, setRejectedArticles] = useState<any[]>([]);
   const [correction, setCorrection] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -60,14 +65,16 @@ export default function ReviewQueueView() {
   }, []);
 
   const load = async () => {
-    const [{ data: q }, { data: rj }, { data: au }, { data: pr }, { data: bf }, { data: st }] = await Promise.all([
+    const [{ data: q }, { data: rj }, { data: au }, { data: pr }, { data: bf }, { data: st }, { data: ra }] = await Promise.all([
       db.from('articles').select('id,title,summary,body,category_slug,article_slug,status,source_url,source_urls,gate_report,region,offence_type,case_status,created_at').in('status', ['review', 'approved']).order('created_at', { ascending: false }).limit(100),
       db.from('raw_items').select('id,title,url,reason,fetched_at,summary').eq('status', 'rejected').order('fetched_at', { ascending: false }).limit(100),
       db.from('audit_logs').select('id,action,resource_id,details,created_at').order('created_at', { ascending: false }).limit(100),
       db.from('pipeline_runs').select('id,started_at,status,stats').eq('kind', 'ingest').order('started_at', { ascending: false }).limit(10),
       db.from('pipeline_runs').select('id,started_at,stats').eq('kind', 'backfill').order('started_at', { ascending: false }).limit(1),
       db.from('site_settings').select('key,value').in('key', ['auto_publish_enabled', 'auto_publish_daily_cap']),
+      db.from('articles').select('id,title,reject_reason,updated_at').eq('status', 'rejected').not('reject_reason', 'is', null).order('updated_at', { ascending: false }).limit(50),
     ]);
+    setRejectedArticles(ra || []);
     setQueue(q || []);
     setRejected(rj || []);
     setAudit(au || []);
@@ -92,6 +99,22 @@ export default function ReviewQueueView() {
     if (error) toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
     else { await log(`review_${status}`, a.id); toast({ title: `Marked ${status}` }); await load(); }
     setBusy('');
+  };
+
+  const confirmReject = async (a: any) => {
+    const note = rejNote.trim();
+    if (rejReason === 'Other' && !note) { toast({ title: 'Add a note for Other', variant: 'destructive' }); return; }
+    const reason = note ? `${rejReason}: ${note}` : rejReason;
+    setBusy(a.id);
+    const { error } = await db.from('articles').update({ status: 'rejected', reject_reason: reason }).eq('id', a.id);
+    if (error) { toast({ title: 'Reject failed', description: error.message, variant: 'destructive' }); setBusy(''); return; }
+    const rawIds = [a.gate_report?.raw_item_id].filter(Boolean);
+    await db.from('raw_items').update({ status: 'rejected', reason: `editor: ${reason}` }).eq('article_id', a.id);
+    if (rawIds.length) await db.from('raw_items').update({ status: 'rejected', reason: `editor: ${reason}` }).in('id', rawIds);
+    await log('review_rejected', a.id, { reason: rejReason, note: note || null });
+    toast({ title: 'Rejected', description: reason });
+    setRejecting(null); setRejNote(''); setRejReason('Not Ghana'); setBusy('');
+    await load();
   };
 
   const addCorrection = async (a: any) => {
@@ -194,9 +217,19 @@ export default function ReviewQueueView() {
                   <div className="flex flex-wrap gap-2">
                     <Button size="sm" disabled={busy === a.id} onClick={() => setStatus(a, 'published')}>Publish</Button>
                     {a.status !== 'approved' && <Button size="sm" variant="outline" disabled={busy === a.id} onClick={() => setStatus(a, 'approved')}>Approve</Button>}
-                    <Button size="sm" variant="outline" disabled={busy === a.id} onClick={() => setStatus(a, 'rejected')}>Reject</Button>
+                    <Button size="sm" variant="outline" disabled={busy === a.id} onClick={() => setRejecting(rejecting === a.id ? null : a.id)}>Reject</Button>
                     <Button size="sm" variant="ghost" onClick={() => router.push(`/admin/articles/${a.id}`)}>Edit</Button>
                   </div>
+                  {rejecting === a.id && (
+                    <div className="flex flex-wrap items-center gap-2 rounded border border-border p-2">
+                      <select className="h-8 rounded border border-input bg-background px-2 text-sm" value={rejReason} onChange={(e) => setRejReason(e.target.value)}>
+                        {REJECT_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                      <Input className="h-8 flex-1" placeholder={rejReason === 'Other' ? 'Note (required)' : 'Note (optional)'} value={rejNote} onChange={(e) => setRejNote(e.target.value)} />
+                      <Button size="sm" variant="destructive" disabled={busy === a.id} onClick={() => confirmReject(a)}>Confirm reject</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setRejecting(null)}>Cancel</Button>
+                    </div>
+                  )}
                   <div className="flex gap-2">
                     <Textarea rows={1} placeholder="Correction note (shown on the article)" value={correction[a.id] || ''} onChange={(e) => setCorrection({ ...correction, [a.id]: e.target.value })} />
                     <Button size="sm" variant="outline" onClick={() => addCorrection(a)}>Add correction</Button>
@@ -208,6 +241,15 @@ export default function ReviewQueueView() {
         </TabsContent>
 
         <TabsContent value="rejected" className="space-y-2">
+          {rejectedArticles.length > 0 && <p className="text-xs font-semibold uppercase text-muted-foreground">Rejected by editors</p>}
+          {rejectedArticles.map((r) => (
+            <div key={r.id} className="rounded border border-border p-3 text-sm">
+              <p className="font-semibold">{r.title}</p>
+              <p className="text-xs text-destructive">{r.reject_reason}</p>
+              <p className="text-xs text-muted-foreground">{getRelativeTime(r.updated_at)}</p>
+            </div>
+          ))}
+          {rejectedArticles.length > 0 && <p className="pt-2 text-xs font-semibold uppercase text-muted-foreground">Rejected by the pipeline</p>}
           {rejected.map((r) => (
             <div key={r.id} className="rounded border border-border p-3 text-sm">
               <a href={r.url} target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline">{r.title}</a>
@@ -238,7 +280,7 @@ export default function ReviewQueueView() {
           {audit.map((l) => (
             <div key={l.id} className="flex gap-3 border-b border-border py-1 text-xs">
               <span className="w-28 shrink-0 text-muted-foreground">{getRelativeTime(l.created_at)}</span>
-              <span className="w-40 shrink-0 font-semibold">{l.action}</span>
+              <span className="w-40 shrink-0 font-semibold">{l.action}{l.details?.reason ? ` (${l.details.reason}${l.details.note ? `: ${l.details.note}` : ''})` : ''}</span>
               <span className="truncate text-muted-foreground">{l.resource_id} {l.details ? JSON.stringify(l.details) : ''}</span>
             </div>
           ))}
