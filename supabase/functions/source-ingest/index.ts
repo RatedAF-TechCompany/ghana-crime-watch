@@ -341,11 +341,11 @@ Deno.serve(async (req) => {
 
     await Promise.all(due.map(async (s: any) => {
       const url = s.feed_url || s.rss_url || s.api_url;
-      const isJson = !s.feed_url && !s.rss_url && !!s.api_url;
+      const isJson = /\/wp-json\//.test(url) || (!s.feed_url && !s.rss_url && !!s.api_url);
       let status = "ok";
       try {
         if (!(await allowedByRobots(url))) { status = "blocked_by_robots"; return; }
-        const body = await fetchText(url);
+        const body = await fetchText(url, /police\.gov\.gh/.test(url) ? 20000 : 15000);
         const head = body.slice(0, 4000);
         if (BOT_CHALLENGE.test(head)) throw new Error("bot_challenge");
         if (isJson ? !/^\s*\[/.test(body) : !/<rss|<feed|<rdf:RDF/i.test(head)) throw new Error("not_a_feed");
