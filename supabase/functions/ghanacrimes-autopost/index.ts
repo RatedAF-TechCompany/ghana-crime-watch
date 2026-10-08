@@ -341,11 +341,17 @@ serve(async (req) => {
       try {
         postText = await generatePost(lovableKey, a.title, a.summary || "", a.body || "", url, a.published_at);
       } catch (e) {
+        // AI failed (e.g. 402/429) — fall back to a plain factual template instead of failing the run.
         const m = errStr(e);
-        await log("error", `AI gateway failure: ${m}`, url);
-        if (e instanceof AiCreditError) break;
-        results.push({ url, status: "error", error: m });
-        continue;
+        const suffix = `\n${url} #Ghana #GhanaCrimes`;
+        const maxTitle = 280 - suffix.length;
+        let t = a.title.trim();
+        if (t.length > maxTitle) {
+          const cut = t.lastIndexOf(" ", maxTitle - 1);
+          t = t.slice(0, cut > 60 ? cut : maxTitle - 1).replace(/[.,;:!?\s]+$/, "");
+        }
+        postText = `${t}${suffix}`;
+        await log("fallback", `AI post generation failed (${m}); used plain title template.`, url);
       }
 
       if (wantPreview) {
