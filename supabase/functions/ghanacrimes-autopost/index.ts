@@ -154,7 +154,6 @@ function formulaFor(type: StoryType): string {
 }
 
 // ---------- Significance score (editor rules, 8 Oct 2026) ----------
-const MIN_SCORE = 3;
 function hostOf(u: string): string {
   try { return new URL(u).hostname.replace(/^www\./, "").split(".").slice(-2).join("."); } catch { return ""; }
 }
@@ -290,7 +289,15 @@ serve(async (req) => {
       .filter(r => mode === "preview" ? true : r.status !== "preview")
       .map(r => r.article_url));
 
-    // 3. Eligible = published in last 24h, not already posted, has title + valid URL,
+    // 3. Settings: min score + toggle + daily cap
+    const { data: settings, error: serr } = await supabase
+      .from("site_settings").select("key,value").in("key", ["auto_post_enabled", "autopost_daily_cap", "autopost_min_score"]);
+    if (serr) throw serr;
+    const setting = (k: string) => settings?.find(r => r.key === k)?.value;
+    const minScoreRaw = Number(String(setting("autopost_min_score") ?? "5").replace(/"/g, ""));
+    const minScore = Number.isFinite(minScoreRaw) && minScoreRaw > 0 ? minScoreRaw : 5;
+
+    // Eligible = published in last 24h, not already posted, has title + valid URL,
     // not a test/placeholder item. The publish gate already judged quality.
     const chosen: Array<{ a: typeof articles[number]; url: string; score: number; reasons: string[] }> = [];
     const skips: string[] = [];
@@ -300,7 +307,7 @@ serve(async (req) => {
       if (posted.has(url)) { skips.push(`${a.title}: already posted`); continue; }
       if (/qa-test|-test-|placeholder/i.test(a.article_slug) || /^\[?test\b/i.test(a.title)) { skips.push(`${a.title}: test/placeholder item`); continue; }
       const { score, reasons } = scoreArticle(a);
-      if (score < MIN_SCORE) { skips.push(`${a.title}: score ${score} (${reasons.join(", ") || "no signals"})`); continue; }
+      if (score < minScore) { skips.push(`${a.title}: score ${score} (min ${minScore})`); continue; }
       chosen.push({ a, url, score, reasons });
     }
     // Highest score first; ties go to the newest (articles already newest-first; sort is stable).
@@ -310,11 +317,7 @@ serve(async (req) => {
       return json({ ok: true, status: "no_candidate", skipped: skips });
     }
 
-    // 4. Settings: toggle + daily cap
-    const { data: settings, error: serr } = await supabase
-      .from("site_settings").select("key,value").in("key", ["auto_post_enabled", "autopost_daily_cap"]);
-    if (serr) throw serr;
-    const setting = (k: string) => settings?.find(r => r.key === k)?.value;
+    // 4. Toggle + daily cap (settings already loaded in step 3)
     const autoEnabled = String(setting("auto_post_enabled") ?? "true").replace(/"/g, "") !== "false";
     const cap = Number(String(setting("autopost_daily_cap") ?? "16").replace(/"/g, "")) || 16;
     const wantPreview = mode === "preview" || (mode === "auto" && !autoEnabled);
