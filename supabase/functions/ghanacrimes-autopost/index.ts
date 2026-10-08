@@ -235,12 +235,6 @@ function errStr(e: unknown): string {
   return String(e);
 }
 
-class XStopError extends Error {
-  constructor(public status: number, body: string) {
-    super(`X API ${status}: ${body.slice(0, 500)}`);
-  }
-}
-
 const MAX_PER_RUN = 2;
 
 serve(async (req) => {
