@@ -50,6 +50,25 @@ function placesAndAgencies(t: string): Set<string> {
   for (const m of t.match(AGENCY_OR_COURT) || []) out.add(m.toLowerCase());
   return out;
 }
+// Ghana relevance: text must name a Ghana place, region, district or institution before auto-publish.
+const GHANA_TEXT = /\b(ghana|ghanaian|accra|kumasi|tamale|takoradi|cape coast|tema|ho|sunyani|koforidua|bolgatanga|wa|greater accra|ashanti|western north|western|central|eastern|volta|oti|northern|north east|savannah|upper east|upper west|bono east|ahafo|bono|ghana police|eoco|osp|nacoc|chraj|gra|ghana revenue authority|ghana immigration|ghana prisons|mttd|naimos)\b/i;
+function hasGhanaLink(t: string): boolean {
+  if (GHANA_TEXT.test(t)) return true;
+  AGENCY_OR_COURT.lastIndex = 0;
+  const hit = AGENCY_OR_COURT.test(t); AGENCY_OR_COURT.lastIndex = 0;
+  return hit || [...placeTokens(t)].some(isGhanaPlace);
+}
+// Near-duplicate: title-token Jaccard >= 0.6 (stopwords removed), or same main named entity + offence + location.
+const STOPWORDS = new Set("a an the of in on at to for and or by with from as is are was were be been after over into than that this its his her their who what how why amid near says said police man woman two three".split(" "));
+function titleTokens(t: string): Set<string> {
+  return new Set((t.toLowerCase().match(/[a-z0-9]+/g) || []).filter((w) => w.length > 1 && !STOPWORDS.has(w)));
+}
+function jaccard(a: string, b: string): number {
+  const x = titleTokens(a), y = titleTokens(b);
+  if (!x.size || !y.size) return 0;
+  let inter = 0; for (const w of x) if (y.has(w)) inter++;
+  return inter / (x.size + y.size - inter);
+}
 function sharesPersonAndVenue(a: string, b: string): boolean {
   const pa = personNames(a), pb = personNames(b);
   if (![...pa].some((x) => pb.has(x))) return false;
@@ -430,9 +449,12 @@ Deno.serve(async (req) => {
     const { data: reviewRows } = await supabase.from("articles").select("id, title, summary, source_url, source_urls, gate_report")
       .eq("status", "review").gte("created_at", new Date(Date.now() - 72 * 3600_000).toISOString()).limit(300);
     const reviewDrafts: any[] = reviewRows || [];
+    const { data: dupRows } = await supabase.from("articles").select("id, title, summary, status, offence_type, region")
+      .in("status", ["published", "review"]).gte("created_at", new Date(Date.now() - 48 * 3600_000).toISOString()).limit(500);
+    const dupPool: any[] = dupRows || [];
     const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
     // Soft flags that still need a human even when the story is corroborated (victim/minor protection, graphic, contempt).
-    const NEEDS_HUMAN = /^(sensitive_case_check|graphic_source_material|pending_case_commentary|guilty_language|evidence_speculation|headline_lead_mismatch|missing_attribution|editorial_filler)/;
+    const NEEDS_HUMAN = /^(ghana_link_unclear|possible_duplicate|sensitive_case_check|graphic_source_material|pending_case_commentary|guilty_language|evidence_speculation|headline_lead_mismatch|missing_attribution|editorial_filler)/;
     (stats as any).corroborated = 0; (stats as any).corroborated_published = 0; (stats as any).inactive_source = 0;
 
     // Attach a second outlet to a review draft; publish if 2+ independent outlets (or tier-1) and nothing needs a human.
@@ -605,9 +627,44 @@ Deno.serve(async (req) => {
 
         const report: any = { ...gate, analysis: out.analysis, source: src.name, source_tier: src.trust_tier, corroborating_sources: corroborating, raw_item_id: item.id, checked_at: new Date().toISOString() };
 
+        // Ghana relevance before anything can publish.
+        if (out.analysis?.is_ghana === false) {
+          await supabase.from("raw_items").update({ status: "rejected", reason: "not ghana", gate_report: report }).eq("id", item.id);
+          stats.rejected++; continue;
+        }
         if (gate.hard_fails.length) {
           await supabase.from("raw_items").update({ status: "rejected", reason: gate.hard_fails.join(", "), gate_report: report }).eq("id", item.id);
           stats.rejected++; continue;
+        }
+        const ghanaText = `${title} ${body} ${item.title}`;
+        if (out.analysis?.ghanaian_central !== true || !hasGhanaLink(ghanaText)) {
+          gate.soft_flags.push("ghana_link_unclear");
+          report.soft_flags = gate.soft_flags;
+        }
+
+        // Near-duplicate check against published/review articles from the last 48h.
+        const offence = out.analysis?.offence_type || null;
+        const loc = (out.analysis?.region || detectRegion(sourceText) || "").toLowerCase();
+        const myNames = personNames(`${title} ${item.title}`);
+        let dup: any = null; let dupWhy = "";
+        for (const a of dupPool) {
+          const j = jaccard(title, a.title);
+          const jr = jaccard(item.title, a.title);
+          if (Math.max(j, jr) >= 0.6) { dup = a; dupWhy = `title_jaccard:${Math.max(j, jr).toFixed(2)}`; break; }
+          if (offence && a.offence_type === offence && loc && (a.region || "").toLowerCase() === loc
+            && [...personNames(`${a.title} ${a.summary || ""}`)].some((n) => myNames.has(n))) { dup = a; dupWhy = "same_entity_offence_location"; break; }
+        }
+        if (dup) {
+          report.near_duplicate = { article_id: dup.id, status: dup.status, reason: dupWhy };
+          if (dup.status === "published" && await mergeInto(dup.id, item, src, `near_duplicate:${dupWhy}`)) {
+            await supabase.from("raw_items").update({ gate_report: report }).eq("id", item.id);
+            stats.thread_updates++; continue;
+          }
+          if (dup.status === "review") {
+            gate.soft_flags.push(`possible_duplicate:${dup.id}`);
+            report.soft_flags = gate.soft_flags;
+            report.possible_duplicate_of = dup.id;
+          }
         }
 
         const eligible = gate.soft_flags.length === 0 && (src.trust_tier === 1 || corroborating >= 1);
@@ -647,6 +704,7 @@ Deno.serve(async (req) => {
         }).select("id").single();
         if (artErr) throw artErr;
         recentIncidents.push({ id: art.id, title: item.title });
+        dupPool.push({ id: art.id, title, summary: out.summary || "", status: publishNow ? "published" : "review", offence_type: offence, region: out.analysis?.region || null });
         if (publishNow) (publishedRecent as any[] | null)?.push({ id: art.id, title, summary: out.summary || "" });
 
         try {
