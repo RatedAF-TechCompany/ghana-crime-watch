@@ -44,6 +44,9 @@ export default function ReviewQueueView() {
   const [backfill, setBackfill] = useState<any>(null);
   const [autoOn, setAutoOn] = useState(true);
   const [cap, setCap] = useState(20);
+  const [savedCap, setSavedCap] = useState(20);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [lastChange, setLastChange] = useState<any>(null);
   const [busy, setBusy] = useState('');
   const [rejecting, setRejecting] = useState<string | null>(null);
   const [rejReason, setRejReason] = useState('Not Ghana');
@@ -71,7 +74,7 @@ export default function ReviewQueueView() {
       db.from('audit_logs').select('id,action,resource_id,details,created_at').order('created_at', { ascending: false }).limit(100),
       db.from('pipeline_runs').select('id,started_at,status,stats').eq('kind', 'ingest').order('started_at', { ascending: false }).limit(10),
       db.from('pipeline_runs').select('id,started_at,stats').eq('kind', 'backfill').order('started_at', { ascending: false }).limit(1),
-      db.from('site_settings').select('key,value').in('key', ['auto_publish_enabled', 'auto_publish_daily_cap']),
+      db.from('site_settings').select('key,value').in('key', ['auto_publish_enabled', 'auto_publish_daily_cap', 'auto_publish_last_change']),
       db.from('articles').select('id,title,reject_reason,updated_at').eq('status', 'rejected').not('reject_reason', 'is', null).order('updated_at', { ascending: false }).limit(50),
     ]);
     setRejectedArticles(ra || []);
@@ -80,9 +83,12 @@ export default function ReviewQueueView() {
     setAudit(au || []);
     setRuns(pr || []);
     setBackfill(bf?.[0] || null);
+    const hasSwitch = (st || []).some((s: any) => s.key === 'auto_publish_enabled');
+    setSettingsLoaded(!!st && hasSwitch);
     for (const s of st || []) {
       if (s.key === 'auto_publish_enabled') setAutoOn(s.value !== false);
-      if (s.key === 'auto_publish_daily_cap') setCap(Number(s.value));
+      if (s.key === 'auto_publish_daily_cap') { setCap(Number(s.value)); setSavedCap(Number(s.value)); }
+      if (s.key === 'auto_publish_last_change') setLastChange(s.value);
     }
     const ids = (q || []).map((a: any) => a.gate_report?.raw_item_id).filter(Boolean);
     if (ids.length) {
@@ -125,11 +131,29 @@ export default function ReviewQueueView() {
     else { await log('correction_added', a.id, { note }); setCorrection({ ...correction, [a.id]: '' }); toast({ title: 'Correction saved' }); }
   };
 
-  const saveSettings = async (on: boolean, c: number) => {
-    setAutoOn(on); setCap(c);
-    await db.from('site_settings').update({ value: on }).eq('key', 'auto_publish_enabled');
-    await db.from('site_settings').update({ value: c }).eq('key', 'auto_publish_daily_cap');
-    toast({ title: 'Auto-publish settings saved' });
+  const recordChange = async (setting: string, value: any) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    const entry = { by: user?.email || 'unknown', at: new Date().toISOString(), setting, value };
+    const { data: ex } = await db.from('site_settings').select('id').eq('key', 'auto_publish_last_change').maybeSingle();
+    if (ex) await db.from('site_settings').update({ value: entry }).eq('key', 'auto_publish_last_change');
+    else await db.from('site_settings').insert({ key: 'auto_publish_last_change', value: entry, label: 'Last auto-publish setting change' });
+    setLastChange(entry);
+  };
+
+  const toggleAuto = async (on: boolean) => {
+    if (!settingsLoaded) { toast({ title: 'Settings did not load; not saved', variant: 'destructive' }); return; }
+    const { error } = await db.from('site_settings').update({ value: on }).eq('key', 'auto_publish_enabled');
+    if (error) { toast({ title: 'Save failed', description: error.message, variant: 'destructive' }); return; }
+    setAutoOn(on); await recordChange('auto_publish_enabled', on);
+    toast({ title: `Auto-publish ${on ? 'on' : 'off'}` });
+  };
+
+  const saveCap = async () => {
+    if (!settingsLoaded || !Number.isFinite(cap) || cap === savedCap) return;
+    const { error } = await db.from('site_settings').update({ value: cap }).eq('key', 'auto_publish_daily_cap');
+    if (error) { toast({ title: 'Save failed', description: error.message, variant: 'destructive' }); return; }
+    setSavedCap(cap); await recordChange('auto_publish_daily_cap', cap);
+    toast({ title: 'Daily cap saved' });
   };
 
   const invoke = async (fn: string) => {
@@ -161,9 +185,13 @@ export default function ReviewQueueView() {
           <h1 className="font-serif text-2xl font-bold">Editorial review</h1>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-sm">Auto-publish <Switch checked={autoOn} disabled={!isAdmin} onCheckedChange={(v) => saveSettings(v, cap)} /></label>
+          <div className="flex flex-col">
+            <label className="flex items-center gap-2 text-sm">Auto-publish <Switch checked={autoOn} disabled={!isAdmin || !settingsLoaded} onCheckedChange={toggleAuto} /></label>
+            {lastChange && <span className="text-[11px] text-muted-foreground">Changed by {lastChange.by} {getRelativeTime(lastChange.at)}{lastChange.setting ? ` (${lastChange.setting === 'auto_publish_daily_cap' ? 'cap' : 'switch'}: ${String(lastChange.value)})` : ''}</span>}
+            {!settingsLoaded && <span className="text-[11px] text-destructive">Settings failed to load</span>}
+          </div>
           <label className="flex items-center gap-2 text-sm">Daily cap
-            <Input type="number" className="h-8 w-20" value={cap} disabled={!isAdmin} onChange={(e) => setCap(Number(e.target.value))} onBlur={() => saveSettings(autoOn, cap)} />
+            <Input type="number" className="h-8 w-20" value={cap} disabled={!isAdmin || !settingsLoaded} onChange={(e) => setCap(Number(e.target.value))} onBlur={saveCap} />
           </label>
           <Button size="sm" variant="outline" disabled={!!busy} onClick={() => invoke('source-ingest')}><Play className="mr-1 h-4 w-4" />Run pipeline</Button>
         </div>

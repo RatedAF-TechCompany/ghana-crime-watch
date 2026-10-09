@@ -454,7 +454,7 @@ Deno.serve(async (req) => {
     const dupPool: any[] = dupRows || [];
     const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
     // Soft flags that still need a human even when the story is corroborated (victim/minor protection, graphic, contempt).
-    const NEEDS_HUMAN = /^(sensitive_case_check|graphic_source_material|pending_case_commentary|guilty_language|evidence_speculation|headline_lead_mismatch|missing_attribution|editorial_filler)/;
+    const NEEDS_HUMAN = /^(ghana_link_unclear|possible_duplicate|sensitive_case_check|graphic_source_material|pending_case_commentary|guilty_language|evidence_speculation|headline_lead_mismatch|missing_attribution|editorial_filler)/;
     (stats as any).corroborated = 0; (stats as any).corroborated_published = 0; (stats as any).inactive_source = 0;
 
     // Attach a second outlet to a review draft; publish if 2+ independent outlets (or tier-1) and nothing needs a human.
