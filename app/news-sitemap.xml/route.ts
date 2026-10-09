@@ -13,6 +13,7 @@ export async function GET() {
     .from('articles')
     .select('title, article_slug, category_slug, published_at')
     .eq('is_published', true)
+    .not('category_slug', 'in', '(crime-statistics,most-wanted)')
     .gte('published_at', twoDaysAgo)
     .order('published_at', { ascending: false })
     .limit(1000);

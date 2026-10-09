@@ -5,6 +5,8 @@ import { ARTICLES_PER_SITEMAP, SITEMAP_BASE as BASE_URL, countPublishedArticles,
 import { REGIONS, TOPICS } from '@/lib/hubs';
 import { EXPLAINERS } from '@/lib/explainers';
 import { isIndexableThread } from '@/lib/article-meta';
+import { getNotices } from '@/lib/notices';
+import { getMasthead } from '@/lib/masthead';
 
 export const revalidate = 600;
 export const dynamic = 'force-dynamic';
@@ -23,13 +25,11 @@ const STATIC_PATHS = [
   '/map',
   '/statistics',
   '/courts',
-  '/wanted',
-  '/missing',
   '/safety',
-  '/alerts',
   '/explainers',
   '/regions',
   '/topics',
+  '/authors/ghanacrimes-newsroom',
 ];
 
 function urlset(urls: { loc: string; lastmod?: string | null }[]) {
@@ -44,6 +44,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ file: s
   const supabase = createServerClient();
 
   if (file === 'pages.xml') {
+    const masthead = await getMasthead();
+    let noticePaths: string[] = [];
+    try {
+      const [wanted, missing] = await Promise.all([getNotices('wanted'), getNotices('missing')]);
+      noticePaths = [...(wanted.length ? ['/wanted'] : []), ...(missing.length ? ['/missing'] : [])];
+    } catch {
+      noticePaths = ['/wanted', '/missing'];
+    }
     const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
     const { data: threads } = await supabase
       .from('story_threads')
@@ -64,6 +72,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ file: s
 
     const pages = [
       ...STATIC_PATHS.map((p) => ({ loc: `${BASE_URL}${p}` })),
+      ...noticePaths.map((p) => ({ loc: `${BASE_URL}${p}` })),
+      ...(masthead.hasAny ? [{ loc: `${BASE_URL}/masthead` }] : []),
       ...NAV_CATEGORIES.map((c) => ({ loc: `${BASE_URL}/${c.slug}` })),
       ...REGIONS.map((r) => ({ loc: `${BASE_URL}/regions/${r.slug}` })),
       ...TOPICS.map((t) => ({ loc: `${BASE_URL}/topics/${t.slug}` })),
@@ -93,6 +103,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ file: s
       .from('articles')
       .select('category_slug, article_slug, content_updated_at, published_at')
       .eq('is_published', true)
+      .not('category_slug', 'in', '(crime-statistics,most-wanted)')
       .order('published_at', { ascending: false })
       .order('id', { ascending: true })
       .range(start + off, start + end);

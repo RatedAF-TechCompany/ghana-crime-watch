@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: 'Sign In',
   description: 'Sign in or create an account on GhanaCrimes.',
   alternates: { canonical: `${BASE_URL}/auth` },
+  robots: { index: false, follow: true },
 };
 
 export default function AuthPage() {

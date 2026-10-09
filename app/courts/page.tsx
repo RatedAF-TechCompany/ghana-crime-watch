@@ -6,11 +6,10 @@ import { BASE_URL } from '@/lib/utils';
 
 export const revalidate = 600;
 
-export const metadata: Metadata = {
-  title: 'Courts: recent court coverage in Ghana',
-  description: 'Recent GhanaCrimes coverage of criminal court hearings, remands, judgments and sentences in Ghana.',
-  alternates: { canonical: `${BASE_URL}/courts` },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const articles = await getGhanaCourtArticles(30);
+  return { title: 'Courts: recent court coverage in Ghana', description: 'Recent GhanaCrimes coverage of criminal court hearings, remands, judgments and sentences in Ghana.', alternates: { canonical: `${BASE_URL}/courts` }, ...(articles.length ? {} : { robots: { index: false, follow: true } }) };
+}
 
 export default async function CourtsPage() {
   const articles = await getGhanaCourtArticles(30);

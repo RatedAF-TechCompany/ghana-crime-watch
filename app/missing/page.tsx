@@ -6,11 +6,10 @@ import { BASE_URL } from '@/lib/utils';
 
 export const revalidate = 900;
 
-export const metadata: Metadata = {
-  title: 'Missing persons: official notices',
-  description: 'Missing persons listed only from official Ghana Police Service and INTERPOL public notices.',
-  alternates: { canonical: `${BASE_URL}/missing` },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const notices = await getNotices('missing');
+  return { title: 'Missing persons: official notices', description: 'Missing persons listed only from official Ghana Police Service and INTERPOL public notices.', alternates: { canonical: `${BASE_URL}/missing` }, ...(notices.length ? {} : { robots: { index: false, follow: true } }) };
+}
 
 export default async function MissingPage() {
   const notices = await getNotices('missing');
