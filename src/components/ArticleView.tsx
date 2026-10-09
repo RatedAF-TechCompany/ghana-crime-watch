@@ -22,7 +22,7 @@ import { publishedUpdatedLabels } from "@/lib/article-meta";
 
 type ThreadInfo = { thread_slug: string; is_live: boolean; live_ended_at: string | null } | null;
 
-export default function ArticleView({ categorySlug, articleSlug, initialArticle, thread = null, children }: { categorySlug: string; articleSlug: string; initialArticle?: any; thread?: ThreadInfo; children?: ReactNode }) {
+export default function ArticleView({ categorySlug, articleSlug, initialArticle, thread = null, authorHref, children }: { categorySlug: string; articleSlug: string; initialArticle?: any; thread?: ThreadInfo; authorHref?: string; children?: ReactNode }) {
   const { isPlaying, isPaused, isSupported, speak, stop, togglePlayPause } = useTextToSpeech();
 
   // Determine if WhatsApp CTA should be shown (25% probability, memoized per article)
@@ -148,7 +148,7 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
 
       <div className="mb-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-y border-border py-3 text-center">
         <p className="font-sans text-[12px] uppercase tracking-[0.14em] text-muted-fg">
-          Reported by <span className="not-italic text-foreground">{article.author_name || "GhanaCrimes Data Desk"}</span>
+          Reported by {authorHref ? <Link href={authorHref} className="not-italic text-foreground hover:text-primary">{article.author_name || "GhanaCrimes Data Desk"}</Link> : <span className="not-italic text-foreground">{article.author_name || "GhanaCrimes Data Desk"}</span>}
           <span className="mx-2">·</span>
           {readingTime}
         </p>

@@ -7,6 +7,8 @@ import { JsonLd } from '@/components/JsonLd';
 import { getArticle, findSlugRedirect, getArticleContext, getArticleRouteState } from '@/lib/server-data';
 import { getCategoryLabel, isValidCategory } from '@/lib/categories';
 import { OG_HEIGHT, OG_WIDTH, articleModified, articleSocialImage, formatGhanaDate, regionForName, topicForText } from '@/lib/article-meta';
+import { getMasthead } from '@/lib/masthead';
+import { bylineAuthor } from '@/lib/authors';
 
 export const revalidate = 300;
 export const dynamicParams = true;
@@ -89,6 +91,8 @@ export default async function ArticlePage({ params }: { params: Params }) {
   const canonical = `${BASE_URL}/${categorySlug}/${articleSlug}`;
   const title = article.seo_title || article.title;
   const authorName = article.author_name || 'GhanaCrimes Data Desk';
+  const masthead = await getMasthead();
+  const author = bylineAuthor(article.author_name, masthead.authors);
   const topic = topicForText(`${article.title} ${article.summary ?? ''}`);
   const regionHub = regionForName(article.region);
   const ctx = await getArticleContext(article, topic?.terms ?? null);
@@ -106,11 +110,15 @@ export default async function ArticlePage({ params }: { params: Params }) {
             image: [{ '@type': 'ImageObject', ...img }],
             datePublished: article.published_at,
             dateModified: articleModified(article),
-            author: { '@type': 'Organization', name: authorName, url: `${BASE_URL}/about` },
+            author: author?.kind === 'person'
+              ? { '@type': 'Person', name: authorName, url: `${BASE_URL}${author.href}`, ...(author.entry.same_as?.length ? { sameAs: author.entry.same_as } : {}) }
+              : author?.kind === 'desk'
+                ? { '@type': 'Organization', name: authorName, url: `${BASE_URL}${author.href}` }
+                : { '@type': 'Organization', name: authorName, url: `${BASE_URL}/about` },
             publisher: {
               '@type': 'Organization',
               name: 'GhanaCrimes',
-              logo: { '@type': 'ImageObject', url: `${BASE_URL}/favicon.png` },
+              logo: { '@type': 'ImageObject', url: `${BASE_URL}/icons/logo-512.png`, width: 512, height: 512 },
             },
             articleSection: getCategoryLabel(categorySlug),
             inLanguage: 'en-GH',
@@ -133,7 +141,7 @@ export default async function ArticlePage({ params }: { params: Params }) {
           },
         ]}
       />
-      <ArticleView categorySlug={categorySlug} articleSlug={articleSlug} initialArticle={article} thread={ctx.thread}>
+      <ArticleView categorySlug={categorySlug} articleSlug={articleSlug} initialArticle={article} thread={ctx.thread} authorHref={author?.href}>
         {ctx.thread && (
           <section className="mt-10 border-t border-border pt-6">
             <h2 className="mb-3 font-headline text-xl font-bold text-foreground">Follow this story</h2>
