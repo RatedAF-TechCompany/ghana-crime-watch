@@ -1,9 +1,10 @@
 import { useAdSettings } from "@/hooks/use-ad-settings";
 import calabasheReviewBanner from "@/assets/ads/calabashe-review-banner.png";
+import Image, { type StaticImageData } from "next/image";
 
 interface Ad {
   id: string;
-  image: string;
+  image: StaticImageData;
   url: string;
   alt: string;
 }
@@ -11,7 +12,7 @@ interface Ad {
 const ADS: Ad[] = [
   {
     id: "calabashe-doctor-review",
-    image: calabasheReviewBanner.src,
+    image: calabasheReviewBanner,
     url: "https://calabashe.com",
     alt: "Calabashe – Review your Ghanaian doctor to help others",
   },
@@ -70,10 +71,11 @@ export function AdBanner({ slotId, probability = 0.5, className = "" }: AdBanner
         aria-label={ad.alt}
         className="block overflow-hidden rounded-lg transition-opacity hover:opacity-95"
       >
-        <img
+        <Image
           src={ad.image}
           alt={ad.alt}
-          className="w-full h-auto"
+          sizes="(max-width: 768px) 100vw, 768px"
+          className="h-auto w-full"
           loading="lazy"
         />
       </a>

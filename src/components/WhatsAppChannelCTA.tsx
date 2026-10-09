@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useAdSettings } from "@/hooks/use-ad-settings";
 import whatsappBanner from "@/assets/whatsapp-channel-banner.png";
+import Image from "next/image";
 
 const WHATSAPP_CHANNEL_URL = "https://whatsapp.com/channel/0029VbC0vLjFcow2FZTEqy2J";
 
@@ -23,9 +24,10 @@ export function WhatsAppChannelCTA({ className = "", variant = "banner" }: Whats
       aria-label="Join GhanaCrimes WhatsApp Channel"
       className={`block transition-opacity hover:opacity-95 ${className}`}
     >
-      <img
-        src={whatsappBanner.src}
+      <Image
+        src={whatsappBanner}
         alt="Follow GhanaCrimes on WhatsApp"
+        sizes="(max-width: 768px) 100vw, 768px"
         className={
           variant === "banner"
             ? "w-full max-w-3xl h-auto mx-auto"
