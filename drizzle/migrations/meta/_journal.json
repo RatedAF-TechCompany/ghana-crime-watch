@@ -15,6 +15,13 @@
       "when": 1791565208896,
       "tag": "0001_audit_batch1_article_route_state",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791565438117,
+      "tag": "0002_articles_region_published_index",
+      "breakpoints": true
     }
   ]
 }
