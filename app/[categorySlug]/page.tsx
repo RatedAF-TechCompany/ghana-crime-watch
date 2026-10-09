@@ -8,6 +8,8 @@ import { getCategoryLabel, isValidCategory } from '@/lib/categories';
 import { getCategoryArticles } from '@/lib/server-data';
 
 export const revalidate = 120;
+export const dynamicParams = true;
+export async function generateStaticParams() { return []; }
 
 type Params = Promise<{ categorySlug: string }>;
 

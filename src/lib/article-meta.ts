@@ -18,7 +18,9 @@ export function articleSocialImage(article: { id: string; hero_image?: string | 
 export const hubSocialImage = (key: string) => `${BASE_URL}/api/og/${key}`;
 
 export function articleModified(a: { content_updated_at?: string | null; published_at?: string | null }) {
-  return a.content_updated_at || a.published_at || null;
+  const c = a.content_updated_at, p = a.published_at;
+  if (c && p) return new Date(c).getTime() > new Date(p).getTime() ? c : p;
+  return c || p || null;
 }
 
 const dateFmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Accra', day: 'numeric', month: 'short', year: 'numeric' });
