@@ -1,60 +1,16 @@
 'use client';
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import Link from "next/link";
 import { HeroArticle } from "@/components/HeroArticle";
 import { ArticleCard } from "@/components/ArticleCard";
 import { Button } from "@/components/ui/button";
 import { AdBanner } from "@/components/AdBanner";
 import { SectionHeading } from "@/components/broadcast/SectionHeading";
 import { StoryGrid } from "@/components/broadcast/StoryGrid";
-import { useState } from "react";
-import { getCategoryLabel } from "@/lib/categories";
-import { Skeleton } from "@/components/ui/skeleton";
-
-const ARTICLES_PER_PAGE = 17; // 1 lead + 4 + 4 + 8 compact
-
-export default function CategoryView({ categorySlug, initialArticles }: { categorySlug: string; initialArticles?: any[] }) {
-  const [page, setPage] = useState(0);
-
-  const { data: articles, isLoading } = useQuery({
-    queryKey: ["articles-cat", categorySlug, page],
-    queryFn: async () => {
-      let q = supabase
-        .from("articles")
-        .select("id, title, summary, body, category_slug, article_slug, published_at, hero_image")
-        .eq("is_published", true);
-      // 'top-stories' means the latest published stories across all crime sections.
-      if (categorySlug !== "top-stories") q = q.eq("category_slug", categorySlug!);
-      const { data, error } = await q
-        .order("published_at", { ascending: false })
-        .range(page * ARTICLES_PER_PAGE, (page + 1) * ARTICLES_PER_PAGE);
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!categorySlug,
-    initialData: page === 0 ? initialArticles : undefined,
-  });
-
-  const label = getCategoryLabel(categorySlug!);
-
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-12 w-64" />
-        <Skeleton className="aspect-[16/9] w-full" />
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {[...Array(8)].map((_, i) => (
-            <Skeleton key={i} className="aspect-[16/9] w-full" />
-          ))}
-        </div>
-      </div>
-    );
-  }
+export default function CategoryView({ categorySlug, articles, page, hasNext }: { categorySlug: string; articles: any[]; page: number; hasNext: boolean }) {
 
   if (!articles || articles.length === 0) {
     return (
       <div className="py-12 text-center">
-        <SectionHeading title={label} />
         <p className="text-muted-foreground">No articles in this section yet.</p>
       </div>
     );
@@ -67,8 +23,6 @@ export default function CategoryView({ categorySlug, initialArticles }: { catego
 
   return (
     <div className="space-y-10">
-      <SectionHeading title={label} />
-
       {lead && <HeroArticle article={lead} />}
 
       <div className="mx-auto max-w-3xl">
@@ -106,14 +60,14 @@ export default function CategoryView({ categorySlug, initialArticles }: { catego
       )}
 
       <div className="flex justify-center gap-4 pt-4">
-        {page > 0 && (
-          <Button variant="outline" onClick={() => setPage(page - 1)} className="border-foreground/20">
-            Previous
+        {page > 1 && (
+          <Button asChild variant="outline" className="border-foreground/20">
+            <Link href={page === 2 ? `/${categorySlug}` : `/${categorySlug}/page/${page - 1}`}>Previous</Link>
           </Button>
         )}
-        {articles.length >= ARTICLES_PER_PAGE && (
-          <Button variant="outline" onClick={() => setPage(page + 1)} className="border-foreground/20">
-            Next
+        {hasNext && (
+          <Button asChild variant="outline" className="border-foreground/20">
+            <Link href={`/${categorySlug}/page/${page + 1}`}>Next</Link>
           </Button>
         )}
       </div>
