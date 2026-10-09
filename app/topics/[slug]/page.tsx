@@ -9,8 +9,10 @@ import { TOPICS, getTopic, getTopicArticles } from '@/lib/hubs';
 export const revalidate = 600;
 type Params = Promise<{ slug: string }>;
 
+export const dynamicParams = true;
+// Rendered on first request (then ISR) so a slow topic query can't break the build.
 export function generateStaticParams() {
-  return TOPICS.map((t) => ({ slug: t.slug }));
+  return [];
 }
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
