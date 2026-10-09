@@ -2,7 +2,7 @@ import { cache } from 'react';
 import { createServerClient } from '@/lib/supabase/server';
 
 export const HOME_PAGE_SIZE = 30;
-export const CATEGORY_PAGE_SIZE = 17;
+export const CATEGORY_PAGE_SIZE = 30;
 
 const LIST_COLUMNS =
   'id, title, summary, body, category_slug, article_slug, published_at, hero_image';
@@ -74,16 +74,21 @@ export async function getHomeArticles() {
   return data ?? [];
 }
 
-export async function getCategoryArticles(categorySlug: string) {
+export const getCategoryPage = cache(async (categorySlug: string, page: number) => {
   const supabase = createServerClient();
   // 'top-stories' means the latest published stories across all crime sections.
   let q = supabase.from('articles').select(LIST_COLUMNS).eq('is_published', true);
   if (categorySlug !== 'top-stories') q = q.eq('category_slug', categorySlug);
   const { data, error } = await q
     .order('published_at', { ascending: false })
-    .range(0, CATEGORY_PAGE_SIZE);
-  if (error) throw new Error(`getCategoryArticles: ${error.message}`);
-  return data ?? [];
+    .range((page - 1) * CATEGORY_PAGE_SIZE, page * CATEGORY_PAGE_SIZE);
+  if (error) throw new Error(`getCategoryPage: ${error.message}`);
+  const rows = data ?? [];
+  return { articles: rows.slice(0, CATEGORY_PAGE_SIZE), hasNext: rows.length > CATEGORY_PAGE_SIZE };
+});
+
+export async function getCategoryArticles(categorySlug: string) {
+  return (await getCategoryPage(categorySlug, 1)).articles;
 }
 
 export async function getLatestHeadlines(limit = 8) {

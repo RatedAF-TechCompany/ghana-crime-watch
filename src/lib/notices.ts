@@ -18,12 +18,13 @@ export interface OfficialNotice {
 /** Only admin-entered notices copied from police.gov.gh or interpol.int (enforced in the database). */
 export const getNotices = cache(async (kind: NoticeKind): Promise<OfficialNotice[]> => {
   const supabase = createServerClient() as any;
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('official_notices')
     .select('id, kind, person_name, details, agency, official_url, photo_url, date_seen, notice_year')
     .eq('kind', kind)
     .eq('is_published', true)
     .order('date_seen', { ascending: false })
     .limit(100);
+  if (error) throw new Error(`getNotices: ${error.message}`);
   return (data ?? []) as OfficialNotice[];
 });
