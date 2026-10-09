@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: 'Crime alerts',
   description: 'Email, WhatsApp and Telegram crime digests from GhanaCrimes are coming.',
   alternates: { canonical: `${BASE_URL}/alerts` },
+  robots: { index: false, follow: true },
 };
 
 export default function AlertsPage() {

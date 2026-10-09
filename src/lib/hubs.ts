@@ -48,7 +48,7 @@ export const getRegionArticles = cache(async (name: string, limit = 30) => {
   const supabase = createServerClient();
   const { data, error } = await supabase.from('articles').select(LIST).eq('is_published', true).eq('region', name)
     .order('published_at', { ascending: false }).limit(limit);
-  if (error) { console.error(`getRegionArticles: ${error.message}`); return []; }
+  if (error) throw new Error(`getRegionArticles: ${error.message}`);
   return data ?? [];
 });
 
@@ -58,7 +58,7 @@ export const getTopicArticles = cache(async (slug: string, limit = 30) => {
   const supabase = createServerClient();
   const { data, error } = await supabase.from('articles').select(LIST).eq('is_published', true).or(topicFilter(t))
     .order('published_at', { ascending: false }).limit(limit);
-  if (error) { console.error(`getTopicArticles: ${error.message}`); return []; }
+  if (error) throw new Error(`getTopicArticles: ${error.message}`);
   return data ?? [];
 });
 
@@ -68,7 +68,7 @@ export const getGhanaCourtArticles = cache(async (limit = 30) => {
   const supabase = createServerClient();
   const { data: section, error } = await supabase.from('articles').select(LIST).eq('is_published', true)
     .eq('category_slug', 'court-cases').order('published_at', { ascending: false }).limit(limit);
-  if (error) { console.error(`getGhanaCourtArticles: ${error.message}`); return []; }
+  if (error) throw new Error(`getGhanaCourtArticles: ${error.message}`);
   const candidates = await getTopicArticles('court-cases', Math.max(limit * 4, 120));
   const extra = candidates.filter((article) => Boolean(article.region) || GHANA_COURT_SIGNAL.test(`${article.title ?? ''} ${article.summary ?? ''}`));
   const seen = new Set<string>();

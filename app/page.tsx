@@ -4,6 +4,7 @@ import { BASE_URL } from '@/lib/utils';
 import HomeView from '@/components/HomeView';
 import { JsonLd } from '@/components/JsonLd';
 import { getHomeArticles } from '@/lib/server-data';
+import { getMasthead, newsOrganizationJsonLd } from '@/lib/masthead';
 
 export const revalidate = 300;
 
@@ -31,20 +32,12 @@ export const metadata: Metadata = {
 
 export default async function Page() {
   const initialArticles = await getHomeArticles();
+  const masthead = await getMasthead();
   return (
     <Layout>
       <JsonLd
         data={[
-          {
-            '@context': 'https://schema.org',
-            '@type': 'NewsMediaOrganization',
-            name: 'GhanaCrimes',
-            url: `${BASE_URL}/`,
-            logo: `${BASE_URL}/favicon.png`,
-            publishingPrinciples: `${BASE_URL}/editorial-policy`,
-            correctionsPolicy: `${BASE_URL}/corrections`,
-            ethicsPolicy: `${BASE_URL}/editorial-policy`,
-          },
+          newsOrganizationJsonLd(masthead),
           {
             '@context': 'https://schema.org',
             '@type': 'WebSite',

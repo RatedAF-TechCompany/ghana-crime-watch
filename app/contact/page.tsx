@@ -5,6 +5,9 @@ import { Layout } from '@/components/Layout';
 import { StaticPage } from '@/components/StaticPage';
 import { SubmissionForm } from '@/components/SubmissionForm';
 import { BASE_URL } from '@/lib/utils';
+import { getMasthead } from '@/lib/masthead';
+
+export const revalidate = 600;
 
 export const metadata: Metadata = {
   title: 'Contact GhanaCrimes',
@@ -12,13 +15,18 @@ export const metadata: Metadata = {
   alternates: { canonical: `${BASE_URL}/contact` },
 };
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  const masthead = await getMasthead();
   return (
     <Layout>
       <StaticPage title="Contact us" intro="Send a message to the GhanaCrimes newsroom. For story tips, use our tips page; to report an error, use our corrections page.">
         <p>
           <Link href="/tips">Send a tip</Link> · <Link href="/corrections">Request a correction</Link>
         </p>
+        {(masthead.contactEmail || masthead.address) && <address className="not-italic">
+          {masthead.contactEmail && <p><strong>Newsroom email:</strong> <a href={`mailto:${masthead.contactEmail}`}>{masthead.contactEmail}</a></p>}
+          {masthead.address && <p><strong>Address:</strong> {masthead.address}</p>}
+        </address>}
         <Suspense>
           <SubmissionForm
             table="contact_messages"

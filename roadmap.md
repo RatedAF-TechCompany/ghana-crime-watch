@@ -21,3 +21,9 @@
 - [x] Move ingestion to every 10 minutes and repair or add verified feeds
 - [x] Unpublish near-duplicate twins while retaining the best-sourced article
 - [x] Run and report one ingestion test
+## Audit batch 2
+- [x] Add settings-backed masthead and author pages
+- [x] Add crawlable category pagination and indexing rules
+- [x] Align sitemaps and feed counts with hidden sections
+- [x] Add security headers, CSP reporting, generated icon config, and optimized banners
+

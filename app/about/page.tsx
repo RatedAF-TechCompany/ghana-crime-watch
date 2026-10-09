@@ -3,13 +3,10 @@ import Link from 'next/link';
 import { Layout } from '@/components/Layout';
 import { StaticPage } from '@/components/StaticPage';
 import { BASE_URL } from '@/lib/utils';
-import { createServerClient } from '@/lib/supabase/server';
+import { JsonLd } from '@/components/JsonLd';
+import { getMasthead, MastheadList, newsOrganizationJsonLd } from '@/lib/masthead';
 
 export const revalidate = 600;
-
-const MASTHEAD_FIELDS: [string, string][] = [
-  ['publisher', 'Publisher'], ['owner', 'Owned by'], ['editor', 'Editor'], ['location', 'Based in'], ['registration', 'Registration'], ['contact', 'Newsroom contact'],
-];
 
 export const metadata: Metadata = {
   title: 'About GhanaCrimes',
@@ -18,12 +15,10 @@ export const metadata: Metadata = {
 };
 
 export default async function AboutPage() {
-  // Masthead facts come only from site settings entered by the publisher; nothing is shown that has not been supplied.
-  const { data } = await createServerClient().from('site_settings').select('value').eq('key', 'masthead').maybeSingle();
-  const masthead = (data?.value ?? {}) as Record<string, string>;
-  const rows = MASTHEAD_FIELDS.filter(([k]) => typeof masthead[k] === 'string' && masthead[k].trim());
+  const masthead = await getMasthead();
   return (
     <Layout>
+      <JsonLd data={newsOrganizationJsonLd(masthead)} />
       <StaticPage title="About GhanaCrimes" intro="Factual, verified crime reporting for Ghana.">
         <h2>Our mission</h2>
         <p>GhanaCrimes reports on crime, policing and the justice system in Ghana. Our aim is simple: publish accurate, sourced and fair reports that help the public understand what is happening in their communities, without sensationalism.</p>
@@ -37,15 +32,10 @@ export default async function AboutPage() {
         <h2>How we work</h2>
         <p>Every report is based on an identifiable source, such as an official statement, a court record or an earlier published report, and each article links to that source. We treat everyone who is accused of a crime as innocent unless and until a court finds otherwise. Our full standards are set out in our <Link href="/editorial-policy">Editorial Policy</Link>.</p>
         <h2>Masthead and ownership</h2>
-        {rows.length ? (
-          <dl>
-            {rows.map(([k, label]) => (
-              <div key={k}><dt><strong>{label}</strong></dt><dd>{masthead[k]}</dd></div>
-            ))}
-          </dl>
-        ) : (
+        {masthead.hasAny ? <MastheadList masthead={masthead} /> : (
           <p>Reports are published under the GhanaCrimes Newsroom byline. Full ownership and masthead details will be listed here.</p>
         )}
+        <p><Link href="/masthead">View the full masthead and ownership page</Link>.</p>
         <h2>Use of AI</h2>
         <p>We use automated tools to find and summarise published reports, with strict checks and editor review. Read <Link href="/ai-use">how we use AI</Link>.</p>
         <h2>Corrections</h2>

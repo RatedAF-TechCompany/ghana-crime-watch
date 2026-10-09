@@ -18,5 +18,6 @@
 - Ingest merges a new source into a published article from the last 72h (title similarity >= 0.45, or same person + same court/town/agency) as a dated Update paragraph instead of creating a new URL.
 - Sources of type `discovery` (e.g. news search feeds) never publish alone: items wait as `discovery` until a primary source has the same story, then go to review or merge; robots.txt is always honoured.
 - Auto-publish has no daily cap; volume is controlled by one URL per incident (merge into the published article) instead.
-- About masthead facts come only from the `masthead` site setting; nothing is shown that the publisher has not supplied.
+- Masthead and author facts come only from the validated per-key `site_settings` reader; nothing is shown that the publisher has not supplied.
+- Category archives use server-rendered 30-story pages with canonical numbered URLs so crawlers and readers share one pagination path.
 - AutoPost runs every 15 min, posts at most 2 gate-passed stories from the last 24h per run, stops at the site_settings autopost_daily_cap and on X 429/402; errors are logged as readable strings.

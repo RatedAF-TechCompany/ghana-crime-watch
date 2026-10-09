@@ -77,7 +77,7 @@ export default async function LiveThreadPage({ params }: { params: Params }) {
     dateModified: modified,
     coverageStartTime: started,
     ...(thread.live_ended_at ? { coverageEndTime: thread.live_ended_at } : {}),
-    author: { '@type': 'Organization', name: 'GhanaCrimes', url: `${BASE_URL}/about` },
+    author: { '@type': 'Organization', name: 'GhanaCrimes Newsroom', url: `${BASE_URL}/authors/ghanacrimes-newsroom` },
     publisher: { '@type': 'Organization', name: 'GhanaCrimes', logo: { '@type': 'ImageObject', url: `${BASE_URL}/favicon.png` } },
     mainEntityOfPage: canonical,
     ...(main ? { isBasedOn: `${BASE_URL}/${main.category_slug}/${main.article_slug}` } : {}),
