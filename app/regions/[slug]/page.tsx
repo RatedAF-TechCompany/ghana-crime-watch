@@ -9,8 +9,9 @@ import { REGIONS, getRegion, getRegionArticles } from '@/lib/hubs';
 export const revalidate = 600;
 type Params = Promise<{ slug: string }>;
 
+// Rendered on first request (ISR), not at build, so slow queries cannot fail the build.
 export function generateStaticParams() {
-  return REGIONS.map((r) => ({ slug: r.slug }));
+  return [];
 }
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {

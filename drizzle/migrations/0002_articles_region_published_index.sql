@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_articles_region_published ON public.articles (region, published_at DESC) WHERE is_published = true;
