@@ -12,7 +12,7 @@ export function GoogleAnalytics() {
   const measurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
   useEffect(() => {
-    if (!measurementId) return;
+    if (!measurementId || !/^G-[A-Z0-9]+$/.test(measurementId)) return;
 
     // Load the gtag script
     const script = document.createElement('script');

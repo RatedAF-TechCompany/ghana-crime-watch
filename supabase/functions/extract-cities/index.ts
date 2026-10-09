@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
 // Comprehensive list of Ghanaian cities and towns
@@ -203,6 +203,22 @@ function getCrimeTypeFromCategory(categorySlug: string): string | null {
   return CATEGORY_TO_CRIME_TYPE[categorySlug] || null;
 }
 
+async function isAuthorized(req: Request, supabase: any, allowServiceKey = false): Promise<boolean> {
+  const cronSecret = req.headers.get("x-cron-secret");
+  if (cronSecret) {
+    const { data } = await supabase.rpc("verify_cron_secret", { _secret: cronSecret });
+    return data === true;
+  }
+  const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+  if (!token) return false;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (allowServiceKey && serviceKey && token === serviceKey) return true;
+  const { data } = await supabase.auth.getUser(token);
+  if (!data?.user) return false;
+  const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id);
+  return (roles || []).some((row: any) => row.role === "admin" || row.role === "editor");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -212,6 +228,9 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+    if (!(await isAuthorized(req, supabase, true))) {
+      return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     const { article_id, title, body, category_slug } = await req.json();
 

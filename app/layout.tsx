@@ -2,7 +2,13 @@ import type { Metadata, Viewport } from 'next';
 import { GoogleAnalytics } from '@/components/GoogleAnalytics';
 import { Providers } from './providers';
 import { BASE_URL } from '@/lib/utils';
+import { Cormorant_Garamond, Inter, Libre_Baskerville, Lora } from 'next/font/google';
 import './globals.css';
+
+const baskerville = Libre_Baskerville({ subsets: ['latin'], weight: ['400', '700'], style: ['normal', 'italic'], display: 'swap', variable: '--font-baskerville' });
+const inter = Inter({ subsets: ['latin'], weight: ['400', '500', '600', '700'], display: 'swap', variable: '--font-inter' });
+const lora = Lora({ subsets: ['latin'], weight: ['400', '500', '600'], style: ['normal', 'italic'], display: 'swap', variable: '--font-lora' });
+const cormorant = Cormorant_Garamond({ subsets: ['latin'], weight: ['600', '700'], display: 'swap', variable: '--font-cormorant' });
 
 export const metadata: Metadata = {
   title: {
@@ -50,7 +56,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={`${baskerville.variable} ${inter.variable} ${lora.variable} ${cormorant.variable}`}>
       <head>
         <link rel="alternate" type="application/rss+xml" title="GhanaCrimes RSS" href="/rss.xml" />
       </head>

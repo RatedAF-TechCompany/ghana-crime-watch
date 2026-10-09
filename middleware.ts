@@ -6,6 +6,10 @@ import { NextResponse, type NextRequest } from 'next/server';
  * real access control stays in AdminGate (role check) and database RLS.
  */
 export function middleware(req: NextRequest) {
+  const parts = req.nextUrl.pathname.split('/').filter(Boolean);
+  if (parts.length === 2 && parts[1].startsWith('non-ghana-skip')) {
+    return new NextResponse('Gone', { status: 410, headers: { 'X-Robots-Tag': 'noindex', 'Content-Type': 'text/plain' } });
+  }
   if (!req.cookies.get('gc_session')) {
     const url = req.nextUrl.clone();
     url.pathname = '/auth';
@@ -19,4 +23,4 @@ export function middleware(req: NextRequest) {
   return res;
 }
 
-export const config = { matcher: ['/admin', '/admin/:path*'] };
+export const config = { matcher: ['/admin', '/admin/:path*', '/:category/:slug(non-ghana-skip.*)'] };

@@ -11,6 +11,8 @@ import { sanitizeArticleBody } from '@/lib/sanitize';
 import { OG_HEIGHT, OG_WIDTH, formatGhanaDate, formatGhanaTime, hubSocialImage, isIndexableThread } from '@/lib/article-meta';
 
 export const revalidate = 120;
+export const dynamicParams = true;
+export async function generateStaticParams() { return []; }
 
 type Params = Promise<{ threadSlug: string }>;
 

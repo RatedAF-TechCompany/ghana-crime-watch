@@ -4,11 +4,13 @@ import { Layout } from '@/components/Layout';
 import { BASE_URL } from '@/lib/utils';
 import ArticleView from '@/components/ArticleView';
 import { JsonLd } from '@/components/JsonLd';
-import { getArticle, findSlugRedirect, getArticleContext } from '@/lib/server-data';
+import { getArticle, findSlugRedirect, getArticleContext, getArticleRouteState } from '@/lib/server-data';
 import { getCategoryLabel, isValidCategory } from '@/lib/categories';
 import { OG_HEIGHT, OG_WIDTH, articleModified, articleSocialImage, formatGhanaDate, regionForName, topicForText } from '@/lib/article-meta';
 
 export const revalidate = 300;
+export const dynamicParams = true;
+export async function generateStaticParams() { return []; }
 
 type Params = Promise<{ categorySlug: string; articleSlug: string }>;
 
@@ -39,7 +41,12 @@ function LinkList({ title, rows }: { title: string; rows: LinkRow[] }) {
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { categorySlug, articleSlug } = await params;
   const article = await getArticle(categorySlug, articleSlug);
-  if (!article) return { title: 'Page not found', robots: { index: false } };
+  if (!article) {
+    const rs = await getArticleRouteState(categorySlug, articleSlug);
+    if (rs?.state === 'redirect' && rs.target) permanentRedirect(rs.target);
+    if (rs?.state === 'gone') notFound();
+    return { title: 'Page not found', robots: { index: false } };
+  }
 
   const title = article.seo_title || article.title;
   const description = article.seo_description || article.summary || '';
@@ -55,12 +62,13 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
       description,
       url: canonical,
       type: 'article',
+      siteName: 'GhanaCrimes',
       publishedTime: article.published_at ?? undefined,
       modifiedTime: articleModified(article) ?? undefined,
       authors: [article.author_name || 'GhanaCrimes Data Desk'],
       images: [socialImage],
     },
-    twitter: { card: 'summary_large_image', title, description, images: [socialImage] },
+    twitter: { card: 'summary_large_image', site: '@GhanaCrimes', title, description, images: [socialImage] },
   };
 }
 
@@ -70,6 +78,9 @@ export default async function ArticlePage({ params }: { params: Params }) {
 
   const article = await getArticle(categorySlug, articleSlug);
   if (!article) {
+    const rs = await getArticleRouteState(categorySlug, articleSlug);
+    if (rs?.state === 'redirect' && rs.target) permanentRedirect(rs.target);
+    if (rs?.state === 'gone') notFound();
     const target = await findSlugRedirect(categorySlug, articleSlug);
     if (target) permanentRedirect(target);
     notFound();
@@ -101,6 +112,8 @@ export default async function ArticlePage({ params }: { params: Params }) {
               name: 'GhanaCrimes',
               logo: { '@type': 'ImageObject', url: `${BASE_URL}/favicon.png` },
             },
+            articleSection: getCategoryLabel(categorySlug),
+            inLanguage: 'en-GH',
             mainEntityOfPage: { '@type': 'WebPage', '@id': canonical },
             ...(article.source_url ? { isBasedOn: article.source_url } : {}),
           },

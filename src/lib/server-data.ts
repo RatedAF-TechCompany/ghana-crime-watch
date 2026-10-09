@@ -53,14 +53,24 @@ export async function findSlugRedirect(categorySlug: string, articleSlug: string
   return null;
 }
 
+/** What to do with an article URL that has no published row: redirect, gone (410-like 404), or unknown. Null on RPC error. */
+export async function getArticleRouteState(categorySlug: string, articleSlug: string) {
+  const supabase = createServerClient();
+  const { data, error } = await (supabase as any).rpc('article_route_state', { _category: categorySlug, _slug: articleSlug });
+  if (error) return null;
+  const row = Array.isArray(data) ? data[0] : data;
+  return row ? (row as { state: string; target: string | null }) : null;
+}
+
 export async function getHomeArticles() {
   const supabase = createServerClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('articles')
     .select(LIST_COLUMNS)
     .eq('is_published', true)
     .order('published_at', { ascending: false })
     .range(0, HOME_PAGE_SIZE);
+  if (error) throw new Error(`getHomeArticles: ${error.message}`);
   return data ?? [];
 }
 
@@ -69,9 +79,10 @@ export async function getCategoryArticles(categorySlug: string) {
   // 'top-stories' means the latest published stories across all crime sections.
   let q = supabase.from('articles').select(LIST_COLUMNS).eq('is_published', true);
   if (categorySlug !== 'top-stories') q = q.eq('category_slug', categorySlug);
-  const { data } = await q
+  const { data, error } = await q
     .order('published_at', { ascending: false })
     .range(0, CATEGORY_PAGE_SIZE);
+  if (error) throw new Error(`getCategoryArticles: ${error.message}`);
   return data ?? [];
 }
 

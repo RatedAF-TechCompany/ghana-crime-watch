@@ -1,3 +1,4 @@
+import { articleModified } from '@/lib/article-meta';
 import { createServerClient } from '@/lib/supabase/server';
 import { NAV_CATEGORIES } from '@/lib/categories';
 import { ARTICLES_PER_SITEMAP, SITEMAP_BASE as BASE_URL, countPublishedArticles, xmlResponse } from '@/lib/feeds';
@@ -105,7 +106,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ file: s
     urlset(
       rows.map((a) => ({
         loc: `${BASE_URL}/${a.category_slug}/${a.article_slug}`,
-        lastmod: a.content_updated_at || a.published_at ? new Date((a.content_updated_at || a.published_at)!).toISOString() : null,
+        lastmod: articleModified(a) ? new Date(articleModified(a)!).toISOString() : null,
       })),
     ),
   );
