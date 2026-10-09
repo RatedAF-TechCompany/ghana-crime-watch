@@ -57,6 +57,7 @@ export type Database = {
           is_published: boolean
           offence_type: string | null
           published_at: string | null
+          redirect_to: string | null
           region: string | null
           reject_reason: string | null
           seo_description: string | null
@@ -89,6 +90,7 @@ export type Database = {
           is_published?: boolean
           offence_type?: string | null
           published_at?: string | null
+          redirect_to?: string | null
           region?: string | null
           reject_reason?: string | null
           seo_description?: string | null
@@ -121,6 +123,7 @@ export type Database = {
           is_published?: boolean
           offence_type?: string | null
           published_at?: string | null
+          redirect_to?: string | null
           region?: string | null
           reject_reason?: string | null
           seo_description?: string | null
@@ -1454,6 +1457,13 @@ export type Database = {
       }
     }
     Functions: {
+      article_route_state: {
+        Args: { _category: string; _slug: string }
+        Returns: {
+          state: string
+          target: string
+        }[]
+      }
       create_audit_log: {
         Args: {
           _action: string
