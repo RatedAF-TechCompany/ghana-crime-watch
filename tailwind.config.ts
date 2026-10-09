@@ -14,11 +14,11 @@ export default {
     },
     extend: {
       fontFamily: {
-        serif: ['Libre Baskerville', 'Georgia', 'Times New Roman', 'serif'],
-        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Arial', 'sans-serif'],
-        display: ['Cormorant Garamond', 'Playfair Display', 'Georgia', 'serif'],
-        headline: ['Libre Baskerville', 'Georgia', 'serif'],
-        body: ['Lora', 'Georgia', 'serif'],
+        serif: ['var(--font-baskerville)', 'Georgia', 'Times New Roman', 'serif'],
+        sans: ['var(--font-inter)', '-apple-system', 'BlinkMacSystemFont', 'Arial', 'sans-serif'],
+        display: ['var(--font-cormorant)', 'Georgia', 'serif'],
+        headline: ['var(--font-baskerville)', 'Georgia', 'serif'],
+        body: ['var(--font-lora)', 'Georgia', 'serif'],
       },
       maxWidth: {
         editorial: '1260px',
