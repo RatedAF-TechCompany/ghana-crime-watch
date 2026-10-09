@@ -69,7 +69,9 @@ export const getGhanaCourtArticles = cache(async (limit = 30) => {
   const { data: section, error } = await supabase.from('articles').select(LIST).eq('is_published', true)
     .eq('category_slug', 'court-cases').order('published_at', { ascending: false }).limit(limit);
   if (error) throw new Error(`getGhanaCourtArticles: ${error.message}`);
-  const candidates = await getTopicArticles('court-cases', Math.max(limit * 4, 120));
+  // Keyword matches are only a supplement to the court-cases section; a wide scan can hit the
+  // statement timeout, so keep it small and never let it fail the page.
+  const candidates = await getTopicArticles('court-cases', limit).catch(() => []);
   const extra = candidates.filter((article) => Boolean(article.region) || GHANA_COURT_SIGNAL.test(`${article.title ?? ''} ${article.summary ?? ''}`));
   const seen = new Set<string>();
   return [...(section ?? []), ...extra]
