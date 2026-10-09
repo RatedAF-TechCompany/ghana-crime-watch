@@ -7,6 +7,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { AiCreditError, callGateway, newUsage, parseJson } from "./ai-usage.ts";
+import { allowSourceNames, runGate, stripHtml } from "./editorial-gate.ts";
 
 export interface IngestConfig {
   username: string;          // X username to poll, e.g. "GhanaWeb"
@@ -18,7 +19,7 @@ export interface IngestConfig {
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
 const CRIME_KEYWORDS = [
@@ -114,6 +115,22 @@ function fallbackTweet(title: string): string {
   return t;
 }
 
+async function isAuthorized(req: Request, supabase: any, allowServiceKey = false): Promise<boolean> {
+  const cronSecret = req.headers.get("x-cron-secret");
+  if (cronSecret) {
+    const { data } = await supabase.rpc("verify_cron_secret", { _secret: cronSecret });
+    return data === true;
+  }
+  const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+  if (!token) return false;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (allowServiceKey && serviceKey && token === serviceKey) return true;
+  const { data } = await supabase.auth.getUser(token);
+  if (!data?.user) return false;
+  const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id);
+  return (roles || []).some((row: any) => row.role === "admin" || row.role === "editor");
+}
+
 // ---- Article generation (JSON mode, retry once on parse failure) ----
 async function generateArticleJson(
   apiKey: string, usage: ReturnType<typeof newUsage>,
@@ -126,6 +143,7 @@ Tweet: "${tweetText}"
 
 Return a JSON object with these fields:
 {
+  "analysis": {"is_ghana":bool,"ghanaian_central":bool,"region":string|null,"district":string|null,"is_entertainment":bool,"politics_without_enforcement":bool,"is_crime":bool,"offence_type":string|null,"case_status":string,"sexual_or_domestic_violence":bool,"victim_named":bool,"minor_involved":bool,"minor_identifiable":bool,"suspect_named":bool,"pending_case_commentary":bool,"graphic_content":bool},
   "headline": "${cfg.headlineRule}",
   "body": "<p>Short intro paragraph with key facts.</p><p>Details paragraph with context.</p>",
   "summary": "2-3 sentence summary under 200 chars",
@@ -138,7 +156,7 @@ Rules:
 - Maintain journalistic objectivity
 - Use Ghana-specific context
 - Respect presumption of innocence
-- Do not credit or name any source${cfg.extraPromptRule ? "\n- " + cfg.extraPromptRule : ""}`;
+- Attribute facts: according to ${cfg.sourceLabel} on X${cfg.extraPromptRule ? "\n- " + cfg.extraPromptRule : ""}`;
 
   let parseFailures = 0;
 
@@ -170,6 +188,9 @@ export async function runTweetIngest(req: Request, cfg: IngestConfig): Promise<R
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  if (!(await isAuthorized(req, supabase))) {
+    return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  }
   const consumerKey = Deno.env.get("TWITTER_CONSUMER_KEY")!;
   const consumerSecret = Deno.env.get("TWITTER_CONSUMER_SECRET")!;
   const accessToken = Deno.env.get("TWITTER_ACCESS_TOKEN")!;
@@ -370,6 +391,19 @@ export async function runTweetIngest(req: Request, cfg: IngestConfig): Promise<R
         }
 
         const articleData = gen.data;
+        const analysis = articleData.analysis || {};
+        allowSourceNames([cfg.sourceLabel, cfg.username]);
+        const gate = runGate({
+          analysis, draftTitle: String(articleData.headline || ""), draftBody: stripHtml(String(articleData.body || "")),
+          sourceText: tweetText, isOfficial: false, corroboratingSources: 0,
+        });
+        if (gate.hard_fails.length > 0 || analysis.is_ghana === false) {
+          const reasons = [...gate.hard_fails, ...(analysis.is_ghana === false ? ["not_ghana"] : [])];
+          await supabase.from("processed_tweets").update({ processing_status: "skipped_gate_reject", last_attempt_at: new Date().toISOString() }).eq("tweet_id", tweetId);
+          await log("gate_rejected", { tweet_id: tweetId, reasons, headline: articleData.headline });
+          continue;
+        }
+        const xUrl = `https://x.com/${cfg.username}/status/${tweetId}`;
         const articleSlug = String(articleData.headline || "")
           .toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").substring(0, 100);
         const { data: existingSlug } = await supabase.from("articles").select("id").eq("article_slug", articleSlug).maybeSingle();
@@ -410,13 +444,17 @@ export async function runTweetIngest(req: Request, cfg: IngestConfig): Promise<R
           body: articleData.body,
           category_slug: category,
           article_slug: finalSlug,
-          author_name: cfg.sourceLabel,
+          author_name: "GhanaCrimes Newsroom",
+          source_url: xUrl,
+          source_urls: [xUrl],
+          status: "review",
+          gate_report: { ...gate, analysis, source: "x", x_username: cfg.username, tweet_id: tweetId, auto_published: false, checked_at: new Date().toISOString() },
           tags: articleData.tags || ["crime", "police", "ghana"],
           seo_title: articleData.headline,
           seo_description: articleData.seo_description || articleData.summary,
           hero_image: heroImage,
-          is_published: true,
-          published_at: new Date().toISOString(),
+          is_published: false,
+          published_at: null,
           twitter_post: gcTweet,
         }).select("id").single();
 
@@ -427,11 +465,11 @@ export async function runTweetIngest(req: Request, cfg: IngestConfig): Promise<R
         }
 
         await supabase.from("processed_tweets").update({
-          processing_status: "published",
+          processing_status: "review",
           generated_article_id: article.id,
           last_attempt_at: new Date().toISOString(),
         }).eq("tweet_id", tweetId);
-        await log("published", { tweet_id: tweetId, article_id: article.id, headline: articleData.headline });
+        await log("review", { tweet_id: tweetId, article_id: article.id, headline: articleData.headline });
         // NOTE: direct X posting removed — ghanacrimes-autopost owns the @ghanacrimes account on a schedule.
         processed++;
       } catch (err) {
