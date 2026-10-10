@@ -29,6 +29,13 @@
       "when": 1791565513619,
       "tag": "0003_articles_title_trgm_index",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791607083773,
+      "tag": "0004_articles_status_created_idx",
+      "breakpoints": true
     }
   ]
 }

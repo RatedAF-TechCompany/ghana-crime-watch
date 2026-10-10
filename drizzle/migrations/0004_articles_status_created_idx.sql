@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_articles_status_created ON public.articles (status, created_at DESC);
