@@ -69,7 +69,13 @@ export default function ReviewQueueView() {
 
   const load = async () => {
     const [{ data: q, error: qErr }, { data: rj }, { data: au }, { data: pr }, { data: bf }, { data: st }, { data: ra }] = await Promise.all([
-...
+      db.from('articles').select('id,title,summary,body,category_slug,article_slug,status,source_url,source_urls,gate_report,region,offence_type,case_status,created_at').in('status', ['review', 'approved']).order('created_at', { ascending: false }).limit(100),
+      db.from('raw_items').select('id,title,url,reason,fetched_at,summary').eq('status', 'rejected').order('fetched_at', { ascending: false }).limit(100),
+      db.from('audit_logs').select('id,action,resource_id,details,created_at').order('created_at', { ascending: false }).limit(100),
+      db.from('pipeline_runs').select('id,started_at,status,stats').eq('kind', 'ingest').order('started_at', { ascending: false }).limit(10),
+      db.from('pipeline_runs').select('id,started_at,stats').eq('kind', 'backfill').order('started_at', { ascending: false }).limit(1),
+      db.from('site_settings').select('key,value').in('key', ['auto_publish_enabled', 'auto_publish_daily_cap', 'auto_publish_last_change']),
+      db.from('articles').select('id,title,reject_reason,updated_at').eq('status', 'rejected').not('reject_reason', 'is', null).order('updated_at', { ascending: false }).limit(50),
     ]);
     if (qErr) toast({ title: 'Review queue failed to load', description: qErr.message, variant: 'destructive' });
     setRejectedArticles(ra || []);
