@@ -19,7 +19,18 @@ export function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => syncSessionCookie(!!data.session));
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => syncSessionCookie(!!session));
-    return () => sub.subscription.unsubscribe();
+    // Refresh the session when the tab regains focus/visibility (no-op if signed out or still fresh).
+    const refresh = () => {
+      if (document.visibilityState !== 'visible') return;
+      supabase.auth.getSession().then(({ data }) => { if (data.session) supabase.auth.startAutoRefresh(); });
+    };
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      sub.subscription.unsubscribe();
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
   }, []);
   return (
     <QueryClientProvider client={queryClient}>
