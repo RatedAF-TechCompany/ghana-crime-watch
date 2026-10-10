@@ -86,6 +86,20 @@ export function allowSourceNames(names: string[]): void {
   for (const n of names) for (const w of (n || "").split(/[^A-Za-z]+/)) if (w) EXTRA_ALLOWED.add(w.toLowerCase());
 }
 
+/** Everyday English verbs/adjectives that appear capitalised in headlines but are not names. */
+const COMMON_WORDS = new Set([
+  "assist","assists","assisted","shoot","shoots","shot","shooting","arrest","arrests","arrested","attack","attacks","attacked",
+  "kill","kills","killed","rob","robs","robbed","steal","steals","stole","stolen","jail","jails","jailed","sue","sues","sued",
+  "fine","fines","fined","bail","bailed","remand","remanded","charge","charges","charged","convict","convicted","sentence","sentenced",
+  "seize","seizes","seized","raid","raids","raided","ban","bans","banned","probe","probes","probed","deny","denies","denied",
+  "face","faces","facing","flee","flees","fled","grab","grabs","grabbed","hold","holds","held","hunt","hunts","hunted",
+  "nab","nabs","nabbed","name","names","named","parade","paraded","rescued","rescue","rescues","rescue","saved","save","saves",
+  "storm","storms","stormed","suspect","suspects","suspected","wanted","warning","warns","warned","dead","dies","died","death",
+  "injured","injures","hurt","missing","found","foiled","foil","busted","bust","smash","smashed","torch","torched","burnt",
+  "buried","bury","married","rescues","freed","free","frees","jailed","detained","detain","detains","grabbed","impounded",
+  "vows","vowed","urge","urges","urged","appeal","appeals","appealed","orders","ordered","order","rules","ruled","rule",
+]);
+
 /** Every number and proper-noun token in the draft must appear in the source text. */
 export function unsupportedFacts(draft: string, source: string): string[] {
   const src = norm(source);
@@ -94,12 +108,17 @@ export function unsupportedFacts(draft: string, source: string): string[] {
     const v = n.replace(/[,.]$/, "").replace(/,/g, "");
     if (v && !src.includes(v) && !src.includes(n.replace(/[,.]$/, ""))) missing.add(n);
   }
-  for (const sentence of draft.split(/(?<=[.!?])\s+/)) {
+  // The first segment is the headline (callers pass "title. body"); Title Case there is
+  // house style, not evidence of a name, so proper-noun checks skip it.
+  const segments = draft.split(/(?<=[.!?])\s+/);
+  for (const sentence of segments.slice(1)) {
     const words = sentence.split(/[\s\-\/]+/).slice(1); // skip sentence-initial capital
     for (const w of words) {
       const clean = w.replace(/['’]s$/i, "").replace(/[^A-Za-z]/g, "");
       if (!/^[A-Z][a-z]{2,}/.test(clean) || STOP_CAPS.has(clean) || EXTRA_ALLOWED.has(clean.toLowerCase())) continue;
-      if (!src.includes(clean.toLowerCase())) missing.add(clean);
+      const lower = clean.toLowerCase();
+      if (COMMON_WORDS.has(lower)) continue;
+      if (!src.includes(lower)) missing.add(clean);
     }
   }
   return [...missing].slice(0, 20);
