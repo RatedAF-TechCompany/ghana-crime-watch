@@ -1,5 +1,5 @@
 'use client';
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,19 @@ export default function AuthView() {
   const [isLoading, setIsLoading] = useState(false);
   const [linkLoading, setLinkLoading] = useState(false);
   const router = useRouter();
+
+  // Already signed in? Go straight to the review queue instead of showing the form.
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!active || !data.session) return;
+      // /admin is gated by the gc_session hint cookie (middleware.ts); write it first
+      // so this navigation is not bounced straight back to /auth.
+      document.cookie = 'gc_session=1; Path=/; Max-Age=7776000; SameSite=Lax; Secure';
+      router.replace("/admin/review");
+    });
+    return () => { active = false; };
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

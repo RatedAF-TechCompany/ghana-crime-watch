@@ -10,7 +10,7 @@ import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
 
 function syncSessionCookie(signedIn: boolean) {
   document.cookie = signedIn
-    ? 'gc_session=1; Path=/; Max-Age=2592000; SameSite=Lax; Secure'
+    ? 'gc_session=1; Path=/; Max-Age=7776000; SameSite=Lax; Secure'
     : 'gc_session=; Path=/; Max-Age=0; SameSite=Lax; Secure';
 }
 
