@@ -27,7 +27,11 @@ export default function AuthView() {
   useEffect(() => {
     let active = true;
     supabase.auth.getSession().then(({ data }) => {
-      if (active && data.session) router.replace("/admin/review");
+      if (!active || !data.session) return;
+      // /admin is gated by the gc_session hint cookie (middleware.ts); write it first
+      // so this navigation is not bounced straight back to /auth.
+      document.cookie = 'gc_session=1; Path=/; Max-Age=7776000; SameSite=Lax; Secure';
+      router.replace("/admin/review");
     });
     return () => { active = false; };
   }, [router]);
