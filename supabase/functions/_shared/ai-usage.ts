@@ -1,9 +1,9 @@
 // Shared Lovable AI Gateway wrapper: JSON-mode enforced, max_tokens/temperature discipline,
 // usage tracking, and typed 402/429 errors so callers can fail safely.
 
-// Gemini 2.5 Flash-Lite pricing (USD per 1M tokens) — used for on-run cost visibility only.
-const PRICE_INPUT_PER_M = 0.10;
-const PRICE_OUTPUT_PER_M = 0.40;
+// Gemini 3.1 Flash-Lite pricing (USD per 1M tokens) — used for on-run cost visibility only.
+const PRICE_INPUT_PER_M = 0.25;
+const PRICE_OUTPUT_PER_M = 1.50;
 
 export interface AiUsage {
   calls: number;
@@ -48,7 +48,7 @@ export async function callGateway(
   opts: CallOpts,
 ): Promise<{ content: string; raw: any }> {
   const body: any = {
-    model: "google/gemini-2.5-flash-lite",
+    model: "google/gemini-3.1-flash-lite",
     messages: [
       { role: "system", content: opts.system },
       { role: "user", content: opts.user },
