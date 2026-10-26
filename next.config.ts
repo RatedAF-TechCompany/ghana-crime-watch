@@ -47,7 +47,6 @@ const nextConfig: NextConfig = {
       { source: '/police', destination: '/police-reports', permanent: true },
       { source: '/fraud', destination: '/fraud-scams', permanent: true },
       { source: '/news', destination: '/top-stories', permanent: true },
-      { source: '/latest', destination: '/top-stories', permanent: true },
       { source: '/rss', destination: '/rss.xml', permanent: true },
       { source: '/feed', destination: '/rss.xml', statusCode: 301 } as any,
       { source: '/drugs', destination: '/drug-offences', permanent: true },

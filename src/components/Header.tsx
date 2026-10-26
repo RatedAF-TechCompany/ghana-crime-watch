@@ -15,6 +15,7 @@ interface HeaderProps {
 }
 
 const PRIMARY_NAV: { label: string; to: string }[] = [
+  { label: "Latest", to: "/latest" },
   { label: "Crime", to: "/violent-crime" },
   { label: "Court", to: "/court-cases" },
   { label: "Police", to: "/police-reports" },

@@ -8,8 +8,10 @@ import { allowSourceNames, detectRegion, runGate, stripEditorialFiller, stripHtm
 import { extractHeroImage } from "../_shared/extract-image.ts";
 
 const UA = "GhanaCrimesBot/1.0 (+https://www.ghanacrimes.com/about)";
-const MAX_AI_ITEMS = 20;
-const RUN_BUDGET_MS = 110_000; // stop early, well under the function timeout
+const MAX_AI_ITEMS = 4; // small, frequent runs (cron every 10 min) instead of 3 big ones a day
+const RUN_BUDGET_MS = 80_000; // stop early, well under the 150s function wall clock
+const DAILY_NEURON_CAP = 3500; // must match ai-proxy AI_CAP_GHANACRIMES
+const NEURON_BURST = 600; // headroom above the even-pacing line so breaking news is not starved
 const FRESH_WINDOW_H = 6;
 const MAX_ITEM_AGE_H = 48;
 const FIRST_POLL_MAX_AGE_H = 168;
@@ -299,6 +301,7 @@ function slugify(s: string) {
 
 const SYSTEM = `You are a wire-service desk editor for GhanaCrimes, a Ghana crime news site.
 You receive SOURCE TEXT from one publisher. Return strict JSON only.
+Headline style: punchy, breaking-first, TMZ pace but legally safe. Lead with the strongest verified fact (who/what/where), active verbs, present tense, concrete place and number, e.g. "Police arrest 3 suspects over Kasoa robbery" or "Court remands ex-official over GH\u00a2 2m fraud". No clickbait questions, no 'shocking', no puns about victims. Keep 'alleged'/'suspected' in the headline when guilt is not proven, and never name a victim of a sexual offence or any minor in it.
 Rules for the draft:
 - Write an ORIGINAL factual summary of 80 to 180 words in plain, neutral English. Do not copy sentences.
 - Use ONLY facts present in the SOURCE TEXT. Never add names, numbers, dates, places, ages, motives or context that are not in it.
@@ -426,6 +429,22 @@ Deno.serve(async (req) => {
     }));
 
     // ---- 2. dedupe + gate + draft ----
+    // Cheap pre-AI hygiene: anything whose source date is older than MAX_ITEM_AGE_H never reaches the AI.
+    await supabase.from("raw_items").update({ status: "rejected", reason: "too_old (queue purge, pre-AI)" })
+      .eq("status", "new").lt("published_at", new Date(Date.now() - MAX_ITEM_AGE_H * 3600_000).toISOString());
+    // Neuron pacing: spread the daily cap evenly over the UTC day (+ burst headroom) so frequent runs never exhaust it early.
+    let pacedBudget = MAX_AI_ITEMS;
+    try {
+      const day = new Date().toISOString().slice(0, 10);
+      const { data: u } = await supabase.schema("public").from("ai_proxy_usage").select("neurons,calls").eq("day", day).eq("bucket", "ghanacrimes").maybeSingle();
+      const used = Number(u?.neurons ?? 0), calls = Number(u?.calls ?? 0);
+      const perCall = calls > 0 ? Math.max(40, used / calls) : 110;
+      const d0 = new Date(); d0.setUTCHours(0, 0, 0, 0);
+      const allowed = Math.min(DAILY_NEURON_CAP, DAILY_NEURON_CAP * ((Date.now() - d0.getTime()) / 86_400_000) + NEURON_BURST);
+      pacedBudget = Math.max(0, Math.min(MAX_AI_ITEMS, Math.floor((allowed - used) / perCall)));
+      (stats as any).neurons_used_today = Math.round(used); (stats as any).neurons_paced_allowed = Math.round(allowed);
+    } catch { /* usage table unreadable: fall back to MAX_AI_ITEMS; ai-proxy still hard-caps */ }
+    (stats as any).ai_budget_this_run = pacedBudget;
     const freshCut = new Date(Date.now() - FRESH_WINDOW_H * 3600_000).toISOString();
     const [{ data: freshQ }, { data: olderQ }] = await Promise.all([
       supabase.from("raw_items").select("*").eq("status", "new").lt("attempts", 3).gte("fetched_at", freshCut).order("fetched_at", { ascending: false }).limit(60),
@@ -440,7 +459,7 @@ Deno.serve(async (req) => {
     const { count: publishedToday } = await supabase.from("articles").select("id", { count: "exact", head: true })
       .eq("is_published", true).gte("published_at", startOfDay.toISOString()).eq("gate_report->>auto_published", "true");
     let autoCount = publishedToday || 0;
-    let aiBudget = paused ? 0 : MAX_AI_ITEMS;
+    let aiBudget = paused ? 0 : pacedBudget;
     const { data: recentRows } = await supabase.from("articles").select("id, title")
       .gte("created_at", new Date(Date.now() - 48 * 3600_000).toISOString()).neq("status", "rejected").limit(500);
     const recentIncidents: { id: string; title: string }[] = recentRows || [];
@@ -514,7 +533,7 @@ Deno.serve(async (req) => {
     };
 
     for (const item of queue || []) {
-      if (Date.now() - startedAt > RUN_BUDGET_MS) { (stats as any).stopped = "time_budget_110s"; break; }
+      if (Date.now() - startedAt > RUN_BUDGET_MS) { (stats as any).stopped = "time_budget_80s"; break; }
       const src: any = sourceById.get(item.source_id);
       if (!src) {
         // Deactivated source: do not let its items block the queue.

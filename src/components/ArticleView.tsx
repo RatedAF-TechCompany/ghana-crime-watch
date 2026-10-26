@@ -10,6 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CommentsSection } from "@/components/CommentsSection";
 import { SocialShareButtons } from "@/components/SocialShareButtons";
+import { NewsletterSignup } from "@/components/NewsletterSignup";
+import { formatArticleBody } from "@/lib/paragraphs";
+import { caseStatusText, offenceInfo, regionInfo } from "@/lib/crime-labels";
 import { BookmarkButton } from "@/components/BookmarkButton";
 import { WhatsAppChannelCTA, useShouldShowWhatsAppCTA } from "@/components/WhatsAppChannelCTA";
 import { AdBanner } from "@/components/AdBanner";
@@ -108,7 +111,24 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
     return body.replace(/\b(\d+(?:,\d{3})*(?:\.\d+)?)\b/g, '<mark>$1</mark>');
   };
 
-  const sanitizedBody = sanitizeArticleBody(processBodyText(article.body));
+  const formattedBody = formatArticleBody(article.body);
+  // Updates timeline: dated "Update (...)" paragraphs added when another outlet reports the same story.
+  const updates: { when: string; html: string }[] = [];
+  const mainBody = formattedBody.replace(/<p>\s*<strong>Update \(([^)]*)\):<\/strong>([\s\S]*?)<\/p>\s*/g, (_m: string, when: string, rest: string) => { updates.push({ when, html: rest.trim() }); return ''; });
+  const sanitizedBody = sanitizeArticleBody(processBodyText(mainBody));
+  const sanitizedUpdates = updates.map((u) => ({ when: u.when, html: sanitizeArticleBody(u.html) }));
+  const a2: any = article;
+  const reg = regionInfo(a2.region);
+  const off = offenceInfo(a2.offence_type);
+  const status = caseStatusText(a2.case_status);
+  const srcUrls: string[] = Array.from(new Set([a2.source_url, ...(a2.source_urls || [])].filter(Boolean)));
+  const srcHosts = srcUrls.map((u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } }).filter(Boolean);
+  const unresolved = a2.case_status === 'convicted' || a2.case_status === 'acquitted' ? [] : [
+    "Whether anyone will be found guilty: no court has ruled on guilt, so everyone named is presumed innocent.",
+    ...(['reported', 'unknown', null, undefined].includes(a2.case_status) ? ["Whether any arrest has been made, as none was reported in the source."] : []),
+    ...(a2.case_status === 'arrested' ? ["Whether charges will be filed in court."] : []),
+    "Any details not stated by the sources below. GhanaCrimes has not added facts the sources did not report.",
+  ];
 
   return (
     <article className="mx-auto max-w-[760px]">
@@ -199,10 +219,59 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
         <SocialShareButtons title={article.title} summary={article.summary} />
       </div>
 
+      {(reg || off || status || srcHosts.length > 0) && (
+        <aside aria-label="Key facts" className="my-6 rounded-md border-l-4 border-primary bg-muted/60 px-5 py-4 font-sans text-sm">
+          <h2 className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-primary">Key facts</h2>
+          <dl className="grid grid-cols-[auto,1fr] gap-x-4 gap-y-1">
+            {off && (<><dt className="font-semibold">Crime type</dt><dd><Link href={off.href} className="underline underline-offset-2">{off.label}</Link></dd></>)}
+            {reg && (<><dt className="font-semibold">Region</dt><dd><Link href={`/regions/${reg.slug}`} className="underline underline-offset-2">{reg.name}</Link></dd></>)}
+            {status && (<><dt className="font-semibold">Case status</dt><dd>{status}</dd></>)}
+            {srcHosts.length > 0 && (<><dt className="font-semibold">Sources</dt><dd>{Array.from(new Set(srcHosts)).join(", ")}</dd></>)}
+            {sanitizedUpdates.length > 0 && (<><dt className="font-semibold">Updates</dt><dd>{sanitizedUpdates.length}</dd></>)}
+          </dl>
+        </aside>
+      )}
+
       <div
         className="article-body max-w-none py-4"
         dangerouslySetInnerHTML={{ __html: sanitizedBody }}
       />
+
+      <section aria-label="What we know and what we don't" className="my-6 grid gap-4 font-sans text-sm md:grid-cols-2">
+        <div className="rounded-md border border-border p-4">
+          <h2 className="mb-2 text-xs font-bold uppercase tracking-[0.16em]">What we know</h2>
+          <ul className="list-disc space-y-1 pl-4">
+            {article.summary && <li>{article.summary}</li>}
+            {status && <li>Case status: {status}.</li>}
+            {srcHosts.length > 0 && <li>Reported by {Array.from(new Set(srcHosts)).join(", ")}.</li>}
+          </ul>
+        </div>
+        {unresolved.length > 0 && (
+          <div className="rounded-md border border-border p-4">
+            <h2 className="mb-2 text-xs font-bold uppercase tracking-[0.16em]">What we don&apos;t know yet</h2>
+            <ul className="list-disc space-y-1 pl-4">{unresolved.map((t) => <li key={t}>{t}</li>)}</ul>
+          </div>
+        )}
+      </section>
+
+      {sanitizedUpdates.length > 0 && (
+        <section aria-label="Updates timeline" className="my-6">
+          <h2 className="mb-3 font-sans text-xs font-bold uppercase tracking-[0.16em] text-primary">Updates timeline</h2>
+          <ol className="relative space-y-4 border-l-2 border-primary pl-5">
+            {sanitizedUpdates.map((u, i) => (
+              <li key={i} className="font-sans text-sm">
+                <span className="absolute -left-[7px] mt-1.5 h-3 w-3 rounded-full bg-primary" aria-hidden />
+                <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{u.when}</p>
+                <div className="article-body" dangerouslySetInnerHTML={{ __html: u.html }} />
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
+      <div className="my-6 border-y border-border py-3">
+        <SocialShareButtons title={article.title} summary={article.summary} />
+      </div>
 
       <div className="mt-2 space-y-2 border-t border-border pt-4 font-sans text-[13px] text-muted-fg">
         {(() => {
@@ -231,6 +300,8 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
           <Link href={`/corrections?article=${encodeURIComponent(`/${article.category_slug}/${article.article_slug}`)}`} className="text-primary underline underline-offset-2">
             Request a correction
           </Link>
+          {" "}· <Link href={`/corrections?type=takedown&article=${encodeURIComponent(`/${article.category_slug}/${article.article_slug}`)}`} className="text-primary underline underline-offset-2">Request a takedown or privacy review</Link>
+          {" "}· <Link href="/tips" className="underline underline-offset-2">Send us a tip</Link>
           {" "}· <Link href="/editorial-policy" className="underline underline-offset-2">Editorial policy</Link>
         </p>
       </div>
@@ -250,9 +321,13 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
 
       <CommentsSection articleId={article.id} />
 
-      {article.tags && article.tags.length > 0 && (
+      <div className="my-8"><NewsletterSignup /></div>
+
+      {(reg || off || (article.tags && article.tags.length > 0)) && (
         <div className="mt-8 flex flex-wrap gap-2 border-t border-border pt-6">
-          {article.tags.map((tag) => (
+          {off && <Link href={off.href} className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">{off.label}</Link>}
+          {reg && <Link href={`/regions/${reg.slug}`} className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">{reg.name}</Link>}
+          {(article.tags || []).map((tag) => (
             <span
               key={tag}
               className="rounded-full bg-muted px-3 py-1 text-xs font-medium"

@@ -5,7 +5,7 @@ export const HOME_PAGE_SIZE = 30;
 export const CATEGORY_PAGE_SIZE = 30;
 
 const LIST_COLUMNS =
-  'id, title, summary, body, category_slug, article_slug, published_at, hero_image';
+  'id, title, summary, body, category_slug, article_slug, published_at, hero_image, region, offence_type';
 
 export const getArticle = cache(async (categorySlug: string, articleSlug: string) => {
   const supabase = createServerClient();
@@ -144,3 +144,16 @@ export const getArticleContext = cache(async (a: ArticleCtx, topicTerms: readonl
   }
   return { thread: thread?.[0].data ?? null, siblings, related };
 });
+
+/** Live wire: every published story newest first, with region and crime-type for labels. */
+export async function getLatestWire(limit = 80) {
+  const supabase = createServerClient();
+  const { data } = await supabase
+    .from('articles')
+    .select('id, title, summary, category_slug, article_slug, published_at, region, offence_type')
+    .eq('is_published', true)
+    .not('category_slug', 'in', '(crime-statistics,most-wanted)')
+    .order('published_at', { ascending: false })
+    .limit(limit);
+  return (data ?? []).filter((a: any) => a.published_at) as any[];
+}

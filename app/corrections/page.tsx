@@ -35,6 +35,8 @@ export default async function CorrectionsPage() {
           <li>If a report identifies someone it should not, we remove the details or the article.</li>
         </ul>
         <p>Read more in our <Link href="/editorial-policy">Editorial Policy</Link>.</p>
+        <h2 id="takedown">Takedown and privacy requests</h2>
+        <p>If a story identifies a child, identifies the victim of a sexual offence, contains a private address or phone number, or reports a case that was later dropped or ended in acquittal, use the form below and begin your message with <strong>TAKEDOWN</strong>. These requests go to the top of the editors&apos; queue and the details are removed while we review.</p>
         <h2>Corrections log</h2>
         {entries.length === 0 ? (
           <p>No corrections have been logged yet.</p>
