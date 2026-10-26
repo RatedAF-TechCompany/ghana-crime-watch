@@ -51,6 +51,8 @@ const nextConfig: NextConfig = {
       { source: '/feed', destination: '/rss.xml', statusCode: 301 } as any,
       { source: '/drugs', destination: '/drug-offences', permanent: true },
       { source: '/breaking-news', destination: '/top-stories', permanent: true },
+      { source: '/contact-us', destination: '/contact', permanent: true },
+      { source: '/privacy-policy', destination: '/privacy', permanent: true },
       { source: '/about/ownership', destination: '/masthead', permanent: true },
       { source: '/authors', destination: '/authors/ghanacrimes-newsroom', permanent: false },
     ];

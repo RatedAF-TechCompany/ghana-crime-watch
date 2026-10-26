@@ -56,6 +56,9 @@ async function fetchAndStore(request: Request, key: Request, env: unknown, ctx: 
     copy.headers.set("x-edge-cached-at", String(Date.now()));
     copy.headers.set("Cache-Control", `public, max-age=${MAX_STALE_SECONDS}`);
     ctx.waitUntil((caches as any).default.put(key, copy));
+  } else if (res.status === 404 || res.status === 410) {
+    // Page is gone (e.g. emptied section): evict the stale cached copy instead of serving it for a day.
+    ctx.waitUntil((caches as any).default.delete(key));
   }
   return res;
 }

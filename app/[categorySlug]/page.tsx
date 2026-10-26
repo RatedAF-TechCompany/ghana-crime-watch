@@ -21,12 +21,13 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const description = CATEGORY_INTROS[categorySlug] ?? `Latest ${label.toLowerCase()} news and reports from Ghana.`;
   const canonical = `${BASE_URL}/${categorySlug}`;
   const { articles } = await getCategoryPage(categorySlug, 1);
+  if (!articles.length) return { title: 'Page not found', robots: { index: false } };
 
   return {
     title,
     description,
     alternates: { canonical },
-    ...(!articles.length || HIDDEN_CATEGORIES.includes(categorySlug as any) ? { robots: { index: false, follow: true } } : {}),
+    ...(HIDDEN_CATEGORIES.includes(categorySlug as any) ? { robots: { index: false, follow: true } } : {}),
     openGraph: { title, description, url: canonical, type: 'website', siteName: 'GhanaCrimes', images: [{ url: '/og-image.png' }] },
     twitter: { card: 'summary_large_image', site: '@GhanaCrimes', title, description, images: ['/og-image.png'] },
   };
@@ -36,6 +37,8 @@ export default async function CategoryPage({ params }: { params: Params }) {
   const { categorySlug } = await params;
   if (!isValidCategory(categorySlug)) notFound();
   const result = await getCategoryPage(categorySlug, 1);
+  // Empty sections must not be served as indexable 200 pages (Google showed them as sitelinks).
+  if (!result.articles.length) notFound();
   const label = getCategoryLabel(categorySlug);
   const intro = CATEGORY_INTROS[categorySlug] ?? `Latest ${label.toLowerCase()} news and reports from Ghana.`;
 
