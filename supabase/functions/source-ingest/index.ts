@@ -4,7 +4,7 @@
 import { createClient } from "../_shared/sb.ts";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { AiCreditError, callGateway, newUsage, parseJson } from "../_shared/ai-usage.ts";
-import { allowSourceNames, detectRegion, runGate, stripEditorialFiller, stripHtml, wordCount, type Analysis } from "../_shared/editorial-gate.ts";
+import { allowSourceNames, officialAttribution, detectRegion, runGate, stripEditorialFiller, stripHtml, wordCount, type Analysis } from "../_shared/editorial-gate.ts";
 import { extractHeroImage } from "../_shared/extract-image.ts";
 
 const UA = "GhanaCrimesBot/1.0 (+https://www.ghanacrimes.com/about)";
@@ -254,7 +254,7 @@ const CATEGORY_FOR: Record<string, string> = {
 };
 // Court proceedings only: charges in court, plea, bail, remand, trial, ruling, sentence.
 const COURT_PROCEEDINGS = /\b(arraign\w*|in court|before (the|a|an) [\w ]{0,30}(court|judge|magistrate)|court (ruled|ordered|adjourned|granted|remanded|convicted|acquitted|sentenced|heard)|pleaded|plea|bail|remand\w*|trial|ruling|judg(e)?ment|sentenc\w*|convicted|acquitted|charge sheet)\b/i;
-const TRAFFIC_ENFORCEMENT = /\b(MTTD|motorists?|drivers?|traffic|road safety|speeding|okada|vehicles?)\b/i;
+const TRAFFIC_ENFORCEMENT = /\b(MTTD|motorists?|drivers?|traffic|road safety|speeding|okada)\b/i;
 
 function hasValidSourceUrl(url: string): boolean {
   try {
@@ -473,7 +473,7 @@ Deno.serve(async (req) => {
     const dupPool: any[] = dupRows || [];
     const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
     // Soft flags that still need a human even when the story is corroborated (victim/minor protection, graphic, contempt).
-    const NEEDS_HUMAN = /^(ghana_link_unclear|possible_duplicate|sensitive_case_check|graphic_source_material|pending_case_commentary|guilty_language|evidence_speculation|headline_lead_mismatch|missing_attribution|editorial_filler)/;
+    const NEEDS_HUMAN = /^(ghana_link_unclear|possible_duplicate|sensitive_case_check|graphic_source_material|pending_case_commentary|guilty_language|evidence_speculation|headline_lead_mismatch|missing_attribution|editorial_filler|missing_presumption_wording)/;
     (stats as any).corroborated = 0; (stats as any).corroborated_published = 0; (stats as any).inactive_source = 0;
 
     // Attach a second outlet to a review draft; publish if 2+ independent outlets (or tier-1) and nothing needs a human.
@@ -686,7 +686,9 @@ Deno.serve(async (req) => {
           }
         }
 
-        const eligible = gate.soft_flags.length === 0 && (src.trust_tier === 1 || corroborating >= 1);
+        const officialClaim = officialAttribution(sourceText);
+        report.official_attribution = officialClaim;
+        const eligible = gate.soft_flags.length === 0 && (src.trust_tier === 1 || corroborating >= 1 || officialClaim);
         // No daily cap: duplicates are prevented by merge/one-URL-per-incident. Discovery items always go to review.
         const publishNow = eligible && autoEnabled && src.type !== "discovery";
         report.auto_publish_eligible = eligible;

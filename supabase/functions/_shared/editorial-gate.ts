@@ -13,6 +13,13 @@ export const SPECULATION = /\b(evidence (suggests|shows|proves) (he|she|they)|it
 export const GORE = /\b(decapitat\w*|beheaded|dismember\w*|mutilat\w*|disembowel\w*|entrails|brains? (spilled|scattered)|pool of blood|gory|charred bod(y|ies)|severed (head|limb)s?|body parts)\b/i;
 export const PHONE = /(\+233|\b0)[\s-]?[235]\d[\s-]?\d{3}[\s-]?\d{4}\b/;
 export const HOUSE_ADDRESS = /\b(house (no\.?|number) ?[A-Z0-9/-]+|H\/No\.? ?[A-Z0-9/-]+|GPS address:? ?[A-Z]{2}-\d{3,4}-\d{3,4})\b/i;
+/** Claims attributed to an official body: Police, EOCO, NACOC, courts/Judicial Service, Attorney-General. */
+const OFFICIAL_BODY = String.raw`(?:the )?(?:Ghana Police Service|Ghana Police|police|Police Public Affairs Directorate|(?:Regional|Divisional|District|Municipal) Police Command|CID|EOCO|Economic and Organised Crime Office|NACOC|Narcotics Control Commission|Attorney[- ]General(?:'s Department)?|Office of the Attorney[- ]General|Office of the Special Prosecutor|Judicial Service|prosecution|prosecutors?)`;
+/** Claims attributed to an official body (Police, EOCO, NACOC, courts/Judicial Service, A-G): a mention alone does not count. */
+export const OFFICIAL_ATTRIBUTION = new RegExp(String.raw`\b(?:according to ${OFFICIAL_BODY}\b|${OFFICIAL_BODY}\b[^.]{0,80}?\b(?:said|says|stated|confirmed|arrested|have arrested|charged|announced|seized|indicated|disclosed|told the court|in a statement|statement)\b|(?:the )?(?:court|High Court|Circuit Court|District Court|Court of Appeal|Supreme Court)\b[^.]{0,60}?\b(?:heard|ruled|granted|remanded|convicted|sentenced|ordered|adjourned|admitted|dismissed|charged)\b|charge sheet|court (?:documents|records)|arraigned)`, "i");
+export function officialAttribution(text: string): boolean { return OFFICIAL_ATTRIBUTION.test(text || ""); }
+export const PRESUMPTION_WORDS = /\b(alleged|allegedly|suspect|suspects|suspected|accused|charged|remanded|arraigned|pleaded)\b/i;
+
 export const SEXUAL_OR_DV = /\b(rape[ds]?|raping|defile\w*|sexual(ly)? (assault|abus)\w*|indecent assault|incest|domestic violence|wife[- ]beating|assaulted (his|her) (wife|husband|partner))\b/i;
 export const MINOR_HINT = /\b(minor|juvenile|\d{1,2}-year-old (girl|boy|pupil|student)|aged (1[0-7]|[1-9])\b|pupil|schoolgirl|schoolboy|JHS|SHS student|basic school)\b/i;
 export const SCHOOL_NAME = /\b[A-Z][\w'.]+(?: [A-Z][\w'.]+)* (Senior High|Junior High|Basic|Primary|SHS|JHS|M\/A|D\/A|R\/C|Methodist|Presby|Anglican) ?(School)?\b/;
@@ -214,7 +221,10 @@ export function runGate(opts: {
   FILLER_PHRASES.lastIndex = 0;
   const wc = wordCount(draftBody);
   if (wc < 80 || wc > 180) soft.push(`word_count_${wc}`);
-  if (a.suspect_named && !isOfficial && corroboratingSources < 1) soft.push("suspect_named_single_media_source");
+  // Named suspects publish only when the claim comes from an official body (official source, or the source attributes it to
+  // Police/EOCO/NACOC/courts/A-G) or 2+ independent outlets report it, and the draft keeps presumption-of-innocence wording.
+  if (a.suspect_named && !isOfficial && corroboratingSources < 1 && !officialAttribution(sourceText)) soft.push("suspect_named_single_media_source");
+  if (a.suspect_named && a.case_status !== "convicted" && !PRESUMPTION_WORDS.test(draft)) soft.push("missing_presumption_wording");
 
   // d) Presumption of innocence
   const convicted = a.case_status === "convicted" || CONVICTED.test(sourceText);
