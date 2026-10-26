@@ -3,6 +3,7 @@ import { X, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { NAV_CATEGORIES } from "@/lib/categories";
+import { useIsEmptySection } from "@/components/EmptySectionsContext";
 import Link from "next/link";
 
 interface NavigationDrawerProps {
@@ -11,6 +12,7 @@ interface NavigationDrawerProps {
 }
 
 export function NavigationDrawer({ open, onClose }: NavigationDrawerProps) {
+  const isEmpty = useIsEmptySection();
   return (
     <Sheet open={open} onOpenChange={onClose}>
       <SheetContent side="left" className="w-[320px] border-r border-border bg-background p-0">
@@ -34,7 +36,7 @@ export function NavigationDrawer({ open, onClose }: NavigationDrawerProps) {
             <Shield className="h-4 w-4 shrink-0" />
             Fraud Watch
           </Link>
-          {NAV_CATEGORIES.map((category) => (
+          {NAV_CATEGORIES.filter((c) => !isEmpty(`/${c.slug}`)).map((category) => (
             <Link
               key={category.slug}
               href={`/${category.slug}`}

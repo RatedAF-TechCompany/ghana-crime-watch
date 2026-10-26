@@ -6,6 +6,7 @@ import { NavigationDrawer } from "./NavigationDrawer";
 import { SearchOverlay } from "./SearchOverlay";
 import { BreakingNewsTicker } from "./BreakingNewsTicker";
 import { NAV_CATEGORIES } from "@/lib/categories";
+import { useIsEmptySection } from "@/components/EmptySectionsContext";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -42,7 +43,7 @@ const FOOTER_COLUMNS: { title: string; links: { label: string; to: string }[] }[
   },
   {
     title: "Sections",
-    links: NAV_CATEGORIES.slice(0, 6).map((c) => ({ label: c.label, to: `/${c.slug}` })),
+    links: NAV_CATEGORIES.slice(0, 8).map((c) => ({ label: c.label, to: `/${c.slug}` })),
   },
   {
     title: "Legal",
@@ -62,6 +63,7 @@ const FOOTER_COLUMNS: { title: string; links: { label: string; to: string }[] }[
 ];
 
 export function Layout({ children }: LayoutProps) {
+  const isEmpty = useIsEmptySection();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -91,7 +93,7 @@ export function Layout({ children }: LayoutProps) {
                   {col.title}
                 </h3>
                 <ul className="space-y-2.5">
-                  {col.links.map((link) => (
+                  {col.links.filter((l) => !isEmpty(l.to)).slice(0, 6).map((link) => (
                     <li key={link.label}>
                       <Link
                         href={link.to}
