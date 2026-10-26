@@ -21,6 +21,18 @@ function imageMeta(article: any) {
   return img.generated ? { url: img.url, width: OG_WIDTH, height: OG_HEIGHT } : { url: img.url };
 }
 
+// Google recommends 16:9, 4:3 and 1:1 variants (>=1200px wide) for article rich results.
+function jsonLdImages(article: any, img: { url: string; width?: number; height?: number }) {
+  const card = articleSocialImage({ id: article.id }).url;
+  const sep = card.includes('?') ? '&' : '?';
+  const variants = [
+    { '@type': 'ImageObject', url: `${card}${sep}ar=16x9`, width: 1200, height: 675 },
+    { '@type': 'ImageObject', url: `${card}${sep}ar=4x3`, width: 1200, height: 900 },
+    { '@type': 'ImageObject', url: `${card}${sep}ar=1x1`, width: 1200, height: 1200 },
+  ];
+  return articleSocialImage(article).generated ? variants : [{ '@type': 'ImageObject', ...img }, ...variants];
+}
+
 type LinkRow = { id: string; title: string; category_slug: string; article_slug: string; published_at: string | null };
 
 function LinkList({ title, rows }: { title: string; rows: LinkRow[] }) {
@@ -107,7 +119,7 @@ export default async function ArticlePage({ params }: { params: Params }) {
             '@type': 'NewsArticle',
             headline: title.slice(0, 110),
             description: article.seo_description || article.summary,
-            image: [{ '@type': 'ImageObject', ...img }],
+            image: jsonLdImages(article, img),
             datePublished: article.published_at,
             dateModified: articleModified(article),
             author: author?.kind === 'person'
