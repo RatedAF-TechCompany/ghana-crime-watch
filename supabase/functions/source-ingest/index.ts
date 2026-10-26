@@ -4,7 +4,7 @@
 import { createClient } from "../_shared/sb.ts";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { AiCreditError, callGateway, newUsage, parseJson } from "../_shared/ai-usage.ts";
-import { allowSourceNames, officialAttribution, detectRegion, runGate, stripEditorialFiller, stripHtml, wordCount, type Analysis } from "../_shared/editorial-gate.ts";
+import { allowSourceNames, officialAttribution, hasGhanaSignal, redactProtected, toneDownGore, ensureAttribution, ensurePresumption, detectRegion, runGate, stripEditorialFiller, stripHtml, wordCount, type Analysis } from "../_shared/editorial-gate.ts";
 import { extractHeroImage } from "../_shared/extract-image.ts";
 
 const UA = "GhanaCrimesBot/1.0 (+https://www.ghanacrimes.com/about)";
@@ -307,7 +307,7 @@ Rules for the draft:
 - Use ONLY facts present in the SOURCE TEXT. Never add names, numbers, dates, places, ages, motives or context that are not in it.
 - Attribute explicitly: include "according to <publisher name>" (or the official body quoted in the source).
 - Presumption of innocence: use alleged, suspected, arrested, charged, remanded. Never call anyone a killer, thief, criminal, murderer or robber unless the source says they were convicted.
-- Never name the victim of a sexual offence or domestic violence. Never give any identifying detail (name, school, community, relatives) of anyone under 18.
+- Never name the victim of a sexual offence or domestic violence. Never give any identifying detail (name, school, community, relatives) of anyone under 18. Redact these details and write the rest of the story; do not skip it.
 - No home addresses, phone numbers or graphic descriptions of injuries or bodies.
 - No commentary on guilt, evidence strength or likely outcomes of pending cases.
 - Every sentence must be directly supported by the SOURCE TEXT. If a sentence cannot be traced to the source, leave it out. A shorter article is better than an unsupported one.
@@ -473,7 +473,9 @@ Deno.serve(async (req) => {
     const dupPool: any[] = dupRows || [];
     const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
     // Soft flags that still need a human even when the story is corroborated (victim/minor protection, graphic, contempt).
-    const NEEDS_HUMAN = /^(ghana_link_unclear|possible_duplicate|sensitive_case_check|graphic_source_material|pending_case_commentary|guilty_language|evidence_speculation|headline_lead_mismatch|missing_attribution|editorial_filler|missing_presumption_wording)/;
+    // Loosened gate (Oct 2026): only these still hold a draft. Everything else is informational.
+    const NEEDS_HUMAN = /^(possible_duplicate|redaction_incomplete|graphic_terms_remaining|pending_case_commentary|guilty_language|evidence_speculation)/;
+    const BLOCKING = NEEDS_HUMAN;
     (stats as any).corroborated = 0; (stats as any).corroborated_published = 0; (stats as any).inactive_source = 0;
 
     // Attach a second outlet to a review draft; publish if 2+ independent outlets (or tier-1) and nothing needs a human.
@@ -486,7 +488,7 @@ Deno.serve(async (req) => {
       const flags: string[] = (g.soft_flags || []).filter((f: string) => !/^suspect_named_single_media_source/.test(f));
       g.soft_flags = flags;
       const hard = (g.hard_fails || []).length > 0;
-      const eligible = !hard && !flags.some((f) => NEEDS_HUMAN.test(f)) && (outlets.size >= 2 || g.source_tier === 1 || src.trust_tier === 1);
+      const eligible = !hard && !flags.some((f) => NEEDS_HUMAN.test(f));
       const publishNow = eligible && autoEnabled;
       g.auto_publish_eligible = eligible;
       if (publishNow) { g.auto_published = true; g.corroboration_published_at = new Date().toISOString(); delete g.held_reason; }
@@ -639,8 +641,12 @@ Deno.serve(async (req) => {
         });
         stats.ai_calls++;
         const out = extractJson<{ analysis: Analysis; title: string; summary: string; body: string }>(content);
-        const body = stripEditorialFiller((out.body || "").replace(/[\u2013\u2014]/g, ", ")).trim();
-        const title = stripEditorialFiller((out.title || item.title).replace(/[\u2013\u2014]/g, ", ")).trim().slice(0, 120);
+        let body = stripEditorialFiller((out.body || "").replace(/[\u2013\u2014]/g, ", ")).trim();
+        let title = stripEditorialFiller((out.title || item.title).replace(/[\u2013\u2014]/g, ", ")).trim().slice(0, 120);
+        // Loosened gate: fix instead of hold. Redact protected people, tone down gore, add attribution and presumption wording.
+        const red = redactProtected(title, body, out.analysis || {}, sourceText);
+        title = toneDownGore(red.title); body = toneDownGore(red.body);
+        body = ensurePresumption(ensureAttribution(body, src.name), out.analysis || {});
         const gate = runGate({ analysis: out.analysis || {}, draftTitle: title, draftBody: body, sourceText, isOfficial: src.trust_tier === 1, corroboratingSources: corroborating });
         stats.gated++;
 
@@ -656,10 +662,12 @@ Deno.serve(async (req) => {
           stats.rejected++; continue;
         }
         const ghanaText = `${title} ${body} ${item.title}`;
-        if (out.analysis?.ghanaian_central !== true || !hasGhanaLink(ghanaText)) {
-          gate.soft_flags.push("ghana_link_unclear");
-          report.soft_flags = gate.soft_flags;
+        if (!hasGhanaLink(ghanaText) && !hasGhanaSignal(sourceText)) {
+          // Clearly foreign with no Ghana link at all: skip.
+          await supabase.from("raw_items").update({ status: "rejected", reason: "no_ghana_link", gate_report: report }).eq("id", item.id);
+          stats.rejected++; continue;
         }
+        report.redactions = red.removed;
 
         // Near-duplicate check against published/review articles from the last 48h.
         const offence = out.analysis?.offence_type || null;
@@ -688,7 +696,7 @@ Deno.serve(async (req) => {
 
         const officialClaim = officialAttribution(sourceText);
         report.official_attribution = officialClaim;
-        const eligible = gate.soft_flags.length === 0 && (src.trust_tier === 1 || corroborating >= 1 || officialClaim);
+        const eligible = !gate.soft_flags.some((f) => BLOCKING.test(f));
         // No daily cap: duplicates are prevented by merge/one-URL-per-incident. Discovery items always go to review.
         const publishNow = eligible && autoEnabled && src.type !== "discovery";
         report.auto_publish_eligible = eligible;

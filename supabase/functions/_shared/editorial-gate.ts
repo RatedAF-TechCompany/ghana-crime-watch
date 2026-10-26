@@ -21,7 +21,7 @@ export function officialAttribution(text: string): boolean { return OFFICIAL_ATT
 export const PRESUMPTION_WORDS = /\b(alleged|allegedly|suspect|suspects|suspected|accused|charged|remanded|arraigned|pleaded)\b/i;
 
 export const SEXUAL_OR_DV = /\b(rape[ds]?|raping|defile\w*|sexual(ly)? (assault|abus)\w*|indecent assault|incest|domestic violence|wife[- ]beating|assaulted (his|her) (wife|husband|partner))\b/i;
-export const MINOR_HINT = /\b(minor|juvenile|\d{1,2}-year-old (girl|boy|pupil|student)|aged (1[0-7]|[1-9])\b|pupil|schoolgirl|schoolboy|JHS|SHS student|basic school)\b/i;
+export const MINOR_HINT = /\b(minor|juvenile|child|children|baby|toddler|infant|schoolchild|(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen)-year-old|1[0-7]-year-old|[1-9]-year-old|\d{1,2}-year-old (girl|boy|pupil|student)|aged (1[0-7]|[1-9])\b|pupil|schoolgirl|schoolboy|JHS|SHS student|basic school)\b/i;
 export const SCHOOL_NAME = /\b[A-Z][\w'.]+(?: [A-Z][\w'.]+)* (Senior High|Junior High|Basic|Primary|SHS|JHS|M\/A|D\/A|R\/C|Methodist|Presby|Anglican) ?(School)?\b/;
 export const ENTERTAINMENT = /\b(celebrity|showbiz|musician|rapper|actress|actor|album|music video|concert|movie|nollywood|kumawood|reality show|talent show|award show|red carpet|gospel artist)\b/i;
 export const CONVICTED = /\b(convicted|sentenced|found guilty|jailed|imprisoned for|pleaded guilty)\b/i;
@@ -187,6 +187,60 @@ export function hasGhanaSignal(text: string): boolean {
   return GHANA_INSTITUTION.test(text || "") || detectRegion(text) !== null;
 }
 
+
+// ---- Loosened-gate transforms (Oct 2026): fix drafts automatically instead of holding them. ----
+export const JUSTICE_SECURITY = /\b(police|court|judge|prosecut\w*|arrest\w*|crime|criminal|security|NACOC|EOCO|CID|Special Prosecutor|Attorney[- ]General|prison\w*|narcotic\w*|drug\w*|trafficking|galamsey|illegal mining|fraud|corruption|investigat\w*|immigration|border|military|soldiers?|justice)\b/i;
+const GORE_SOFT: [RegExp, string][] = [
+  [/\b(decapitat\w*|beheaded)\b/gi, "killed"], [/\b(dismember\w*|mutilat\w*|disembowel\w*)\b/gi, "attacked"],
+  [/\bentrails\b/gi, "remains"], [/\bbrains? (spilled|scattered)\b/gi, "fatal injuries"], [/\b(in )?a pool of blood\b/gi, ""],
+  [/\bgory\b/gi, "serious"], [/\bcharred bod(y|ies)\b/gi, (m: string) => /ies$/i.test(m) ? "bodies" : "body" as any],
+  [/\bsevered (head|limb)s?\b/gi, "remains"], [/\b(decomposing|partially naked|naked|mangled|bloodied) (body|bodies|corpse)\b/gi, "$2"], [/\bbody parts\b/gi, "remains"], [/\bset (?:it |the body |the bodies )?on fire\b/gi, "burned"],
+];
+export function toneDownGore(s: string): string {
+  let out = s || "";
+  for (const [re, rep] of GORE_SOFT) out = out.replace(re, rep as any);
+  return out.replace(/ {2,}/g, " ").replace(/ ([.,])/g, "$1");
+}
+/** Prefix "According to <outlet>," when the draft has no explicit attribution. */
+export function ensureAttribution(body: string, outlet: string): string {
+  if (/according to/i.test(body) || !outlet) return body;
+  const b = body.trimStart();
+  const m = b.match(/^(The|A|An)\s/);
+  return `According to ${outlet}, ${m ? m[1].toLowerCase() + b.slice(m[1].length) : b}`;
+}
+/** Insert presumption wording when a suspect is named and there is no conviction. */
+export function ensurePresumption(body: string, a: Analysis): string {
+  if (!a.suspect_named || a.case_status === "convicted" || a.case_status === "acquitted") return body;
+  let out = body
+    .replace(/\b(the |a )(robbery|murder|killing|attack|theft|fraud|assault|kidnapping|rape|defilement|stabbing|shooting)\b/gi, (_m, art, w) => `${art}alleged ${w}`)
+    .replace(/alleged alleged/gi, "alleged");
+  if (!PRESUMPTION_WORDS.test(out)) out = `${out.trim()}\n\nThe suspect is presumed innocent unless proven guilty by a court.`;
+  return out;
+}
+const IDENT_CUES = /\b(named|identified as|known as|called|name withheld|a pupil of|a student of|student at|pupil at|attends?|lives? (at|in)|resident of|daughter of|son of|niece|nephew|granddaughter|grandson|house (no|number)|GPS)\b/i;
+export function isProtectedCase(a: Analysis, text: string): boolean {
+  return !!(a.minor_involved || a.sexual_or_domestic_violence || MINOR_HINT.test(text) || SEXUAL_OR_DV.test(text));
+}
+/** Redact minors and sexual-offence victims: drop any sentence carrying a name cue, school, address, phone or relative; scrub schools from the title. */
+export function redactProtected(title: string, body: string, a: Analysis, sourceText: string): { title: string; body: string; removed: number } {
+  if (!isProtectedCase(a, `${sourceText} ${body}`)) return { title, body, removed: 0 };
+  let removed = 0;
+  const paras = body.split(/\n\s*\n/).map((p) => {
+    const sents = p.match(/[^.!?]+[.!?]+["')]*\s*|[^.!?]+$/g) || [p];
+    return sents.filter((s) => {
+      const bad = SCHOOL_NAME.test(s) || HOUSE_ADDRESS.test(s) || PHONE.test(s) || IDENT_CUES.test(s);
+      if (bad) removed++;
+      return !bad;
+    }).join("").trim();
+  }).filter(Boolean);
+  // Drop the community/village of a protected person, keeping only the district/municipality/region.
+  const COMMUNITY = /\b(?:at|in) [A-Z][\w'-]+(?:[- ][A-Z][\w'-]+)*,? (?=in the [A-Z][\w' -]+ (?:District|Municipality|Municipal|Metropolis|Metropolitan|Region))/g;
+  let out = paras.join("\n\n");
+  const before = out; out = out.replace(COMMUNITY, ""); if (out !== before) removed++;
+  const t = title.replace(new RegExp(SCHOOL_NAME.source, "g"), "a school");
+  return { title: t, body: out, removed };
+}
+
 /** Full gate for a freshly drafted item (LLM analysis + deterministic checks on the draft). */
 export function runGate(opts: {
   analysis: Analysis;
@@ -210,7 +264,8 @@ export function runGate(opts: {
   if (!detectedRegion && !ghanaSignal) soft.push("region_unresolved");
 
   // b) Crime only
-  if (!a.is_crime || !a.offence_type || !OFFENCES.includes(a.offence_type)) hard.push("not_in_crime_scope");
+  // Justice, security and policing news counts; only clearly non-crime, non-justice items are out of scope.
+  if ((!a.is_crime || !a.offence_type || !OFFENCES.includes(a.offence_type)) && !JUSTICE_SECURITY.test(sourceText)) hard.push("not_in_crime_scope");
 
   // c) Factual
   const missing = unsupportedFacts(draft, `${sourceText}`);
@@ -223,23 +278,22 @@ export function runGate(opts: {
   if (wc < 80 || wc > 180) soft.push(`word_count_${wc}`);
   // Named suspects publish only when the claim comes from an official body (official source, or the source attributes it to
   // Police/EOCO/NACOC/courts/A-G) or 2+ independent outlets report it, and the draft keeps presumption-of-innocence wording.
-  if (a.suspect_named && !isOfficial && corroboratingSources < 1 && !officialAttribution(sourceText)) soft.push("suspect_named_single_media_source");
-  if (a.suspect_named && a.case_status !== "convicted" && !PRESUMPTION_WORDS.test(draft)) soft.push("missing_presumption_wording");
+  // Single-source stories publish with "According to <outlet>"; presumption wording is inserted upstream (ensurePresumption).
+  void isOfficial; void corroboratingSources;
 
   // d) Presumption of innocence
   const convicted = a.case_status === "convicted" || CONVICTED.test(sourceText);
   if (VERDICT_WORDS.test(draft) && !convicted) hard.push("verdict_word_before_conviction");
 
   // e) Graphic
-  if (GORE.test(draft)) hard.push("graphic_terms");
-  if (a.graphic_content) soft.push("graphic_source_material");
+  // Gore wording is toned down upstream (toneDownGore); graphic source material no longer holds.
+  if (GORE.test(draft)) soft.push("graphic_terms_remaining");
 
   // f) Privacy
-  if ((a.sexual_or_domestic_violence || SEXUAL_OR_DV.test(sourceText)) && a.victim_named) hard.push("sexual_or_dv_victim_named");
-  if (a.minor_involved && (a.minor_identifiable || SCHOOL_NAME.test(draft))) hard.push("minor_identifiable");
+  // Minors and sexual-offence victims are redacted upstream (redactProtected). This is the residual backstop on the draft.
+  if (isProtectedCase(a, `${sourceText} ${draft}`) && (SCHOOL_NAME.test(draft) || IDENT_CUES.test(draft))) soft.push("redaction_incomplete");
   if (PHONE.test(draft)) hard.push("phone_number");
   if (HOUSE_ADDRESS.test(draft)) hard.push("home_address");
-  if ((a.sexual_or_domestic_violence || a.minor_involved) && !hard.length) soft.push("sensitive_case_check");
 
   // g) Contempt guard
   if (a.pending_case_commentary) soft.push("pending_case_commentary");
