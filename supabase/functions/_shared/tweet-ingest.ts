@@ -195,7 +195,7 @@ export async function runTweetIngest(req: Request, cfg: IngestConfig): Promise<R
   const consumerSecret = Deno.env.get("TWITTER_CONSUMER_SECRET")!;
   const accessToken = Deno.env.get("TWITTER_ACCESS_TOKEN")!;
   const accessTokenSecret = Deno.env.get("TWITTER_ACCESS_TOKEN_SECRET")!;
-  const lovableApiKey = (Deno.env.get("GEMINI_API_KEY") ?? Deno.env.get("LOVABLE_API_KEY"));
+  const lovableApiKey = ((Deno.env.get("GC_AI_API_KEY") ?? Deno.env.get("AI_API_KEY")) ?? Deno.env.get("LOVABLE_API_KEY"));
 
   const usage = newUsage();
   let jsonParseFailures = 0;
