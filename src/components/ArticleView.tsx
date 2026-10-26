@@ -108,7 +108,16 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
   const dateLabels = publishedUpdatedLabels(article.published_at!, modifiedIso);
 
   const processBodyText = (body: string) => {
-    return body.replace(/\b(\d+(?:,\d{3})*(?:\.\d+)?)\b/g, '<mark>$1</mark>');
+    // Highlight figures in text only: never inside tags (href/src attributes) or link text.
+    let inLink = 0;
+    return body.split(/(<[^>]+>)/g).map((part) => {
+      if (part.startsWith('<')) {
+        if (/^<a[\s>]/i.test(part)) inLink++;
+        else if (/^<\/a>/i.test(part)) inLink = Math.max(0, inLink - 1);
+        return part;
+      }
+      return inLink ? part : part.replace(/\b(\d+(?:,\d{3})*(?:\.\d+)?)\b/g, '<mark>$1</mark>');
+    }).join('');
   };
 
   const formattedBody = formatArticleBody(article.body);
@@ -297,10 +306,10 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
         })()}
         <p>
           Spotted an error?{" "}
-          <Link href={`/corrections?article=${encodeURIComponent(`/${article.category_slug}/${article.article_slug}`)}`} className="text-primary underline underline-offset-2">
+          <Link rel="nofollow" href={`/corrections?article=${encodeURIComponent(`/${article.category_slug}/${article.article_slug}`)}`} className="text-primary underline underline-offset-2">
             Request a correction
           </Link>
-          {" "}· <Link href={`/corrections?type=takedown&article=${encodeURIComponent(`/${article.category_slug}/${article.article_slug}`)}`} className="text-primary underline underline-offset-2">Request a takedown or privacy review</Link>
+          {" "}· <Link rel="nofollow" href={`/corrections?type=takedown&article=${encodeURIComponent(`/${article.category_slug}/${article.article_slug}`)}`} className="text-primary underline underline-offset-2">Request a takedown or privacy review</Link>
           {" "}· <Link href="/tips" className="underline underline-offset-2">Send us a tip</Link>
           {" "}· <Link href="/editorial-policy" className="underline underline-offset-2">Editorial policy</Link>
         </p>
