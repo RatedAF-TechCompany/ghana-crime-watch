@@ -86,7 +86,7 @@ export default function QuickPublishView() {
       }
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL!}/functions/v1/manual-article-submit`,
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL!}/functions/v1/gc-manual-article-submit`,
         {
           method: "POST",
           headers: {

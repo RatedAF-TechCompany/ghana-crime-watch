@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient } from "../_shared/sb.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -30,7 +30,7 @@ serve(async (req) => {
     const timeoutId = setTimeout(() => controller.abort(), 55000); // 55s timeout
 
     try {
-      const response = await fetch(`${supabaseUrl}/functions/v1/run-newsroom`, {
+      const response = await fetch(`${supabaseUrl}/functions/v1/gc-run-newsroom`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

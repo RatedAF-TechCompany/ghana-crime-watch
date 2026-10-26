@@ -26,3 +26,6 @@ next-env.d.ts
 *.sw?
 .env
 public/icons/
+
+.open-next
+.wrangler

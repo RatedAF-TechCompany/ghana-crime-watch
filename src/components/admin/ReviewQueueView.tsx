@@ -194,7 +194,7 @@ export default function ReviewQueueView() {
           <label className="flex items-center gap-2 text-sm">Daily cap
             <Input type="number" className="h-8 w-20" value={cap} disabled={!isAdmin || !settingsLoaded} onChange={(e) => setCap(Number(e.target.value))} onBlur={saveCap} />
           </label>
-          <Button size="sm" variant="outline" disabled={!!busy} onClick={() => invoke('source-ingest')}><Play className="mr-1 h-4 w-4" />Run pipeline</Button>
+          <Button size="sm" variant="outline" disabled={!!busy} onClick={() => invoke('gc-source-ingest')}><Play className="mr-1 h-4 w-4" />Run pipeline</Button>
         </div>
       </div>
 
@@ -295,7 +295,7 @@ export default function ReviewQueueView() {
         <TabsContent value="backfill" className="space-y-3">
           <p className="text-sm">Checks published stories from the last 30 days. Hard fails are moved to draft, never deleted.</p>
           <div className="flex gap-2">
-            {isAdmin && <Button size="sm" variant="outline" disabled={!!busy} onClick={() => invoke('gate-backfill')}>Run backfill</Button>}
+            {isAdmin && <Button size="sm" variant="outline" disabled={!!busy} onClick={() => invoke('gc-gate-backfill')}>Run backfill</Button>}
             <Button size="sm" variant="outline" disabled={!backfill} onClick={downloadCsv}><Download className="mr-1 h-4 w-4" />Download CSV</Button>
           </div>
           {backfill && (

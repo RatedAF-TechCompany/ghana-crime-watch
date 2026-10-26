@@ -4,15 +4,16 @@ import type { Database } from '@/integrations/supabase/types';
 const SUPABASE_URL =
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
   process.env.VITE_SUPABASE_URL ||
-  'https://zninjnjujptjxdikehun.supabase.co';
+  'https://rscqxztgtpcifcqxjskh.supabase.co';
 const SUPABASE_ANON_KEY =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
   process.env.VITE_SUPABASE_ANON_KEY ||
   process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpuaW5qbmp1anB0anhkaWtlaHVuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0MTEyNjYsImV4cCI6MjA3OTk4NzI2Nn0.6n_eWoQ789-Gg_77GpRF-Nw49NpafzqNQuWRwoDAVCQ';
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzY3F4enRndHBjaWZjcXhqc2toIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI5NjQyMDEsImV4cCI6MjEwODU0MDIwMX0.pAMIqM7uhLcOC0MWr9b9qV1mVHX234lICfQ6vwUq2nM';
 
 export function createServerClient() {
-  return createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  return createClient<Database, 'ghanacrimes'>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  db: { schema: 'ghanacrimes' },
     auth: { persistSession: false },
   });
 }

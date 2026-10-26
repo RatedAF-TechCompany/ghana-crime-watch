@@ -2,7 +2,7 @@
 // POST body (all optional): { days?: number, limit?: number, latest?: boolean, dry_run?: boolean }
 // Uses the shared extractor — no AI, no new API keys.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "../_shared/sb.ts";
 import { extractHeroImage } from "../_shared/extract-image.ts";
 
 const corsHeaders = {

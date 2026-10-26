@@ -1,4 +1,4 @@
-const ALLOWED_PREFIX = 'https://zninjnjujptjxdikehun.supabase.co/storage/';
+const ALLOWED_PREFIX = 'https://rscqxztgtpcifcqxjskh.supabase.co/storage/';
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);

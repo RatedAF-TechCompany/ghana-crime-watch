@@ -1,7 +1,7 @@
 // Source-grounded ingestion: poll verified feeds, dedupe, gate, draft an original
 // attributed summary, and auto-publish only items that pass every check.
 // Auth: x-cron-secret header (vault secret) OR a staff user's JWT (manual run).
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient } from "../_shared/sb.ts";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { AiCreditError, callGateway, newUsage, parseJson } from "../_shared/ai-usage.ts";
 import { allowSourceNames, detectRegion, runGate, stripEditorialFiller, stripHtml, wordCount, type Analysis } from "../_shared/editorial-gate.ts";
@@ -359,7 +359,7 @@ Deno.serve(async (req) => {
     if (!lastProbe || Date.now() - lastProbe >= 60 * 60_000) {
       await supabase.from("site_settings").update({ value: new Date().toISOString() }).eq("key", "ingest_last_probe");
       try {
-        await callGateway(Deno.env.get("LOVABLE_API_KEY")!, newUsage(), { system: "Reply with OK.", user: "OK", max_tokens: 5, retryOn429: false });
+        await callGateway((Deno.env.get("GEMINI_API_KEY") ?? Deno.env.get("LOVABLE_API_KEY"))!, newUsage(), { system: "Reply with OK.", user: "OK", max_tokens: 5, retryOn429: false });
         await supabase.from("site_settings").update({ value: false }).eq("key", "ingest_paused");
         await supabase.from("site_settings").update({ value: "" }).eq("key", "ingest_paused_reason");
         await supabase.from("run_logs").insert({ status: "ingest_resumed", message: "source-ingest: AI gateway probe succeeded; ingest_paused cleared automatically" });
@@ -613,7 +613,7 @@ Deno.serve(async (req) => {
       sourceText = sourceText.slice(0, 7000);
 
       try {
-        const { content } = await callGateway(Deno.env.get("LOVABLE_API_KEY")!, usage, {
+        const { content } = await callGateway((Deno.env.get("GEMINI_API_KEY") ?? Deno.env.get("LOVABLE_API_KEY"))!, usage, {
           system: SYSTEM,
           user: `PUBLISHER: ${src.name}\nURL: ${item.url}\nSOURCE TEXT:\n${sourceText}`,
           max_tokens: 900, json: true, temperature: 0.1,
