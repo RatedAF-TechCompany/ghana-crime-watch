@@ -7,7 +7,7 @@ import { JsonLd } from '@/components/JsonLd';
 import { getArticle, findSlugRedirect, getArticleContext, getArticleRouteState } from '@/lib/server-data';
 import { getCategoryLabel, isValidCategory } from '@/lib/categories';
 import { OG_HEIGHT, OG_WIDTH, articleModified, articleSocialImage, formatGhanaDate, regionForName, topicForText } from '@/lib/article-meta';
-import { getMasthead } from '@/lib/masthead';
+import { publisherRef, getMasthead } from '@/lib/masthead';
 import { bylineAuthor } from '@/lib/authors';
 
 export const revalidate = 300;
@@ -127,11 +127,7 @@ export default async function ArticlePage({ params }: { params: Params }) {
               : author?.kind === 'desk'
                 ? { '@type': 'Organization', name: authorName, url: `${BASE_URL}${author.href}` }
                 : { '@type': 'Organization', name: authorName, url: `${BASE_URL}/about` },
-            publisher: {
-              '@type': 'Organization',
-              name: 'GhanaCrimes',
-              logo: { '@type': 'ImageObject', url: `${BASE_URL}/icons/logo-512.png`, width: 512, height: 512 },
-            },
+            publisher: publisherRef,
             articleSection: getCategoryLabel(categorySlug),
             inLanguage: 'en-GH',
             mainEntityOfPage: { '@type': 'WebPage', '@id': canonical },

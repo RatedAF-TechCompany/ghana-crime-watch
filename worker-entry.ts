@@ -1,6 +1,7 @@
 // Edge wrapper around the OpenNext worker: canonical host + HTTPS before Next runs.
 // @ts-ignore generated at build time by opennextjs-cloudflare
 import handler from "./.open-next/worker.js";
+import { pingIndexNow } from "./src/lib/indexnow";
 
 // @ts-ignore
 export { DOQueueHandler, DOShardedTagCache, BucketCachePurge } from "./.open-next/worker.js";
@@ -24,6 +25,10 @@ export default {
     }
     if (!isCacheable(request, url)) return (handler as any).fetch(request, env, ctx);
     return edgeCached(request, url, env, ctx as any);
+  },
+  // Every 15 min: ping IndexNow with articles published since the last run (publishing itself is untouched).
+  async scheduled(_event: unknown, env: any, ctx: any): Promise<void> {
+    ctx.waitUntil(pingRecentlyPublished(env));
   },
 };
 
@@ -69,4 +74,17 @@ async function edgeCached(request: Request, url: URL, env: unknown, ctx: any): P
     return out;
   }
   return fetchAndStore(request, key, env, ctx);
+}
+
+async function pingRecentlyPublished(env: any): Promise<void> {
+  const since = new Date(Date.now() - 16 * 60 * 1000).toISOString();
+  const base = env.NEXT_PUBLIC_SUPABASE_URL, key = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const q = `${base}/rest/v1/articles?select=category_slug,article_slug&is_published=eq.true&or=(published_at.gte.${since},content_updated_at.gte.${since})&limit=500`;
+  const res = await fetch(q, { headers: { apikey: key, Authorization: `Bearer ${key}`, "Accept-Profile": "ghanacrimes" } });
+  if (!res.ok) { console.error("IndexNow: article query failed", res.status); return; }
+  const rows = (await res.json()) as { category_slug: string; article_slug: string }[];
+  if (!rows.length) return;
+  const urls = rows.map((r) => `https://${CANONICAL_HOST}/${r.category_slug}/${r.article_slug}`);
+  urls.push(`https://${CANONICAL_HOST}/`, `https://${CANONICAL_HOST}/latest`);
+  console.log("IndexNow ping", urls.length, await pingIndexNow(urls));
 }

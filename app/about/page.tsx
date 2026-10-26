@@ -33,7 +33,7 @@ export default async function AboutPage() {
         <p>Every report is based on an identifiable source, such as an official statement, a court record or an earlier published report, and each article links to that source. We treat everyone who is accused of a crime as innocent unless and until a court finds otherwise. Our full standards are set out in our <Link href="/editorial-policy">Editorial Policy</Link>.</p>
         <h2>Masthead and ownership</h2>
         {masthead.hasAny ? <MastheadList masthead={masthead} /> : (
-          <p>Reports are published under the GhanaCrimes Newsroom byline. Full ownership and masthead details will be listed here.</p>
+          <p>Reports are published under the GhanaCrimes Newsroom byline. GhanaCrimes is published by Ghana Crimes Ltd, Accra, Ghana. The newsroom can be reached at <a href="mailto:ghanacrimes@gmail.com">ghanacrimes@gmail.com</a>.</p>
         )}
         <p><Link href="/masthead">View the full masthead and ownership page</Link>.</p>
         <h2>Use of AI</h2>

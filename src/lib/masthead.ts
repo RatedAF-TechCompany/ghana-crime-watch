@@ -18,6 +18,12 @@ export type Masthead = {
   foundingDate: string; contactEmail: string; sameAs: string[]; authors: AuthorEntry[]; hasAny: boolean;
 };
 
+// Owner-authorised masthead (26 Oct 2026). Database values in site_settings override these.
+const AUTHORISED: Partial<Masthead> = {
+  publisher: 'Ghana Crimes Ltd', address: 'Accra, Ghana', editor: 'GhanaCrimes Newsroom', contactEmail: 'ghanacrimes@gmail.com',
+};
+export const OFFICIAL_SAME_AS = ['https://x.com/GhanaCrimes'];
+export const ORG_ID = `${BASE_URL}/#organization`;
 const EMPTY: Masthead = { publisher: '', owner: '', editor: '', address: '', registration: '', foundingDate: '', contactEmail: '', sameAs: [], authors: [], hasAny: false };
 const isHttps = (value: unknown): value is string => typeof value === 'string' && /^https:\/\/[^\s]+$/i.test(value.trim());
 const text = (value: unknown) => typeof value === 'string' ? value.trim() : '';
@@ -26,10 +32,17 @@ const decoded = (value: unknown): unknown => {
   try { return JSON.parse(value); } catch { return value; }
 };
 
+function withDefaults(m: Masthead): Masthead {
+  for (const [k, v] of Object.entries(AUTHORISED) as [keyof Masthead, string][]) if (!m[k]) (m as any)[k] = v;
+  m.sameAs = Array.from(new Set([...OFFICIAL_SAME_AS, ...m.sameAs]));
+  m.hasAny = true;
+  return m;
+}
+
 export const getMasthead = cache(async (): Promise<Masthead> => {
   const keys = [...FIELD_KEYS.map(([key]) => key), 'masthead_same_as', 'authors'];
   const { data, error } = await createServerClient().from('site_settings').select('key, value').in('key', keys);
-  if (error) return { ...EMPTY };
+  if (error) return withDefaults({ ...EMPTY });
   const values = new Map((data ?? []).map((row) => [row.key, decoded(row.value)]));
   const result: Masthead = { ...EMPTY };
   for (const [key, property] of FIELD_KEYS) result[property] = text(values.get(key));
@@ -44,6 +57,7 @@ export const getMasthead = cache(async (): Promise<Masthead> => {
     const links = Array.isArray(item.same_as) ? item.same_as.filter(isHttps).map((url) => url.trim()) : [];
     return [{ slug, name, ...(text(item.role) ? { role: text(item.role) } : {}), ...(text(item.bio) ? { bio: text(item.bio) } : {}), ...(links.length ? { same_as: links } : {}) }];
   }) : [];
+  withDefaults(result);
   result.hasAny = FIELD_KEYS.some(([, property]) => Boolean(result[property])) || result.sameAs.length > 0 || result.authors.length > 0;
   return result;
 });
@@ -62,13 +76,18 @@ export function MastheadList({ masthead }: { masthead: Masthead }): ReactNode {
 
 export function newsOrganizationJsonLd(masthead: Masthead) {
   return {
-    '@context': 'https://schema.org', '@type': 'NewsMediaOrganization', name: 'GhanaCrimes', url: `${BASE_URL}/`,
-    logo: `${BASE_URL}/icons/logo-512.png`, masthead: `${BASE_URL}/masthead`,
+    '@context': 'https://schema.org', '@type': 'NewsMediaOrganization', '@id': ORG_ID, name: 'GhanaCrimes', url: `${BASE_URL}/`,
+    logo: { '@type': 'ImageObject', url: `${BASE_URL}/icons/logo-512.png`, width: 512, height: 512 },
+    masthead: `${BASE_URL}/masthead`, ownershipFundingInfo: `${BASE_URL}/masthead`,
     publishingPrinciples: `${BASE_URL}/editorial-policy`, correctionsPolicy: `${BASE_URL}/corrections`, ethicsPolicy: `${BASE_URL}/editorial-policy`,
-    ...(masthead.contactEmail ? { email: masthead.contactEmail } : {}),
-    ...(masthead.address ? { address: masthead.address } : {}),
+    actionableFeedbackPolicy: `${BASE_URL}/contact`, verificationFactCheckingPolicy: `${BASE_URL}/editorial-policy`, noBylinesPolicy: `${BASE_URL}/authors/ghanacrimes-newsroom`,
+    diversityPolicy: `${BASE_URL}/editorial-policy`,
+    ...(masthead.publisher ? { parentOrganization: { '@type': 'Organization', name: masthead.publisher } } : {}),
+    ...(masthead.contactEmail ? { email: masthead.contactEmail, contactPoint: { '@type': 'ContactPoint', contactType: 'newsroom', email: masthead.contactEmail, url: `${BASE_URL}/contact` } } : {}),
+    ...(masthead.address ? { address: { '@type': 'PostalAddress', addressLocality: 'Accra', addressCountry: 'GH' } } : {}),
     ...(masthead.foundingDate ? { foundingDate: masthead.foundingDate } : {}),
-    ...(masthead.sameAs.length ? { sameAs: masthead.sameAs } : {}),
-    ...(masthead.owner || masthead.publisher ? { ownershipFundingInfo: `${BASE_URL}/masthead` } : {}),
+    sameAs: masthead.sameAs,
   };
 }
+
+export const publisherRef = { '@type': 'NewsMediaOrganization', '@id': ORG_ID, name: 'GhanaCrimes', logo: { '@type': 'ImageObject', url: `${BASE_URL}/icons/logo-512.png`, width: 512, height: 512 } };
