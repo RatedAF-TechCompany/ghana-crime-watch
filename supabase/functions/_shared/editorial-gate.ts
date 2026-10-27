@@ -190,6 +190,23 @@ export function hasGhanaSignal(text: string): boolean {
 
 // ---- Loosened-gate transforms (Oct 2026): fix drafts automatically instead of holding them. ----
 export const JUSTICE_SECURITY = /\b(police|court|judge|prosecut\w*|arrest\w*|crime|criminal|security|NACOC|EOCO|CID|Special Prosecutor|Attorney[- ]General|prison\w*|narcotic\w*|drug\w*|trafficking|galamsey|illegal mining|fraud|corruption|investigat\w*|immigration|border|military|soldiers?|justice)\b/i;
+/** A concrete crime event or justice step (not commentary about one). Checked on the headline and the source lead. */
+export const ENFORCEMENT_ACTION = /\b(arrest\w*|nab(s|bed)?|picked up|apprehend\w*|detain\w*|in custody|charged|arraign\w*|remand\w*|bail|convict\w*|sentenc\w*|jail\w*|imprison\w*|acquit\w*|plead\w*|court|trial|prosecut\w*|indict\w*|seiz\w*|confiscat\w*|impound\w*|raid\w*|intercept\w*|bust(s|ed)?|dismantl\w*|destroy(s|ed)? [^.]{0,30}(machines?|excavators?|chanfang|equipment|pits?)|rob(s|bed|bing|bery|beries|bers?)?|stole|stolen|steal\w*|theft|thie(f|ves)|burglar\w*|murder\w*|homicide|kill(ed|s|ing)|stab(bed|bing|s)?|shot|shoot\w*|gun(man|men|point)|kidnap\w*|abduct\w*|defraud\w*|fraud\w*|scam\w*|traffick\w*|smuggl\w*|assault\w*|attack(ed|s)?|lynch\w*|mob|clash\w*|escap\w*|inmates?|crash\w*|knock(ed)? down|manhunt|wanted|investigat\w*|probe\w*|interdict\w*|arson|set ablaze|defile\w*|rape\w*|launder\w*|embezzl\w*|misappropriat\w*|brib\w*|forg(ed|ery)|impersonat\w*|narcotic\w*|cannabis|cocaine|tramadol|galamsey (operators?|suspects?|sites?)|illegal miners?|missing person|found dead|abuse\w*|body (found|discovered))\b/i;
+/** Headline shapes that are commentary, honours, appointments, business or farming news rather than a crime event. */
+export const OFF_TOPIC_TITLE = /\b(honou?r(s|ed|ing)?|award(s|ed)?|salar(y|ies)|wages?|pay rise|fertili[sz]er\w*|maize|harvest\w*|farmers?|appoint\w*|sworn in|inaugurat\w*|launch(es|ed)?|celebrat\w*|congratulat\w*|condemn\w*|demand(s|ed)?|retract\w*|challeng\w*|criticis\w*|criticiz\w*|slam(s|med)?|lauds?|commend\w*|urges?|calls? (on|for)|reacts?|responds?|defends?|clarif\w*|chieftaincy|enstool\w*|title|festival|scholarships?|donat\w*|mining plan|policy|bill|manifesto|campaign|decr(y|ies)|lament\w*|allocat\w*|invest(s|ed|ment)?|stud(y|ies)|reclamation|reopens?|visits?|tours?|insurance|number plates|displaced|returned home|cooperatives?)\b/i;
+/** An official law-enforcement or justice body speaking or acting in the headline (advisories from these stay in scope). */
+export const OFFICIAL_ACTOR_TITLE = /\b(police|Chief Justice|Interior Minister|IGP|EOCO|NACOC|OSP|Special Prosecutor|NAIMOS|Cyber Security Authority|CSA|court|judge|Judicial Service|Attorney[- ]General|prisons?|Immigration|Customs|MTTD|DOVVSU|CID|NIB|Interpol)\b/i;
+
+/** Why an item is off the crime beat (null when it is in scope). Deterministic, so the same rule can be re-run on published stories. */
+export function offTopicReason(a: { is_crime?: boolean | null; offence_type?: string | null }, title: string, sourceTitle: string, lead: string): string | null {
+  const head = `${title} ${sourceTitle}`;
+  const action = ENFORCEMENT_ACTION.test(head) || ENFORCEMENT_ACTION.test(lead);
+  if (a.is_crime === false && !(ENFORCEMENT_ACTION.test(head) && OFFICIAL_ACTOR_TITLE.test(head))) return "not_crime_event";
+  if (OFF_TOPIC_TITLE.test(head) && !ENFORCEMENT_ACTION.test(head) && !OFFICIAL_ACTOR_TITLE.test(head)) return "commentary_or_off_topic_headline";
+  if (!a.offence_type && !action) return "no_enforcement_action";
+  return null;
+}
+
 const GORE_SOFT: [RegExp, string][] = [
   [/\b(decapitat\w*|beheaded)\b/gi, "killed"], [/\b(dismember\w*|mutilat\w*|disembowel\w*)\b/gi, "attacked"],
   [/\bentrails\b/gi, "remains"], [/\bbrains? (spilled|scattered)\b/gi, "fatal injuries"], [/\b(in )?a pool of blood\b/gi, ""],
@@ -266,6 +283,10 @@ export function runGate(opts: {
   // b) Crime only
   // Justice, security and policing news counts; only clearly non-crime, non-justice items are out of scope.
   if ((!a.is_crime || !a.offence_type || !OFFENCES.includes(a.offence_type)) && !JUSTICE_SECURITY.test(sourceText)) hard.push("not_in_crime_scope");
+  // Tightened Oct 2026: honours, salaries, farming, appointments and political commentary are out even if police/military appear.
+  const srcTitle = (sourceText.split(/(?<=[.!?])\s+/)[0] || "").slice(0, 200);
+  const offTopic = offTopicReason(a, draftTitle, srcTitle, sourceText.slice(0, 600));
+  if (offTopic) hard.push(`off_topic:${offTopic}`);
 
   // c) Factual
   const missing = unsupportedFacts(draft, `${sourceText}`);

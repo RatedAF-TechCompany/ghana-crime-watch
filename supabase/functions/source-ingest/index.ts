@@ -465,11 +465,25 @@ Deno.serve(async (req) => {
     const recentIncidents: { id: string; title: string }[] = recentRows || [];
     const { data: publishedRecent } = await supabase.from("articles").select("id, title, summary")
       .eq("is_published", true).gte("published_at", new Date(Date.now() - 72 * 3600_000).toISOString()).limit(500);
+    // Staggered release (Oct 2026): stories from one run no longer share a timestamp. The first goes live now if nothing was
+    // published in the last STAGGER_MS; the rest wait as 'scheduled' and the DB job ghanacrimes.release_scheduled_article()
+    // publishes them one at a time (real release time = published_at). Scheduled stories count as published for merging.
+    const STAGGER_MS = 120_000;
+    const { data: schedRows } = await supabase.from("articles").select("id, title, summary").eq("status", "scheduled").limit(200);
+    for (const r of schedRows || []) (publishedRecent as any[] | null)?.push(r);
+    let queuedCount = (schedRows || []).length;
+    const { data: lastPub } = await supabase.from("articles").select("published_at").eq("is_published", true)
+      .order("published_at", { ascending: false }).limit(1).maybeSingle();
+    let lastPublishAt = lastPub?.published_at ? new Date(lastPub.published_at).getTime() : 0;
+    const releaseStatus = (): "published" | "scheduled" => {
+      if (!queuedCount && Date.now() - lastPublishAt >= STAGGER_MS) { lastPublishAt = Date.now(); return "published"; }
+      queuedCount++; (stats as any).scheduled = ((stats as any).scheduled || 0) + 1; return "scheduled";
+    };
     const { data: reviewRows } = await supabase.from("articles").select("id, title, summary, source_url, source_urls, gate_report")
       .eq("status", "review").gte("created_at", new Date(Date.now() - 72 * 3600_000).toISOString()).limit(300);
     const reviewDrafts: any[] = reviewRows || [];
     const { data: dupRows } = await supabase.from("articles").select("id, title, summary, status, offence_type, region")
-      .in("status", ["published", "review"]).gte("created_at", new Date(Date.now() - 48 * 3600_000).toISOString()).limit(500);
+      .in("status", ["published", "scheduled", "review"]).gte("created_at", new Date(Date.now() - 48 * 3600_000).toISOString()).limit(500);
     const dupPool: any[] = dupRows || [];
     const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
     // Soft flags that still need a human even when the story is corroborated (victim/minor protection, graphic, contempt).
@@ -493,7 +507,7 @@ Deno.serve(async (req) => {
       g.auto_publish_eligible = eligible;
       if (publishNow) { g.auto_published = true; g.corroboration_published_at = new Date().toISOString(); delete g.held_reason; }
       const upd: any = { source_urls: urls, gate_report: g };
-      if (publishNow) upd.status = "published";
+      if (publishNow) upd.status = releaseStatus();
       const { error } = await supabase.from("articles").update(upd).eq("id", draft.id).eq("status", "review");
       if (error) return false;
       draft.source_urls = urls; draft.gate_report = g;
@@ -683,7 +697,7 @@ Deno.serve(async (req) => {
         }
         if (dup) {
           report.near_duplicate = { article_id: dup.id, status: dup.status, reason: dupWhy };
-          if (dup.status === "published" && await mergeInto(dup.id, item, src, `near_duplicate:${dupWhy}`)) {
+          if ((dup.status === "published" || dup.status === "scheduled") && await mergeInto(dup.id, item, src, `near_duplicate:${dupWhy}`)) {
             await supabase.from("raw_items").update({ gate_report: report }).eq("id", item.id);
             stats.thread_updates++; continue;
           }
@@ -725,15 +739,15 @@ Deno.serve(async (req) => {
 
         const { data: art, error: artErr } = await supabase.from("articles").insert({
           title, summary: (out.summary || "").slice(0, 300), body: html, category_slug: category, article_slug: slug,
-          status: publishNow ? "published" : "review", source_url: item.url, source_urls: sourceUrls,
+          status: publishNow ? releaseStatus() : "review", source_url: item.url, source_urls: sourceUrls,
           source_published_at: item.published_at, gate_report: report, region: out.analysis?.region || detectRegion(sourceText),
           offence_type: out.analysis?.offence_type || null, case_status: out.analysis?.case_status || null,
           thread_id: threadId, author_name: null, hero_image: null,
           seo_title: title.slice(0, 60), seo_description: (out.summary || "").slice(0, 155),
-        }).select("id").single();
+        }).select("id, status").single();
         if (artErr) throw artErr;
         recentIncidents.push({ id: art.id, title: item.title });
-        dupPool.push({ id: art.id, title, summary: out.summary || "", status: publishNow ? "published" : "review", offence_type: offence, region: out.analysis?.region || null });
+        dupPool.push({ id: art.id, title, summary: out.summary || "", status: art.status || (publishNow ? "published" : "review"), offence_type: offence, region: out.analysis?.region || null });
         if (publishNow) (publishedRecent as any[] | null)?.push({ id: art.id, title, summary: out.summary || "" });
 
         try {
@@ -744,7 +758,7 @@ Deno.serve(async (req) => {
         }
 
         await supabase.from("raw_items").update({ status: publishNow ? "published" : "review", article_id: art.id, thread_id: threadId, gate_report: report, reason: gate.soft_flags.join(", ") || report.held_reason || null }).eq("id", item.id);
-        await supabase.from("audit_logs").insert({ action: publishNow ? "auto_published" : "sent_to_review", resource_type: "article", resource_id: art.id, details: { raw_item_id: item.id, flags: gate.soft_flags, source: src.name } });
+        await supabase.from("audit_logs").insert({ action: publishNow ? (art.status === "scheduled" ? "auto_published_scheduled" : "auto_published") : "sent_to_review", resource_type: "article", resource_id: art.id, details: { raw_item_id: item.id, flags: gate.soft_flags, source: src.name } });
         if (publishNow) { stats.published++; autoCount++; } else stats.review++;
       } catch (e) {
         if (e instanceof AiCreditError) {
