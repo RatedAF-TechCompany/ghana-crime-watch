@@ -61,6 +61,7 @@ const FOOTER_COLUMNS: { title: string; links: { label: string; to: string }[] }[
     links: [
       { label: "Contact GhanaCrimes", to: "/contact" },
       { label: "Send a tip", to: "/tips" },
+      { label: "editor@ghanacrimes.com", to: "mailto:editor@ghanacrimes.com" },
       { label: "Report a scam", to: "/fraud-watch/report" },
       { label: "Alerts & feeds", to: "/alerts" },
       { label: "RSS Feed", to: "/rss.xml" },

@@ -7,7 +7,7 @@ export const revalidate = 600;
 // Real About page at the legacy /about-us URL (previously fell through to the section template).
 export const metadata: Metadata = {
   title: 'About GhanaCrimes',
-  description: 'About GhanaCrimes, published by Ghana Crimes Ltd, Accra, Ghana: factual, verified crime news for Ghana from the GhanaCrimes Newsroom. Contact ghanacrimes@gmail.com.',
+  description: 'About GhanaCrimes, published by Ghana Crimes Ltd, Accra, Ghana: factual, verified crime news for Ghana from the GhanaCrimes Newsroom. Contact editor@ghanacrimes.com.',
   alternates: { canonical: `${BASE_URL}/about` },
 };
 

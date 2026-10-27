@@ -20,6 +20,7 @@ export default function TipsPage() {
           <li>Leaving contact details is optional. If you leave them, we may contact you to verify the information.</li>
           <li>We never reveal the identity of a source who shares information in confidence.</li>
           <li>We verify tips before reporting on them. Sending a tip does not guarantee a story.</li>
+          <li>You can also email the newsroom at <a href="mailto:editor@ghanacrimes.com">editor@ghanacrimes.com</a>.</li>
           <li>If someone is in immediate danger, contact the Ghana Police Service first.</li>
         </ul>
         <Suspense>

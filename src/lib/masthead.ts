@@ -18,9 +18,9 @@ export type Masthead = {
   foundingDate: string; contactEmail: string; sameAs: string[]; authors: AuthorEntry[]; hasAny: boolean;
 };
 
-// Owner-authorised masthead (26 Oct 2026). Database values in site_settings override these.
+// Owner-authorised masthead (26 Oct 2026; editor Samuel Mensah approved 27 Oct 2026). Database values in site_settings override these.
 const AUTHORISED: Partial<Masthead> = {
-  publisher: 'Ghana Crimes Ltd', address: 'Accra, Ghana', editor: 'GhanaCrimes Newsroom', contactEmail: 'ghanacrimes@gmail.com',
+  publisher: 'Ghana Crimes Ltd', address: 'Accra, Ghana', editor: 'Samuel Mensah', contactEmail: 'editor@ghanacrimes.com',
 };
 export const OFFICIAL_SAME_AS = ['https://x.com/GhanaCrimes'];
 export const ORG_ID = `${BASE_URL}/#organization`;
