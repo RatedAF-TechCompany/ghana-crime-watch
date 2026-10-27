@@ -28,7 +28,8 @@ const PRIMARY_NAV: { label: string; to: string }[] = [
   { label: "Courts", to: "/courts" },
   { label: "Safety", to: "/safety" },
   { label: "Explainers", to: "/explainers" },
-  { label: "Fraud Watch", to: "/fraud-watch" },
+  { label: "Scam Alerts", to: "/scam-alerts" },
+  { label: "Emergency", to: "/emergency-contacts" },
 ];
 
 export function Header({ onMenuClick, onSearchClick }: HeaderProps) {

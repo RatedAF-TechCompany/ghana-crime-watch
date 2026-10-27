@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Link2, MessageCircle, Send } from "lucide-react";
+import { Link2, MessageCircle } from "lucide-react";
 import { useMemo } from "react";
 
 interface SocialShareButtonsProps {
@@ -23,11 +23,6 @@ export function SocialShareButtons({ title, summary, url }: SocialShareButtonsPr
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");
   };
 
-  const handleTelegramShare = () => {
-    if (typeof window === "undefined") return;
-    const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`;
-    window.open(telegramUrl, "_blank", "noopener,noreferrer");
-  };
 
   const handleCopyLink = async () => {
     if (typeof navigator === "undefined") return;
@@ -71,16 +66,6 @@ export function SocialShareButtons({ title, summary, url }: SocialShareButtonsPr
         >
           <MessageCircle className="h-4 w-4" />
           WhatsApp
-        </Button>
-
-        {/* Telegram */}
-        <Button
-          onClick={handleTelegramShare}
-          className="gap-2 bg-[#0088cc] text-white hover:bg-[#006699]"
-          size="sm"
-        >
-          <Send className="h-4 w-4" />
-          Telegram
         </Button>
 
         {/* Copy Link / Native Share */}

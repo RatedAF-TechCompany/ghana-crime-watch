@@ -22,6 +22,8 @@ export default async function CourtsPage() {
         note="This is news coverage published on GhanaCrimes, not an official court calendar. For official cause lists and court information, see the Judicial Service of Ghana at judicial.gov.gh. People charged are presumed innocent until proven guilty."
         articles={articles}
         related={[
+          { label: 'Court case tracker: upcoming hearings', href: '/courts/cases' },
+          { label: 'Your rights if arrested', href: '/explainers/your-rights-if-arrested-in-ghana' },
           { label: 'Judicial Service of Ghana', href: 'https://judicial.gov.gh' },
           { label: 'Court cases topic', href: '/topics/court-cases' },
           { label: 'How police bail works', href: '/explainers/how-police-bail-works-in-ghana' },

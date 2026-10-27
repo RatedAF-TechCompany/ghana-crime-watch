@@ -743,7 +743,7 @@ Deno.serve(async (req) => {
           source_published_at: item.published_at, gate_report: report, region: out.analysis?.region || detectRegion(sourceText),
           offence_type: out.analysis?.offence_type || null, case_status: out.analysis?.case_status || null,
           thread_id: threadId, author_name: null, hero_image: null,
-          seo_title: title.slice(0, 60), seo_description: (out.summary || "").slice(0, 155),
+          seo_title: clipWords(title, 65), seo_description: clipWords(out.summary || "", 155),
         }).select("id, status").single();
         if (artErr) throw artErr;
         recentIncidents.push({ id: art.id, title: item.title });
@@ -785,3 +785,13 @@ Deno.serve(async (req) => {
     return json({ error: String((e as Error).message || e), stats }, 500);
   }
 });
+
+/** Cut at a word boundary with no dangling comma or connector (used for SEO title/description). */
+function clipWords(text: string, max: number): string {
+  const t = (text || "").replace(/\s+/g, " ").trim();
+  if (t.length <= max) return t;
+  let cut = t.slice(0, max + 1);
+  const sp = cut.lastIndexOf(" ");
+  cut = sp > max * 0.5 ? cut.slice(0, sp) : t.slice(0, max);
+  return cut.replace(/[\s,;:\-\u2013\u2014(]+$/, "").replace(/\s+(and|or|of|the|a|an|in|on|at|to|for|with|by|as|over)$/i, "").replace(/[\s,;:\-]+$/, "");
+}

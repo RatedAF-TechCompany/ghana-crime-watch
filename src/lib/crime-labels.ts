@@ -47,7 +47,24 @@ const STATUS_TEXT: Record<string, string> = {
   on_trial: 'On trial; presumed innocent until proven guilty',
   convicted: 'Convicted, according to the source',
   acquitted: 'Acquitted, according to the source',
+  pleaded_guilty: 'Pleaded guilty, according to the source; sentence not yet reported',
+  under_investigation: 'Under investigation; no charge reported',
+  discharged: 'Discharged, according to the source',
 };
+
+/** Short case-status label for badges. Pre-conviction stages always carry the presumption of innocence in STATUS_TEXT. */
+const STATUS_LABEL: Record<string, { label: string; tone: 'neutral' | 'pending' | 'final' }> = {
+  arrested: { label: 'Arrested', tone: 'pending' },
+  charged: { label: 'Charged', tone: 'pending' },
+  remanded: { label: 'Remanded', tone: 'pending' },
+  on_trial: { label: 'On trial', tone: 'pending' },
+  pleaded_guilty: { label: 'Pleaded guilty', tone: 'final' },
+  convicted: { label: 'Convicted', tone: 'final' },
+  acquitted: { label: 'Acquitted', tone: 'final' },
+  discharged: { label: 'Discharged', tone: 'final' },
+  under_investigation: { label: 'Under investigation', tone: 'neutral' },
+};
+export function caseStatusLabel(s?: string | null) { return s ? STATUS_LABEL[s] ?? null : null; }
 export function caseStatusText(s?: string | null) { return s ? STATUS_TEXT[s] ?? null : null; }
 
 export function relTime(iso: string, now = Date.now()) {

@@ -7,6 +7,7 @@ import { SearchOverlay } from "./SearchOverlay";
 import { BreakingNewsTicker } from "./BreakingNewsTicker";
 import { NAV_CATEGORIES } from "@/lib/categories";
 import { useIsEmptySection } from "@/components/EmptySectionsContext";
+import { WhatsAppFollowBlock } from "@/components/WhatsAppFollowBlock";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -17,18 +18,26 @@ const FOOTER_COLUMNS: { title: string; links: { label: string; to: string }[] }[
     title: "GhanaCrimes",
     links: [
       { label: "Homepage", to: "/" },
+      { label: "Latest", to: "/latest" },
       { label: "Top Stories", to: "/top-stories" },
-      { label: "Fraud Watch", to: "/fraud-watch" },
       { label: "Crime Map", to: "/map" },
       { label: "Statistics", to: "/statistics" },
+      { label: "Weekly Roundup", to: "/roundup" },
       { label: "Topics", to: "/topics" },
+      { label: "Explainers", to: "/explainers" },
+    ],
+  },
+  {
+    title: "Public safety",
+    links: [
+      { label: "Scam Alerts", to: "/scam-alerts" },
+      { label: "Fraud Watch", to: "/fraud-watch" },
+      { label: "Court Case Tracker", to: "/courts/cases" },
       { label: "Courts", to: "/courts" },
       { label: "Wanted", to: "/wanted" },
       { label: "Missing", to: "/missing" },
+      { label: "Emergency Contacts", to: "/emergency-contacts" },
       { label: "Safety", to: "/safety" },
-      { label: "Explainers", to: "/explainers" },
-      { label: "Alerts", to: "/alerts" },
-      { label: "RSS Feed", to: "/rss.xml" },
     ],
   },
   {
@@ -39,6 +48,8 @@ const FOOTER_COLUMNS: { title: string; links: { label: string; to: string }[] }[
       { label: "Editorial Policy", to: "/editorial-policy" },
       { label: "How We Use AI", to: "/ai-use" },
       { label: "Corrections", to: "/corrections" },
+      { label: "Privacy Policy", to: "/privacy" },
+      { label: "Terms of Use", to: "/terms" },
     ],
   },
   {
@@ -46,18 +57,13 @@ const FOOTER_COLUMNS: { title: string; links: { label: string; to: string }[] }[
     links: NAV_CATEGORIES.slice(0, 8).map((c) => ({ label: c.label, to: `/${c.slug}` })),
   },
   {
-    title: "Legal",
-    links: [
-      { label: "Privacy Policy", to: "/privacy" },
-      { label: "Terms of Use", to: "/terms" },
-    ],
-  },
-  {
-    title: "Contact",
+    title: "Contact & follow",
     links: [
       { label: "Contact GhanaCrimes", to: "/contact" },
       { label: "Send a tip", to: "/tips" },
       { label: "Report a scam", to: "/fraud-watch/report" },
+      { label: "Alerts & feeds", to: "/alerts" },
+      { label: "RSS Feed", to: "/rss.xml" },
     ],
   },
 ];
@@ -93,7 +99,7 @@ export function Layout({ children }: LayoutProps) {
                   {col.title}
                 </h3>
                 <ul className="space-y-2.5">
-                  {col.links.filter((l) => !isEmpty(l.to)).slice(0, 6).map((link) => (
+                  {col.links.filter((l) => !isEmpty(l.to)).slice(0, 8).map((link) => (
                     <li key={link.label}>
                       <Link
                         href={link.to}
@@ -107,6 +113,7 @@ export function Layout({ children }: LayoutProps) {
               </div>
             ))}
           </div>
+          <WhatsAppFollowBlock className="mx-auto mt-10 max-w-md" />
           <div className="mt-10 flex flex-col items-start justify-between gap-3 border-t border-pale-rule pt-6 font-sans text-xs text-muted-fg sm:flex-row sm:items-center">
             <span>© {new Date().getFullYear()} GhanaCrimes. All rights reserved.</span>
             <span className="flex flex-wrap gap-4">

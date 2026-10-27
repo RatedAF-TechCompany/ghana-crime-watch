@@ -17,7 +17,7 @@ import { getPublishedTime } from "@/lib/time";
 import { ArrowUpRight } from "lucide-react";
 import { ToolsDataStrip } from "@/components/ToolsDataStrip";
 import { RelativeTime } from "@/components/RelativeTime";
-import { NewsletterSignup } from "@/components/NewsletterSignup";
+import { FollowGhanaCrimes } from "@/components/FollowGhanaCrimes";
 import { offenceInfo, regionInfo } from "@/lib/crime-labels";
 
 const ARTICLES_PER_PAGE = 30;
@@ -218,9 +218,9 @@ export default function HomeView({ initialArticles }: { initialArticles?: any[] 
         );
       })()}
 
-      {/* Newsletter + tips */}
+      {/* Follow + tips */}
       <section className="grid gap-6 md:grid-cols-2">
-        <NewsletterSignup />
+        <FollowGhanaCrimes />
         <div className="rounded-md border border-border p-6">
           <h2 className="font-serif text-2xl font-bold">Seen something? Send us a tip</h2>
           <p className="mt-2 font-body text-sm text-muted-foreground">Tell the GhanaCrimes desk about an arrest, court case, scam or incident. We verify before we publish and protect sources.</p>

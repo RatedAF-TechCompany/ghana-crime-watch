@@ -46,6 +46,9 @@ export function NavigationDrawer({ open, onClose }: NavigationDrawerProps) {
               {category.label}
             </Link>
           ))}
+          {[["Latest", "/latest"], ["Scam Alerts", "/scam-alerts"], ["Court Case Tracker", "/courts/cases"], ["Weekly Roundup", "/roundup"], ["Emergency Contacts", "/emergency-contacts"], ["Alerts & RSS", "/alerts"]].map(([label, href]) => (
+            <Link key={href} href={href} onClick={onClose} className="border-b border-border/60 px-4 py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted hover:text-primary">{label}</Link>
+          ))}
           <div className="border-t border-border mt-2 pt-2">
             <Link
               href="/editorial-policy"

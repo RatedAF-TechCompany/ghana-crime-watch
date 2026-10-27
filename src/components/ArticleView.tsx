@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CommentsSection } from "@/components/CommentsSection";
 import { SocialShareButtons } from "@/components/SocialShareButtons";
-import { NewsletterSignup } from "@/components/NewsletterSignup";
+import { FollowGhanaCrimes } from "@/components/FollowGhanaCrimes";
 import { formatArticleBody } from "@/lib/paragraphs";
 import { caseStatusText, offenceInfo, regionInfo } from "@/lib/crime-labels";
 import { BookmarkButton } from "@/components/BookmarkButton";
@@ -21,7 +21,9 @@ import { sanitizeArticleBody } from "@/lib/sanitize";
 import { useEffect, useRef, type ReactNode } from "react";
 import { getArticleImage } from "@/lib/article-image";
 import { ArticleImageFallback } from "@/components/ArticleImage";
-import { publishedUpdatedLabels } from "@/lib/article-meta";
+import { independentOutlets, publishedUpdatedLabels } from "@/lib/article-meta";
+import { CaseStatusBadge } from "@/components/CaseStatusBadge";
+import { displayByline } from "@/lib/authors";
 
 type ThreadInfo = { thread_slug: string; is_live: boolean; live_ended_at: string | null } | null;
 
@@ -131,6 +133,11 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
   const off = offenceInfo(a2.offence_type);
   const status = caseStatusText(a2.case_status);
   const srcUrls: string[] = Array.from(new Set([a2.source_url, ...(a2.source_urls || [])].filter(Boolean)));
+  // "Verified" only when the pipeline matched the same story at another independent outlet (gate_report.corroborating_sources)
+  // AND at least two distinct outlets are linked. Related-but-different stories in source_urls do not count on their own.
+  const allOutlets = independentOutlets(srcUrls);
+  const corroborating = Number(a2.gate_report?.corroborating_sources || 0);
+  const outlets = corroborating >= 1 && allOutlets.length >= 2 ? allOutlets.slice(0, Math.min(allOutlets.length, corroborating + 1)) : [];
   const srcHosts = srcUrls.map((u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } }).filter(Boolean);
   const unresolved = a2.case_status === 'convicted' || a2.case_status === 'acquitted' ? [] : [
     "Whether anyone will be found guilty: no court has ruled on guilt, so everyone named is presumed innocent.",
@@ -152,6 +159,16 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
           <> · <time dateTime={modifiedIso!}>{dateLabels.updated}</time></>
         )}
       </p>
+      {(a2.case_status || outlets.length >= 2) && (
+        <p className="mb-5 flex flex-wrap items-center justify-center gap-2">
+          <CaseStatusBadge status={a2.case_status} />
+          {outlets.length >= 2 && (
+            <span title={`The same story was reported independently by ${outlets.length} outlets. All sources are listed below.`} className="inline-block rounded-sm border border-emerald-700/40 px-1.5 py-0.5 font-sans text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+              Verified by {outlets.length} sources
+            </span>
+          )}
+        </p>
+      )}
 
       {article.subtitle && (
         <p className="mx-auto mb-6 max-w-[720px] text-center font-body text-[19px] leading-[1.5] text-foreground/80 md:text-[21px]">
@@ -177,7 +194,7 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
 
       <div className="mb-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-y border-border py-3 text-center">
         <p className="font-sans text-[12px] uppercase tracking-[0.14em] text-muted-fg">
-          Reported by {authorHref ? <Link href={authorHref} className="not-italic text-foreground hover:text-primary">{article.author_name || "GhanaCrimes Data Desk"}</Link> : <span className="not-italic text-foreground">{article.author_name || "GhanaCrimes Data Desk"}</span>}
+          Reported by {authorHref ? <Link href={authorHref} className="not-italic text-foreground hover:text-primary">{displayByline(article.author_name)}</Link> : <span className="not-italic text-foreground">{displayByline(article.author_name)}</span>}
           <span className="mx-2">·</span>
           {readingTime}
         </p>
@@ -330,7 +347,7 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
 
       <CommentsSection articleId={article.id} />
 
-      <div className="my-8"><NewsletterSignup /></div>
+      <div className="my-8"><FollowGhanaCrimes /></div>
 
       {(reg || off || (article.tags && article.tags.length > 0)) && (
         <div className="mt-8 flex flex-wrap gap-2 border-t border-border pt-6">

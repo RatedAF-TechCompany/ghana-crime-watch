@@ -150,7 +150,7 @@ export async function getLatestWire(limit = 80) {
   const supabase = createServerClient();
   const { data } = await supabase
     .from('articles')
-    .select('id, title, summary, category_slug, article_slug, published_at, region, offence_type')
+    .select('id, title, summary, category_slug, article_slug, published_at, region, offence_type, case_status')
     .eq('is_published', true)
     .not('category_slug', 'in', '(crime-statistics,most-wanted)')
     .order('published_at', { ascending: false })

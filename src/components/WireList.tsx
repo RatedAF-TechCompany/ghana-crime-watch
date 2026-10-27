@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import { RelativeTime } from '@/components/RelativeTime';
+import { CaseStatusBadge } from '@/components/CaseStatusBadge';
 import { offenceInfo, regionInfo } from '@/lib/crime-labels';
 import { getCategoryLabel } from '@/lib/categories';
 
-export type WireItem = { id: string; title: string; summary?: string | null; category_slug: string; article_slug: string; published_at: string; region?: string | null; offence_type?: string | null };
+export type WireItem = { id: string; title: string; summary?: string | null; category_slug: string; article_slug: string; published_at: string; region?: string | null; offence_type?: string | null; case_status?: string | null };
 
 export function WireList({ items, showSummary = true }: { items: WireItem[]; showSummary?: boolean }) {
   return (
@@ -23,6 +24,7 @@ export function WireList({ items, showSummary = true }: { items: WireItem[]; sho
                 {off ? <Link href={off.href} className="rounded bg-primary/10 px-1.5 py-0.5 text-primary">{off.label}</Link>
                   : <Link href={`/${a.category_slug}`} className="rounded bg-primary/10 px-1.5 py-0.5 text-primary">{getCategoryLabel(a.category_slug)}</Link>}
                 {reg && <Link href={`/regions/${reg.slug}`} className="rounded bg-muted px-1.5 py-0.5 text-foreground/80">{reg.name}</Link>}
+                <CaseStatusBadge status={a.case_status} />
               </div>
               <Link href={`/${a.category_slug}/${a.article_slug}`} className="font-headline text-lg font-bold leading-snug hover:text-primary">{a.title}</Link>
               {showSummary && a.summary && <p className="mt-1 line-clamp-2 font-body text-sm text-foreground/75">{a.summary}</p>}

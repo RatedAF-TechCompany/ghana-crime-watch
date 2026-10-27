@@ -31,6 +31,12 @@ const STATIC_PATHS = [
   '/regions',
   '/topics',
   '/authors/ghanacrimes-newsroom',
+  '/latest',
+  '/alerts',
+  '/scam-alerts',
+  '/emergency-contacts',
+  '/courts/cases',
+  '/roundup',
 ];
 
 function urlset(urls: { loc: string; lastmod?: string | null }[]) {
@@ -69,6 +75,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ file: s
         if (!ups || ups.length < 1000) break;
       }
     }
+    const { data: cases } = await (supabase as any).from('court_cases').select('slug, updated_at').eq('is_published', true);
     const indexable = (threads ?? []).filter((t) => isIndexableThread(t.thread_slug, counts.get(t.id) ?? 0));
 
     // Only list sections that actually have published articles (empty sections return 404).
@@ -87,6 +94,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ file: s
         loc: `${BASE_URL}/explainers/${e.slug}`,
         lastmod: new Date(e.updated).toISOString()
       })),
+      ...((cases ?? []) as { slug: string; updated_at: string }[]).map((c) => ({ loc: `${BASE_URL}/courts/cases/${c.slug}`, lastmod: new Date(c.updated_at).toISOString() })),
       ...indexable.map((t) => ({
         loc: `${BASE_URL}/live/${t.thread_slug}`,
         lastmod: t.content_updated_at ? new Date(t.content_updated_at).toISOString() : null,

@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     ...(articles.length ? {} : { robots: { index: false, follow: true } }),
     title: `Crime news from the ${r.name} Region`,
     description: `Latest crime and court reports from the ${r.name} Region of Ghana.`,
-    alternates: { canonical: `${BASE_URL}/regions/${r.slug}` },
+    alternates: { canonical: `${BASE_URL}/regions/${r.slug}`, types: { 'application/rss+xml': `${BASE_URL}/regions/${r.slug}/rss.xml` } },
     openGraph: { url: `${BASE_URL}/regions/${r.slug}`, images: [{ url: hubSocialImage(`region-${r.slug}`), width: OG_WIDTH, height: OG_HEIGHT }] },
     twitter: { card: 'summary_large_image', images: [hubSocialImage(`region-${r.slug}`)] },
   };
@@ -39,7 +39,7 @@ export default async function RegionPage({ params }: { params: Params }) {
         note="Stories are placed in a region when their headline or summary names a town or district in it. Some stories name no place and are not shown here."
         articles={articles}
         emptyMessage="No published stories are tagged to this region yet. Check back soon."
-        related={[{ label: 'Crime map', href: '/map' }, ...REGIONS.filter((x) => x.slug !== r.slug).map((x) => ({ label: x.name, href: `/regions/${x.slug}` }))]} />
+        related={[{ label: `${r.name} RSS feed`, href: `/regions/${r.slug}/rss.xml` }, { label: 'Crime map', href: '/map' }, { label: `${r.name} statistics`, href: `/statistics?region=${r.slug}` }, ...REGIONS.filter((x) => x.slug !== r.slug).map((x) => ({ label: x.name, href: `/regions/${x.slug}` }))]} />
     </Layout>
   );
 }

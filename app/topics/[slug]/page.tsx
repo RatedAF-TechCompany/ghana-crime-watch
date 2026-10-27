@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const image = { url: hubSocialImage(`topic-${t.slug}`), width: OG_WIDTH, height: OG_HEIGHT };
   const title = `${t.label} in Ghana`;
   return {
-    title, description: t.intro, alternates: { canonical: `${BASE_URL}/topics/${t.slug}` },
+    title, description: t.intro, alternates: { canonical: `${BASE_URL}/topics/${t.slug}`, types: { 'application/rss+xml': `${BASE_URL}/topics/${t.slug}/rss.xml` } },
     ...(articles.length ? {} : { robots: { index: false, follow: true } }),
     openGraph: { title, description: t.intro, url: `${BASE_URL}/topics/${t.slug}`, images: [image] },
     twitter: { card: 'summary_large_image', title, description: t.intro, images: [image] },
@@ -36,7 +36,7 @@ export default async function TopicPage({ params }: { params: Params }) {
   return (
     <Layout>
       <HubPage kicker="Topic" title={`${t.label} in Ghana`} intro={t.intro} articles={articles}
-        related={TOPICS.filter((x) => x.slug !== t.slug).map((x) => ({ label: x.label, href: `/topics/${x.slug}` }))} />
+        related={[{ label: `${t.label} RSS feed`, href: `/topics/${t.slug}/rss.xml` }, ...TOPICS.filter((x) => x.slug !== t.slug).map((x) => ({ label: x.label, href: `/topics/${x.slug}` }))]} />
       {articles.length === 0 && (
         <p className="container mx-auto max-w-6xl px-4 pb-10 font-sans text-sm text-muted-foreground">No stories on this topic are available right now.</p>
       )}

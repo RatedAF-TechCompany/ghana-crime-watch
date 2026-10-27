@@ -40,7 +40,7 @@ const GHANA_COURT_SIGNAL = /\b(?:ghana|ghanaian|accra|tema|kasoa|kumasi|tamale|c
 export const getRegion = (slug: string) => REGIONS.find((r) => r.slug === slug) ?? null;
 export const getTopic = (slug: string) => TOPICS.find((t) => t.slug === slug) ?? null;
 
-function topicFilter(t: Topic) {
+export function topicFilter(t: Topic) {
   return t.terms.map((x) => `title.ilike.%${x}%`).join(',');
 }
 
@@ -80,24 +80,32 @@ export const getGhanaCourtArticles = cache(async (limit = 30) => {
     .slice(0, limit);
 });
 
-/** Counts of published stories (not incidents) tagged to each region, optionally since a date. */
+export interface StoryCounts {
+  total: number;
+  regions: Record<string, number>;
+  offences: Record<string, number>;
+  statuses: Record<string, number>;
+  topics: Record<string, number>;
+  region_offence: [string, string, number][];
+  topic_region: [string, string, number][];
+}
+
+/** One database call for all counts (regions, topics, offence types, case status and their cross-tabs). */
+export const getStoryCounts = cache(async (sinceIso: string): Promise<StoryCounts> => {
+  const supabase = createServerClient() as any;
+  const topics = Object.fromEntries(TOPICS.map((t) => [t.slug, t.terms]));
+  const { data, error } = await supabase.rpc('story_counts', { since: sinceIso, topics });
+  if (error) throw new Error(`getStoryCounts: ${error.message}`);
+  return { total: 0, regions: {}, offences: {}, statuses: {}, topics: {}, region_offence: [], topic_region: [], ...(data ?? {}) };
+});
+
+/** Counts of published stories (not incidents) tagged to each region since a date. */
 export const getRegionCounts = cache(async (sinceIso?: string) => {
-  const supabase = createServerClient();
-  const rows = await Promise.all(REGIONS.map(async (r) => {
-    let q = supabase.from('articles').select('id', { count: 'exact', head: true }).eq('is_published', true).eq('region', r.name);
-    if (sinceIso) q = q.gte('published_at', sinceIso);
-    const { count } = await q;
-    return { ...r, count: count ?? 0 };
-  }));
-  return rows;
+  const c = await getStoryCounts(sinceIso ?? '2000-01-01T00:00:00Z');
+  return REGIONS.map((r) => ({ ...r, count: c.regions[r.name] ?? 0 }));
 });
 
 export const getTopicCounts = cache(async (sinceIso?: string) => {
-  const supabase = createServerClient();
-  return Promise.all(TOPICS.map(async (t) => {
-    let q = supabase.from('articles').select('id', { count: 'exact', head: true }).eq('is_published', true).or(topicFilter(t));
-    if (sinceIso) q = q.gte('published_at', sinceIso);
-    const { count } = await q;
-    return { slug: t.slug, label: t.label, count: count ?? 0 };
-  }));
+  const c = await getStoryCounts(sinceIso ?? '2000-01-01T00:00:00Z');
+  return TOPICS.map((t) => ({ slug: t.slug, label: t.label, count: c.topics[t.slug] ?? 0 }));
 });

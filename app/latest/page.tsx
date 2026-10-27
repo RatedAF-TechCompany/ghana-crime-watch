@@ -9,7 +9,7 @@ import { AutoRefresh } from '@/components/AutoRefresh';
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: 'Live Crime Wire: Latest Ghana Crime News, Minute by Minute | GhanaCrimes',
+  title: 'Live Crime Wire: Latest Ghana Crime News, Minute by Minute',
   description: 'Every new GhanaCrimes story, newest first: arrests, court cases, fraud and police reports from across Ghana, with region and crime-type labels.',
   alternates: { canonical: `${BASE_URL}/latest`, types: { 'application/rss+xml': `${BASE_URL}/latest/rss.xml` } },
 };
