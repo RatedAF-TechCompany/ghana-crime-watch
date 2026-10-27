@@ -118,8 +118,9 @@ async function fetchAndStore(request: Request, key: Request, env: unknown, ctx: 
     copy.headers.set("Cache-Control", `public, max-age=${MAX_STALE_SECONDS}`);
     copy.headers.delete("Vary");
     ctx.waitUntil((caches as any).default.put(key, copy));
-  } else if (res.status === 404 || res.status === 410) {
-    // Page is gone (e.g. emptied section or unpublished story): evict the stale cached copy instead of serving it.
+  } else if (res.status === 404 || res.status === 410 || (res.status >= 301 && res.status <= 308)) {
+    // Page is gone or now redirects (e.g. emptied section, unpublished story, duplicate merged into a kept URL):
+    // evict the stale cached copy instead of serving it.
     ctx.waitUntil((caches as any).default.delete(key));
   }
   return res;
@@ -170,6 +171,30 @@ async function slugExists(env: any, slug: string): Promise<boolean | null> {
   } catch { return null; }
 }
 
+const routeMemo = new Map<string, { t: number; target: string | null }>(); // "cat/slug" -> redirect target (per isolate)
+
+/** Redirect target for an unpublished article URL (article_route_state RPC), null if none, undefined on lookup error. */
+async function routeRedirect(env: any, category: string, slug: string): Promise<string | null | undefined> {
+  const k = `${category}/${slug}`;
+  const m = routeMemo.get(k);
+  if (m && Date.now() - m.t < 10 * 60 * 1000) return m.target;
+  try {
+    const r = await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/article_route_state`, {
+      method: "POST",
+      headers: { apikey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY, Authorization: `Bearer ${env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`, "Content-Profile": "ghanacrimes", "Content-Type": "application/json" },
+      body: JSON.stringify({ _category: category, _slug: slug }),
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!r.ok) return undefined;
+    const rows = (await r.json()) as { state: string; target: string | null }[];
+    const row = Array.isArray(rows) ? rows[0] : null;
+    const target = row?.state === "redirect" && row.target && /^\/[a-z0-9-]+\/[a-z0-9-]+$/.test(row.target) ? row.target : null;
+    if (routeMemo.size > 5000) routeMemo.clear();
+    routeMemo.set(k, { t: Date.now(), target });
+    return target;
+  } catch { return undefined; }
+}
+
 async function fastArticle404(request: Request, url: URL, env: any, ctx: any): Promise<Response | null> {
   const parts = isArticlePath(url.pathname);
   if (!parts || request.headers.has("rsc")) return null;
@@ -178,6 +203,10 @@ async function fastArticle404(request: Request, url: URL, env: any, ctx: any): P
   if (await ((caches as any).default as Cache).match(key)) return null;
   const exists = await slugExists(env, parts[1]);
   if (exists !== false) return null; // exists, or lookup failed: let Next decide (fail open)
+  // Unpublished duplicates carry redirect_to: answer with a cheap edge 301 to the kept story instead of a 404.
+  const target = await routeRedirect(env, parts[0], parts[1]);
+  if (target === undefined) return null; // lookup failed: let Next decide
+  if (target) return new Response(null, { status: 301, headers: { Location: `https://${CANONICAL_HOST}${target}`, "Cache-Control": "public, max-age=600", "x-edge-cache": "REDIRECT" } });
   const body = await notFoundBody(env, ctx);
   return new Response(body, { status: 404, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=600", "X-Robots-Tag": "noindex", "x-edge-cache": "FAST404" } });
 }
