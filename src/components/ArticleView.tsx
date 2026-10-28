@@ -20,7 +20,6 @@ import { LiveDevelopingPill } from "@/components/LiveDevelopingPill";
 import { sanitizeArticleBody } from "@/lib/sanitize";
 import { useEffect, useRef, type ReactNode } from "react";
 import { getArticleImage } from "@/lib/article-image";
-import { ArticleImageFallback } from "@/components/ArticleImage";
 import { independentOutlets, publishedUpdatedLabels } from "@/lib/article-meta";
 import { CaseStatusBadge } from "@/components/CaseStatusBadge";
 import { displayByline } from "@/lib/authors";
@@ -227,19 +226,15 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
         </div>
       </div>
 
-      {(() => { const img = getArticleImage(article); return (
+      {(() => { const img = getArticleImage(article); return img ? (
         <div className="mb-8 aspect-[16/9] w-full overflow-hidden">
-          {img ? (
           <img
             src={img}
             alt={article.title}
             className="h-full w-full object-cover"
           />
-          ) : (
-            <ArticleImageFallback categorySlug={article.category_slug} title={article.title} className="p-8" />
-          )}
         </div>
-      ); })()}
+      ) : null; })()}
 
       <div className="my-6 border-y border-border py-3">
         <SocialShareButtons title={article.title} summary={article.summary} />
