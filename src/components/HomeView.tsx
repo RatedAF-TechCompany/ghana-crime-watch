@@ -16,6 +16,9 @@ import { getCategoryLabel } from "@/lib/categories";
 import { getPublishedTime } from "@/lib/time";
 import { ArrowUpRight } from "lucide-react";
 import { ToolsDataStrip } from "@/components/ToolsDataStrip";
+import { RelativeTime } from "@/components/RelativeTime";
+import { FollowGhanaCrimes } from "@/components/FollowGhanaCrimes";
+import { offenceInfo, regionInfo } from "@/lib/crime-labels";
 
 const ARTICLES_PER_PAGE = 30;
 
@@ -27,7 +30,7 @@ export default function HomeView({ initialArticles }: { initialArticles?: any[] 
     queryFn: async () => {
       const { data, error } = await supabase
         .from("articles")
-        .select("id, title, summary, body, category_slug, article_slug, published_at, hero_image")
+        .select("id, title, summary, body, category_slug, article_slug, published_at, hero_image, region, offence_type")
         .eq("is_published", true)
         .order("published_at", { ascending: false })
         .range(page * ARTICLES_PER_PAGE, (page + 1) * ARTICLES_PER_PAGE);
@@ -72,20 +75,46 @@ export default function HomeView({ initialArticles }: { initialArticles?: any[] 
     <div className="space-y-14">
       <h1 className="font-serif text-3xl font-bold text-foreground md:text-4xl">Ghana crime news</h1>
 
-      {/* Just in: newest first, exact publish times */}
+      {/* Breaking: anything published in the last 2 hours */}
+      {(() => {
+        const breaking = articles.filter((a: any) => a.published_at && Date.now() - new Date(a.published_at).getTime() < 2 * 3600_000).slice(0, 3);
+        if (!breaking.length) return null;
+        return (
+          <section aria-label="Breaking news" className="-mt-8 rounded-md bg-primary px-4 py-3 text-primary-foreground">
+            <ul className="space-y-1.5">
+              {breaking.map((a: any) => (
+                <li key={a.id} className="flex flex-wrap items-baseline gap-x-3">
+                  <span className="font-sans text-xs font-black uppercase tracking-[0.18em]">Breaking</span>
+                  <a href={`/${a.category_slug}/${a.article_slug}`} className="font-headline text-lg font-bold leading-snug underline-offset-2 hover:underline">{a.title}</a>
+                  <RelativeTime iso={a.published_at} className="font-sans text-xs opacity-90" />
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })()}
+
+      {/* Live crime wire: newest first, relative times, links to /latest */}
       <section aria-labelledby="just-in" className="border-y border-border py-4">
-        <h2 id="just-in" className="mb-3 font-sans text-xs font-bold uppercase tracking-[0.16em] text-primary">Just in</h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 id="just-in" className="flex items-center gap-2 font-sans text-xs font-bold uppercase tracking-[0.16em] text-primary">
+            <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-primary" aria-hidden /> Live crime wire
+          </h2>
+          <Link href="/latest" className="font-sans text-xs font-bold uppercase tracking-wider text-primary hover:underline">All latest stories &rarr;</Link>
+        </div>
         <ol className="grid gap-x-8 gap-y-2 md:grid-cols-2">
-          {articles.slice(0, 8).map((a) => (
-            <li key={a.id} className="flex gap-3 text-sm">
-              {a.published_at && (
-                <time dateTime={a.published_at} className="w-28 shrink-0 font-sans text-xs tabular-nums text-muted-foreground">
-                  {formatGhanaTime(a.published_at)}, {formatGhanaDate(a.published_at).replace(/ \d{4}$/, '')}
-                </time>
-              )}
-              <a href={`/${a.category_slug}/${a.article_slug}`} className="leading-snug hover:text-primary">{a.title}</a>
-            </li>
-          ))}
+          {articles.slice(0, 8).map((a: any) => {
+            const reg = regionInfo(a.region);
+            return (
+              <li key={a.id} className="flex gap-3 text-sm">
+                {a.published_at && <RelativeTime iso={a.published_at} className="w-20 shrink-0 font-sans text-xs tabular-nums text-muted-foreground" />}
+                <span className="leading-snug">
+                  <a href={`/${a.category_slug}/${a.article_slug}`} className="hover:text-primary">{a.title}</a>
+                  {reg && <span className="ml-1.5 whitespace-nowrap font-sans text-[11px] uppercase tracking-wide text-muted-foreground">{reg.name}</span>}
+                </span>
+              </li>
+            );
+          })}
         </ol>
       </section>
 
@@ -109,7 +138,7 @@ export default function HomeView({ initialArticles }: { initialArticles?: any[] 
             <div className="mb-4 flex items-center gap-2">
               <h3 className="section-heading">Latest from GhanaCrimes</h3>
               <Link
-                href="/top-stories"
+                href="/latest"
                 aria-label="More latest"
                 className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-primary text-primary hover:bg-primary hover:text-primary-foreground"
               >
@@ -150,6 +179,54 @@ export default function HomeView({ initialArticles }: { initialArticles?: any[] 
       {/* Most popular + Writers */}
       <MostReadArticles />
 
+
+      {/* By region and by crime type (from the latest stories) */}
+      {(() => {
+        const byRegion = new Map<string, { name: string; slug: string; items: any[] }>();
+        const byType = new Map<string, { label: string; href: string; items: any[] }>();
+        for (const a of articles as any[]) {
+          const r = regionInfo(a.region); if (r) { const g = byRegion.get(r.slug) ?? { ...r, items: [] }; g.items.push(a); byRegion.set(r.slug, g); }
+          const o = offenceInfo(a.offence_type); if (o) { const g = byType.get(o.label) ?? { ...o, items: [] }; g.items.push(a); byType.set(o.label, g); }
+        }
+        const regions = [...byRegion.values()].sort((x, y) => y.items.length - x.items.length).slice(0, 4);
+        const types = [...byType.values()].sort((x, y) => y.items.length - x.items.length).slice(0, 4);
+        const block = (title: string, href: string, items: any[]) => (
+          <div key={title} className="border-t-2 border-foreground pt-2">
+            <Link href={href} className="font-sans text-xs font-bold uppercase tracking-[0.14em] hover:text-primary">{title} &rarr;</Link>
+            <ul className="mt-2 space-y-2">
+              {items.slice(0, 3).map((a) => (
+                <li key={a.id}><a href={`/${a.category_slug}/${a.article_slug}`} className="text-sm leading-snug hover:text-primary">{a.title}</a></li>
+              ))}
+            </ul>
+          </div>
+        );
+        return (
+          <>
+            {types.length > 0 && (
+              <section aria-label="By crime type">
+                <EditorialSectionHeading title="By crime type" moreHref="/topics" />
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">{types.map((t) => block(t.label, t.href, t.items))}</div>
+              </section>
+            )}
+            {regions.length > 0 && (
+              <section aria-label="By region">
+                <EditorialSectionHeading title="By region" moreHref="/regions" />
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">{regions.map((r) => block(r.name, `/regions/${r.slug}`, r.items))}</div>
+              </section>
+            )}
+          </>
+        );
+      })()}
+
+      {/* Follow + tips */}
+      <section className="grid gap-6 md:grid-cols-2">
+        <FollowGhanaCrimes />
+        <div className="rounded-md border border-border p-6">
+          <h2 className="font-serif text-2xl font-bold">Seen something? Send us a tip</h2>
+          <p className="mt-2 font-body text-sm text-muted-foreground">Tell the GhanaCrimes desk about an arrest, court case, scam or incident. We verify before we publish and protect sources.</p>
+          <Link href="/tips" className="mt-4 inline-block rounded bg-primary px-4 py-2 font-sans text-sm font-bold text-primary-foreground">Send a tip</Link>
+        </div>
+      </section>
 
       {/* More headlines */}
       {overflow.length > 0 && (

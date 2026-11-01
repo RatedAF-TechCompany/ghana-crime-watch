@@ -137,7 +137,7 @@ export default function NewsroomView() {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
       const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-      const response = await fetch(`${supabaseUrl}/functions/v1/run-newsroom`, {
+      const response = await fetch(`${supabaseUrl}/functions/v1/gc-run-newsroom`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

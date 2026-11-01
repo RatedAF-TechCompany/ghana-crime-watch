@@ -1,6 +1,6 @@
 // Runs the deterministic editorial gate over published articles from the last 30 days.
 // Hard fails are set to draft (never deleted). Results are stored for the admin CSV report.
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient } from "../_shared/sb.ts";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { runBackfillGate } from "../_shared/editorial-gate.ts";
 

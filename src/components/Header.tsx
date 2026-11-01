@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTheme } from "next-themes";
 import { NotificationBell } from "./NotificationBell";
 import { cn } from "@/lib/utils";
+import { useIsEmptySection } from "@/components/EmptySectionsContext";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -15,6 +16,7 @@ interface HeaderProps {
 }
 
 const PRIMARY_NAV: { label: string; to: string }[] = [
+  { label: "Latest", to: "/latest" },
   { label: "Crime", to: "/violent-crime" },
   { label: "Court", to: "/court-cases" },
   { label: "Police", to: "/police-reports" },
@@ -26,10 +28,12 @@ const PRIMARY_NAV: { label: string; to: string }[] = [
   { label: "Courts", to: "/courts" },
   { label: "Safety", to: "/safety" },
   { label: "Explainers", to: "/explainers" },
-  { label: "Fraud Watch", to: "/fraud-watch" },
+  { label: "Scam Alerts", to: "/scam-alerts" },
+  { label: "Emergency", to: "/emergency-contacts" },
 ];
 
 export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
+  const isEmpty = useIsEmptySection();
   const [isAdmin, setIsAdmin] = useState(false);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -94,7 +98,7 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
           {/* Centre nav (desktop) */}
           <nav className="hidden min-w-0 flex-1 items-center justify-center [@media(min-width:1025px)]:flex">
             <ul className="flex min-w-0 items-center gap-3 xl:gap-5">
-              {PRIMARY_NAV.map((item) => (
+              {PRIMARY_NAV.filter((item) => !isEmpty(item.to)).map((item) => (
                 <li key={item.to}>
                   <Link
                     href={item.to}

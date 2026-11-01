@@ -22,7 +22,7 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const LOVABLE_API_KEY = ((Deno.env.get("GC_AI_API_KEY") ?? Deno.env.get("AI_API_KEY")) ?? Deno.env.get("LOVABLE_API_KEY"));
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }

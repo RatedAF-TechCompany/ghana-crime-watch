@@ -47,11 +47,12 @@ const nextConfig: NextConfig = {
       { source: '/police', destination: '/police-reports', permanent: true },
       { source: '/fraud', destination: '/fraud-scams', permanent: true },
       { source: '/news', destination: '/top-stories', permanent: true },
-      { source: '/latest', destination: '/top-stories', permanent: true },
       { source: '/rss', destination: '/rss.xml', permanent: true },
       { source: '/feed', destination: '/rss.xml', statusCode: 301 } as any,
       { source: '/drugs', destination: '/drug-offences', permanent: true },
       { source: '/breaking-news', destination: '/top-stories', permanent: true },
+      { source: '/contact-us', destination: '/contact', permanent: true },
+      { source: '/privacy-policy', destination: '/privacy', permanent: true },
       { source: '/about/ownership', destination: '/masthead', permanent: true },
       { source: '/authors', destination: '/authors/ghanacrimes-newsroom', permanent: false },
     ];
@@ -66,7 +67,7 @@ const nextConfig: NextConfig = {
       { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
       { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), browsing-topics=()' },
       { key: 'Content-Security-Policy', value: "frame-ancestors 'self' https://lovable.dev https://*.lovable.dev https://*.lovable.app https://*.lovableproject.com" },
-      { key: 'Content-Security-Policy-Report-Only', value: "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://*.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://zninjnjujptjxdikehun.supabase.co https://police.gov.gh https://*.police.gov.gh https://*.interpol.int https://*.google-analytics.com https://*.googletagmanager.com; font-src 'self' data:; connect-src 'self' https://zninjnjujptjxdikehun.supabase.co wss://zninjnjujptjxdikehun.supabase.co https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com; media-src 'self' https://zninjnjujptjxdikehun.supabase.co; worker-src 'self' blob:; manifest-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; report-uri /api/csp-report" },
+      { key: 'Content-Security-Policy-Report-Only', value: "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://*.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://rscqxztgtpcifcqxjskh.supabase.co https://police.gov.gh https://*.police.gov.gh https://*.interpol.int https://*.google-analytics.com https://*.googletagmanager.com; font-src 'self' data:; connect-src 'self' https://rscqxztgtpcifcqxjskh.supabase.co wss://rscqxztgtpcifcqxjskh.supabase.co https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com; media-src 'self' https://rscqxztgtpcifcqxjskh.supabase.co; worker-src 'self' blob:; manifest-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; report-uri /api/csp-report" },
     ] }];
   },
   outputFileTracingRoot: process.cwd(),
@@ -83,7 +84,7 @@ const nextConfig: NextConfig = {
   },
   images: {
     remotePatterns: [
-      { protocol: 'https', hostname: 'zninjnjujptjxdikehun.supabase.co' },
+      { protocol: 'https', hostname: 'rscqxztgtpcifcqxjskh.supabase.co' },
     ],
   },
 };
@@ -97,7 +98,7 @@ export default async function config() {
     runtimeCaching: [
       {
         // NetworkFirst for Supabase REST API — 5-min TTL, 100 entries
-        urlPattern: /^https:\/\/zninjnjujptjxdikehun\.supabase\.co\/rest\/v1\/.*/i,
+        urlPattern: /^https:\/\/rscqxztgtpcifcqxjskh\.supabase\.co\/rest\/v1\/.*/i,
         handler: 'NetworkFirst',
         options: {
           cacheName: 'api-cache',
@@ -106,7 +107,7 @@ export default async function config() {
       },
       {
         // CacheFirst for Supabase Storage images — 7-day TTL, 100 entries
-        urlPattern: /^https:\/\/zninjnjujptjxdikehun\.supabase\.co\/storage\/v1\/.*/i,
+        urlPattern: /^https:\/\/rscqxztgtpcifcqxjskh\.supabase\.co\/storage\/v1\/.*/i,
         handler: 'CacheFirst',
         options: {
           cacheName: 'image-cache',

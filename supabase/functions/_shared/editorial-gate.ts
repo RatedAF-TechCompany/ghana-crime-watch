@@ -13,8 +13,15 @@ export const SPECULATION = /\b(evidence (suggests|shows|proves) (he|she|they)|it
 export const GORE = /\b(decapitat\w*|beheaded|dismember\w*|mutilat\w*|disembowel\w*|entrails|brains? (spilled|scattered)|pool of blood|gory|charred bod(y|ies)|severed (head|limb)s?|body parts)\b/i;
 export const PHONE = /(\+233|\b0)[\s-]?[235]\d[\s-]?\d{3}[\s-]?\d{4}\b/;
 export const HOUSE_ADDRESS = /\b(house (no\.?|number) ?[A-Z0-9/-]+|H\/No\.? ?[A-Z0-9/-]+|GPS address:? ?[A-Z]{2}-\d{3,4}-\d{3,4})\b/i;
+/** Claims attributed to an official body: Police, EOCO, NACOC, courts/Judicial Service, Attorney-General. */
+const OFFICIAL_BODY = String.raw`(?:the )?(?:Ghana Police Service|Ghana Police|police|Police Public Affairs Directorate|(?:Regional|Divisional|District|Municipal) Police Command|CID|EOCO|Economic and Organised Crime Office|NACOC|Narcotics Control Commission|Attorney[- ]General(?:'s Department)?|Office of the Attorney[- ]General|Office of the Special Prosecutor|Judicial Service|prosecution|prosecutors?)`;
+/** Claims attributed to an official body (Police, EOCO, NACOC, courts/Judicial Service, A-G): a mention alone does not count. */
+export const OFFICIAL_ATTRIBUTION = new RegExp(String.raw`\b(?:according to ${OFFICIAL_BODY}\b|${OFFICIAL_BODY}\b[^.]{0,80}?\b(?:said|says|stated|confirmed|arrested|have arrested|charged|announced|seized|indicated|disclosed|told the court|in a statement|statement)\b|(?:the )?(?:court|High Court|Circuit Court|District Court|Court of Appeal|Supreme Court)\b[^.]{0,60}?\b(?:heard|ruled|granted|remanded|convicted|sentenced|ordered|adjourned|admitted|dismissed|charged)\b|charge sheet|court (?:documents|records)|arraigned)`, "i");
+export function officialAttribution(text: string): boolean { return OFFICIAL_ATTRIBUTION.test(text || ""); }
+export const PRESUMPTION_WORDS = /\b(alleged|allegedly|suspect|suspects|suspected|accused|charged|remanded|arraigned|pleaded)\b/i;
+
 export const SEXUAL_OR_DV = /\b(rape[ds]?|raping|defile\w*|sexual(ly)? (assault|abus)\w*|indecent assault|incest|domestic violence|wife[- ]beating|assaulted (his|her) (wife|husband|partner))\b/i;
-export const MINOR_HINT = /\b(minor|juvenile|\d{1,2}-year-old (girl|boy|pupil|student)|aged (1[0-7]|[1-9])\b|pupil|schoolgirl|schoolboy|JHS|SHS student|basic school)\b/i;
+export const MINOR_HINT = /\b(minor|juvenile|child|children|baby|toddler|infant|schoolchild|(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen)-year-old|1[0-7]-year-old|[1-9]-year-old|\d{1,2}-year-old (girl|boy|pupil|student)|aged (1[0-7]|[1-9])\b|pupil|schoolgirl|schoolboy|JHS|SHS student|basic school)\b/i;
 export const SCHOOL_NAME = /\b[A-Z][\w'.]+(?: [A-Z][\w'.]+)* (Senior High|Junior High|Basic|Primary|SHS|JHS|M\/A|D\/A|R\/C|Methodist|Presby|Anglican) ?(School)?\b/;
 export const ENTERTAINMENT = /\b(celebrity|showbiz|musician|rapper|actress|actor|album|music video|concert|movie|nollywood|kumawood|reality show|talent show|award show|red carpet|gospel artist)\b/i;
 export const CONVICTED = /\b(convicted|sentenced|found guilty|jailed|imprisoned for|pleaded guilty)\b/i;
@@ -180,6 +187,77 @@ export function hasGhanaSignal(text: string): boolean {
   return GHANA_INSTITUTION.test(text || "") || detectRegion(text) !== null;
 }
 
+
+// ---- Loosened-gate transforms (Oct 2026): fix drafts automatically instead of holding them. ----
+export const JUSTICE_SECURITY = /\b(police|court|judge|prosecut\w*|arrest\w*|crime|criminal|security|NACOC|EOCO|CID|Special Prosecutor|Attorney[- ]General|prison\w*|narcotic\w*|drug\w*|trafficking|galamsey|illegal mining|fraud|corruption|investigat\w*|immigration|border|military|soldiers?|justice)\b/i;
+/** A concrete crime event or justice step (not commentary about one). Checked on the headline and the source lead. */
+export const ENFORCEMENT_ACTION = /\b(arrest\w*|nab(s|bed)?|picked up|apprehend\w*|detain\w*|in custody|charged|arraign\w*|remand\w*|bail|convict\w*|sentenc\w*|jail\w*|imprison\w*|acquit\w*|plead\w*|court|trial|prosecut\w*|indict\w*|seiz\w*|confiscat\w*|impound\w*|raid\w*|intercept\w*|bust(s|ed)?|dismantl\w*|destroy(s|ed)? [^.]{0,30}(machines?|excavators?|chanfang|equipment|pits?)|rob(s|bed|bing|bery|beries|bers?)?|stole|stolen|steal\w*|theft|thie(f|ves)|burglar\w*|murder\w*|homicide|kill(ed|s|ing)|stab(bed|bing|s)?|shot|shoot\w*|gun(man|men|point)|kidnap\w*|abduct\w*|defraud\w*|fraud\w*|scam\w*|traffick\w*|smuggl\w*|assault\w*|attack(ed|s)?|lynch\w*|mob|clash\w*|escap\w*|inmates?|crash\w*|knock(ed)? down|manhunt|wanted|investigat\w*|probe\w*|interdict\w*|arson|set ablaze|defile\w*|rape\w*|launder\w*|embezzl\w*|misappropriat\w*|brib\w*|forg(ed|ery)|impersonat\w*|narcotic\w*|cannabis|cocaine|tramadol|galamsey (operators?|suspects?|sites?)|illegal miners?|missing person|found dead|abuse\w*|body (found|discovered))\b/i;
+/** Headline shapes that are commentary, honours, appointments, business or farming news rather than a crime event. */
+export const OFF_TOPIC_TITLE = /\b(honou?r(s|ed|ing)?|award(s|ed)?|salar(y|ies)|wages?|pay rise|fertili[sz]er\w*|maize|harvest\w*|farmers?|appoint\w*|sworn in|inaugurat\w*|launch(es|ed)?|celebrat\w*|congratulat\w*|condemn\w*|demand(s|ed)?|retract\w*|challeng\w*|criticis\w*|criticiz\w*|slam(s|med)?|lauds?|commend\w*|urges?|calls? (on|for)|reacts?|responds?|defends?|clarif\w*|chieftaincy|enstool\w*|title|festival|scholarships?|donat\w*|mining plan|policy|bill|manifesto|campaign|decr(y|ies)|lament\w*|allocat\w*|invest(s|ed|ment)?|stud(y|ies)|reclamation|reopens?|visits?|tours?|insurance|number plates|displaced|returned home|cooperatives?)\b/i;
+/** An official law-enforcement or justice body speaking or acting in the headline (advisories from these stay in scope). */
+export const OFFICIAL_ACTOR_TITLE = /\b(police|Chief Justice|Interior Minister|IGP|EOCO|NACOC|OSP|Special Prosecutor|NAIMOS|Cyber Security Authority|CSA|court|judge|Judicial Service|Attorney[- ]General|prisons?|Immigration|Customs|MTTD|DOVVSU|CID|NIB|Interpol)\b/i;
+
+/** Why an item is off the crime beat (null when it is in scope). Deterministic, so the same rule can be re-run on published stories. */
+export function offTopicReason(a: { is_crime?: boolean | null; offence_type?: string | null }, title: string, sourceTitle: string, lead: string): string | null {
+  const head = `${title} ${sourceTitle}`;
+  const action = ENFORCEMENT_ACTION.test(head) || ENFORCEMENT_ACTION.test(lead);
+  if (a.is_crime === false && !(ENFORCEMENT_ACTION.test(head) && OFFICIAL_ACTOR_TITLE.test(head))) return "not_crime_event";
+  if (OFF_TOPIC_TITLE.test(head) && !ENFORCEMENT_ACTION.test(head) && !OFFICIAL_ACTOR_TITLE.test(head)) return "commentary_or_off_topic_headline";
+  if (!a.offence_type && !action) return "no_enforcement_action";
+  return null;
+}
+
+const GORE_SOFT: [RegExp, string][] = [
+  [/\b(decapitat\w*|beheaded)\b/gi, "killed"], [/\b(dismember\w*|mutilat\w*|disembowel\w*)\b/gi, "attacked"],
+  [/\bentrails\b/gi, "remains"], [/\bbrains? (spilled|scattered)\b/gi, "fatal injuries"], [/\b(in )?a pool of blood\b/gi, ""],
+  [/\bgory\b/gi, "serious"], [/\bcharred bod(y|ies)\b/gi, (m: string) => /ies$/i.test(m) ? "bodies" : "body" as any],
+  [/\bsevered (head|limb)s?\b/gi, "remains"], [/\b(decomposing|partially naked|naked|mangled|bloodied) (body|bodies|corpse)\b/gi, "$2"], [/\bbody parts\b/gi, "remains"], [/\bset (?:it |the body |the bodies )?on fire\b/gi, "burned"],
+];
+export function toneDownGore(s: string): string {
+  let out = s || "";
+  for (const [re, rep] of GORE_SOFT) out = out.replace(re, rep as any);
+  return out.replace(/ {2,}/g, " ").replace(/ ([.,])/g, "$1");
+}
+/** Prefix "According to <outlet>," when the draft has no explicit attribution. */
+export function ensureAttribution(body: string, outlet: string): string {
+  if (/according to/i.test(body) || !outlet) return body;
+  const b = body.trimStart();
+  const m = b.match(/^(The|A|An)\s/);
+  return `According to ${outlet}, ${m ? m[1].toLowerCase() + b.slice(m[1].length) : b}`;
+}
+/** Insert presumption wording when a suspect is named and there is no conviction. */
+export function ensurePresumption(body: string, a: Analysis): string {
+  if (!a.suspect_named || a.case_status === "convicted" || a.case_status === "acquitted") return body;
+  let out = body
+    .replace(/\b(the |a )(robbery|murder|killing|attack|theft|fraud|assault|kidnapping|rape|defilement|stabbing|shooting)\b/gi, (_m, art, w) => `${art}alleged ${w}`)
+    .replace(/alleged alleged/gi, "alleged");
+  if (!PRESUMPTION_WORDS.test(out)) out = `${out.trim()}\n\nThe suspect is presumed innocent unless proven guilty by a court.`;
+  return out;
+}
+const IDENT_CUES = /\b(named|identified as|known as|called|name withheld|a pupil of|a student of|student at|pupil at|attends?|lives? (at|in)|resident of|daughter of|son of|niece|nephew|granddaughter|grandson|house (no|number)|GPS)\b/i;
+export function isProtectedCase(a: Analysis, text: string): boolean {
+  return !!(a.minor_involved || a.sexual_or_domestic_violence || MINOR_HINT.test(text) || SEXUAL_OR_DV.test(text));
+}
+/** Redact minors and sexual-offence victims: drop any sentence carrying a name cue, school, address, phone or relative; scrub schools from the title. */
+export function redactProtected(title: string, body: string, a: Analysis, sourceText: string): { title: string; body: string; removed: number } {
+  if (!isProtectedCase(a, `${sourceText} ${body}`)) return { title, body, removed: 0 };
+  let removed = 0;
+  const paras = body.split(/\n\s*\n/).map((p) => {
+    const sents = p.match(/[^.!?]+[.!?]+["')]*\s*|[^.!?]+$/g) || [p];
+    return sents.filter((s) => {
+      const bad = SCHOOL_NAME.test(s) || HOUSE_ADDRESS.test(s) || PHONE.test(s) || IDENT_CUES.test(s);
+      if (bad) removed++;
+      return !bad;
+    }).join("").trim();
+  }).filter(Boolean);
+  // Drop the community/village of a protected person, keeping only the district/municipality/region.
+  const COMMUNITY = /\b(?:at|in) [A-Z][\w'-]+(?:[- ][A-Z][\w'-]+)*,? (?=in the [A-Z][\w' -]+ (?:District|Municipality|Municipal|Metropolis|Metropolitan|Region))/g;
+  let out = paras.join("\n\n");
+  const before = out; out = out.replace(COMMUNITY, ""); if (out !== before) removed++;
+  const t = title.replace(new RegExp(SCHOOL_NAME.source, "g"), "a school");
+  return { title: t, body: out, removed };
+}
+
 /** Full gate for a freshly drafted item (LLM analysis + deterministic checks on the draft). */
 export function runGate(opts: {
   analysis: Analysis;
@@ -203,7 +281,12 @@ export function runGate(opts: {
   if (!detectedRegion && !ghanaSignal) soft.push("region_unresolved");
 
   // b) Crime only
-  if (!a.is_crime || !a.offence_type || !OFFENCES.includes(a.offence_type)) hard.push("not_in_crime_scope");
+  // Justice, security and policing news counts; only clearly non-crime, non-justice items are out of scope.
+  if ((!a.is_crime || !a.offence_type || !OFFENCES.includes(a.offence_type)) && !JUSTICE_SECURITY.test(sourceText)) hard.push("not_in_crime_scope");
+  // Tightened Oct 2026: honours, salaries, farming, appointments and political commentary are out even if police/military appear.
+  const srcTitle = (sourceText.split(/(?<=[.!?])\s+/)[0] || "").slice(0, 200);
+  const offTopic = offTopicReason(a, draftTitle, srcTitle, sourceText.slice(0, 600));
+  if (offTopic) hard.push(`off_topic:${offTopic}`);
 
   // c) Factual
   const missing = unsupportedFacts(draft, `${sourceText}`);
@@ -214,22 +297,24 @@ export function runGate(opts: {
   FILLER_PHRASES.lastIndex = 0;
   const wc = wordCount(draftBody);
   if (wc < 80 || wc > 180) soft.push(`word_count_${wc}`);
-  if (a.suspect_named && !isOfficial && corroboratingSources < 1) soft.push("suspect_named_single_media_source");
+  // Named suspects publish only when the claim comes from an official body (official source, or the source attributes it to
+  // Police/EOCO/NACOC/courts/A-G) or 2+ independent outlets report it, and the draft keeps presumption-of-innocence wording.
+  // Single-source stories publish with "According to <outlet>"; presumption wording is inserted upstream (ensurePresumption).
+  void isOfficial; void corroboratingSources;
 
   // d) Presumption of innocence
   const convicted = a.case_status === "convicted" || CONVICTED.test(sourceText);
   if (VERDICT_WORDS.test(draft) && !convicted) hard.push("verdict_word_before_conviction");
 
   // e) Graphic
-  if (GORE.test(draft)) hard.push("graphic_terms");
-  if (a.graphic_content) soft.push("graphic_source_material");
+  // Gore wording is toned down upstream (toneDownGore); graphic source material no longer holds.
+  if (GORE.test(draft)) soft.push("graphic_terms_remaining");
 
   // f) Privacy
-  if ((a.sexual_or_domestic_violence || SEXUAL_OR_DV.test(sourceText)) && a.victim_named) hard.push("sexual_or_dv_victim_named");
-  if (a.minor_involved && (a.minor_identifiable || SCHOOL_NAME.test(draft))) hard.push("minor_identifiable");
+  // Minors and sexual-offence victims are redacted upstream (redactProtected). This is the residual backstop on the draft.
+  if (isProtectedCase(a, `${sourceText} ${draft}`) && (SCHOOL_NAME.test(draft) || IDENT_CUES.test(draft))) soft.push("redaction_incomplete");
   if (PHONE.test(draft)) hard.push("phone_number");
   if (HOUSE_ADDRESS.test(draft)) hard.push("home_address");
-  if ((a.sexual_or_domestic_violence || a.minor_involved) && !hard.length) soft.push("sensitive_case_check");
 
   // g) Contempt guard
   if (a.pending_case_commentary) soft.push("pending_case_commentary");

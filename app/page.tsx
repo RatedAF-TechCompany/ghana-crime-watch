@@ -41,7 +41,10 @@ export default async function Page() {
           {
             '@context': 'https://schema.org',
             '@type': 'WebSite',
+            '@id': `${BASE_URL}/#website`,
             name: 'GhanaCrimes',
+            inLanguage: 'en-GH',
+            publisher: { '@id': `${BASE_URL}/#organization` },
             url: `${BASE_URL}/`,
           },
         ]}

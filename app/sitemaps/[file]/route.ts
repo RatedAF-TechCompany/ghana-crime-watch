@@ -7,6 +7,7 @@ import { EXPLAINERS } from '@/lib/explainers';
 import { isIndexableThread } from '@/lib/article-meta';
 import { getNotices } from '@/lib/notices';
 import { getMasthead } from '@/lib/masthead';
+import { getCategoryPage } from '@/lib/server-data';
 
 export const revalidate = 600;
 export const dynamic = 'force-dynamic';
@@ -30,6 +31,12 @@ const STATIC_PATHS = [
   '/regions',
   '/topics',
   '/authors/ghanacrimes-newsroom',
+  '/latest',
+  '/alerts',
+  '/scam-alerts',
+  '/emergency-contacts',
+  '/courts/cases',
+  '/roundup',
 ];
 
 function urlset(urls: { loc: string; lastmod?: string | null }[]) {
@@ -68,19 +75,26 @@ export async function GET(_req: Request, { params }: { params: Promise<{ file: s
         if (!ups || ups.length < 1000) break;
       }
     }
+    const { data: cases } = await (supabase as any).from('court_cases').select('slug, updated_at').eq('is_published', true);
     const indexable = (threads ?? []).filter((t) => isIndexableThread(t.thread_slug, counts.get(t.id) ?? 0));
+
+    // Only list sections that actually have published articles (empty sections return 404).
+    const liveCategories = (await Promise.all(NAV_CATEGORIES.map(async (c) => {
+      try { return (await getCategoryPage(c.slug, 1)).articles.length ? c : null; } catch { return c; }
+    }))).filter(Boolean) as typeof NAV_CATEGORIES;
 
     const pages = [
       ...STATIC_PATHS.map((p) => ({ loc: `${BASE_URL}${p}` })),
       ...noticePaths.map((p) => ({ loc: `${BASE_URL}${p}` })),
       ...(masthead.hasAny ? [{ loc: `${BASE_URL}/masthead` }] : []),
-      ...NAV_CATEGORIES.map((c) => ({ loc: `${BASE_URL}/${c.slug}` })),
+      ...liveCategories.map((c) => ({ loc: `${BASE_URL}/${c.slug}` })),
       ...REGIONS.map((r) => ({ loc: `${BASE_URL}/regions/${r.slug}` })),
       ...TOPICS.map((t) => ({ loc: `${BASE_URL}/topics/${t.slug}` })),
       ...EXPLAINERS.map((e) => ({ 
         loc: `${BASE_URL}/explainers/${e.slug}`,
         lastmod: new Date(e.updated).toISOString()
       })),
+      ...((cases ?? []) as { slug: string; updated_at: string }[]).map((c) => ({ loc: `${BASE_URL}/courts/cases/${c.slug}`, lastmod: new Date(c.updated_at).toISOString() })),
       ...indexable.map((t) => ({
         loc: `${BASE_URL}/live/${t.thread_slug}`,
         lastmod: t.content_updated_at ? new Date(t.content_updated_at).toISOString() : null,

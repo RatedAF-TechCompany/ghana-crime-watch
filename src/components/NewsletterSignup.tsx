@@ -33,7 +33,7 @@ export function NewsletterSignup() {
           throw error;
         }
       } else {
-        toast.success("Welcome! You'll receive our daily crime digest.");
+        toast.success("You're on the list. We'll email you when the daily digest launches.");
         setEmail("");
       }
     } catch (error) {
@@ -53,7 +53,7 @@ export function NewsletterSignup() {
         <div>
           <h3 className="font-serif text-lg font-bold">Daily Crime Digest</h3>
           <p className="text-sm text-muted-foreground">
-            Top stories delivered every morning
+            Join the list. The daily digest of Ghana's top crime stories launches soon.
           </p>
         </div>
       </div>

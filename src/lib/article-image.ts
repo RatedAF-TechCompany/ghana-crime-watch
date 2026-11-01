@@ -3,7 +3,7 @@ import breakingNewsAsset from "@/assets/breaking-news.png.asset.json";
 export const BREAKING_NEWS_IMAGE = breakingNewsAsset.url;
 
 /** Only images hosted in our own storage are allowed. Never hot-link other publishers. */
-const SELF_HOSTED_PREFIX = "https://zninjnjujptjxdikehun.supabase.co/storage/";
+const SELF_HOSTED_PREFIX = "https://rscqxztgtpcifcqxjskh.supabase.co/storage/";
 
 type ArticleLike = {
   hero_image?: string | null;

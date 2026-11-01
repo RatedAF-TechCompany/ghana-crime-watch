@@ -5,7 +5,7 @@
 //   processed_tweets row is deleted so the next cron run retries the item (never silently dropped).
 // - Direct X posting removed from ingestion: ghanacrimes-autopost handles the X account on a schedule.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "./sb.ts";
 import { AiCreditError, callGateway, newUsage, parseJson } from "./ai-usage.ts";
 import { allowSourceNames, runGate, stripHtml } from "./editorial-gate.ts";
 
@@ -195,7 +195,7 @@ export async function runTweetIngest(req: Request, cfg: IngestConfig): Promise<R
   const consumerSecret = Deno.env.get("TWITTER_CONSUMER_SECRET")!;
   const accessToken = Deno.env.get("TWITTER_ACCESS_TOKEN")!;
   const accessTokenSecret = Deno.env.get("TWITTER_ACCESS_TOKEN_SECRET")!;
-  const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+  const lovableApiKey = ((Deno.env.get("GC_AI_API_KEY") ?? Deno.env.get("AI_API_KEY")) ?? Deno.env.get("LOVABLE_API_KEY"));
 
   const usage = newUsage();
   let jsonParseFailures = 0;

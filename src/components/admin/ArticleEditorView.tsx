@@ -126,7 +126,7 @@ export default function ArticleEditorView({ id }: { id: string }) {
 
     setGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-article-fields', {
+      const { data, error } = await supabase.functions.invoke('gc-generate-article-fields', {
         body: { body: formData.body },
       });
 

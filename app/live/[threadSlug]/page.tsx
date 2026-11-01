@@ -1,3 +1,4 @@
+import { publisherRef } from '@/lib/masthead';
 import type { Metadata } from 'next';
 import { cache } from 'react';
 import { notFound } from 'next/navigation';
@@ -78,7 +79,7 @@ export default async function LiveThreadPage({ params }: { params: Params }) {
     coverageStartTime: started,
     ...(thread.live_ended_at ? { coverageEndTime: thread.live_ended_at } : {}),
     author: { '@type': 'Organization', name: 'GhanaCrimes Newsroom', url: `${BASE_URL}/authors/ghanacrimes-newsroom` },
-    publisher: { '@type': 'Organization', name: 'GhanaCrimes', logo: { '@type': 'ImageObject', url: `${BASE_URL}/favicon.png` } },
+    publisher: publisherRef,
     mainEntityOfPage: canonical,
     ...(main ? { isBasedOn: `${BASE_URL}/${main.category_slug}/${main.article_slug}` } : {}),
     liveBlogUpdate: updates.map((u) => ({

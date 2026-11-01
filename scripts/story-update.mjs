@@ -7,7 +7,7 @@
 const [cmd, arg] = process.argv.slice(2);
 const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!url || !key) { console.error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set"); process.exit(2); }
-const h = { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" };
+const h = { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", "Accept-Profile": "ghanacrimes", "Content-Profile": "ghanacrimes" };
 async function call(path, init = {}) {
   const r = await fetch(`${url}/rest/v1/${path}`, { headers: { ...h, ...(init.headers || {}) }, ...init });
   const t = await r.text();
@@ -20,7 +20,7 @@ if (cmd === "match") out = await call("rpc/find_story_match", { method: "POST", 
 else if (cmd === "add") out = await call("rpc/add_story_update", { method: "POST", body: JSON.stringify({
   p_article_id: a.article_id, p_summary: a.summary, p_body_md: a.body_md ?? null, p_sources: a.sources ?? [],
   p_kind: a.kind ?? "update", p_is_material: !!a.is_material, p_new_title: a.new_title ?? null, p_new_summary: a.new_summary ?? null, p_mirror_to_thread: !!a.mirror_to_thread }) });
-else if (cmd === "pending") out = await call("story_updates?select=id,posted_at,summary,kind,article_id,articles(slug,title)&is_material=eq.true&tweeted_at=is.null&order=posted_at.asc");
+else if (cmd === "pending") out = await call("story_updates?select=id,posted_at,summary,kind,article_id,articles(article_slug,title)&is_material=eq.true&tweeted_at=is.null&order=posted_at.asc");
 else if (cmd === "tweeted") out = await call(`story_updates?id=eq.${encodeURIComponent(arg)}`, { method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify({ tweeted_at: new Date().toISOString() }) });
 else { console.error("usage: match|add|pending|tweeted"); process.exit(2); }
 console.log(JSON.stringify(out, null, 2));

@@ -48,7 +48,7 @@ export async function callGateway(
   opts: CallOpts,
 ): Promise<{ content: string; raw: any }> {
   const body: any = {
-    model: "google/gemini-3.1-flash-lite",
+    model: "gemini-3.1-flash-lite",
     messages: [
       { role: "system", content: opts.system },
       { role: "user", content: opts.user },
@@ -66,7 +66,7 @@ export async function callGateway(
   for (let attempt = 0; attempt < attempts; attempt++) {
     if (attempt > 0) await sleep(1500 * attempt); // simple backoff
 
-    const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const r = await fetch((Deno.env.get("AI_GATEWAY_URL") ?? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"), {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify(body),

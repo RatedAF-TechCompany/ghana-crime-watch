@@ -6,7 +6,7 @@ import { EXPLAINERS, getExplainer } from '@/lib/explainers';
 import { BASE_URL } from '@/lib/utils';
 
 type Params = Promise<{ slug: string }>;
-export const dynamicParams = false;
+export const dynamicParams = true;
 export const revalidate = 900;
 
 export function generateStaticParams() {

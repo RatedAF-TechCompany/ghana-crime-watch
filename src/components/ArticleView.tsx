@@ -10,6 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CommentsSection } from "@/components/CommentsSection";
 import { SocialShareButtons } from "@/components/SocialShareButtons";
+import { FollowGhanaCrimes } from "@/components/FollowGhanaCrimes";
+import { formatArticleBody } from "@/lib/paragraphs";
+import { caseStatusText, offenceInfo, regionInfo } from "@/lib/crime-labels";
 import { BookmarkButton } from "@/components/BookmarkButton";
 import { WhatsAppChannelCTA, useShouldShowWhatsAppCTA } from "@/components/WhatsAppChannelCTA";
 import { AdBanner } from "@/components/AdBanner";
@@ -17,13 +20,14 @@ import { LiveDevelopingPill } from "@/components/LiveDevelopingPill";
 import { sanitizeArticleBody } from "@/lib/sanitize";
 import { useEffect, useRef, type ReactNode } from "react";
 import { getArticleImage } from "@/lib/article-image";
-import { ArticleImageFallback } from "@/components/ArticleImage";
-import { publishedUpdatedLabels } from "@/lib/article-meta";
+import { independentOutlets, publishedUpdatedLabels } from "@/lib/article-meta";
+import { CaseStatusBadge } from "@/components/CaseStatusBadge";
+import { displayByline } from "@/lib/authors";
 import { StoryUpdates, type StoryUpdate } from "@/components/StoryUpdates";
 
 type ThreadInfo = { thread_slug: string; is_live: boolean; live_ended_at: string | null } | null;
 
-export default function ArticleView({ categorySlug, articleSlug, initialArticle, thread = null, authorHref, children, updates = [] }: { categorySlug: string; articleSlug: string; initialArticle?: any; thread?: ThreadInfo; authorHref?: string; children?: ReactNode; updates?: StoryUpdate[] }) {
+export default function ArticleView({ categorySlug, articleSlug, initialArticle, thread = null, authorHref, children, updates: storyUpdates = [] }: { categorySlug: string; articleSlug: string; initialArticle?: any; thread?: ThreadInfo; authorHref?: string; children?: ReactNode; updates?: StoryUpdate[] }) {
   const { isPlaying, isPaused, isSupported, speak, stop, togglePlayPause } = useTextToSpeech();
 
   // Determine if WhatsApp CTA should be shown (25% probability, memoized per article)
@@ -106,10 +110,41 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
   const dateLabels = publishedUpdatedLabels(article.published_at!, modifiedIso);
 
   const processBodyText = (body: string) => {
-    return body.replace(/\b(\d+(?:,\d{3})*(?:\.\d+)?)\b/g, '<mark>$1</mark>');
+    // Highlight figures in text only: never inside tags (href/src attributes) or link text.
+    let inLink = 0;
+    return body.split(/(<[^>]+>)/g).map((part) => {
+      if (part.startsWith('<')) {
+        if (/^<a[\s>]/i.test(part)) inLink++;
+        else if (/^<\/a>/i.test(part)) inLink = Math.max(0, inLink - 1);
+        return part;
+      }
+      return inLink ? part : part.replace(/\b(\d+(?:,\d{3})*(?:\.\d+)?)\b/g, '<mark>$1</mark>');
+    }).join('');
   };
 
-  const sanitizedBody = sanitizeArticleBody(processBodyText(article.body));
+  const formattedBody = formatArticleBody(article.body);
+  // Updates timeline: dated "Update (...)" paragraphs added when another outlet reports the same story.
+  const updates: { when: string; html: string }[] = [];
+  const mainBody = formattedBody.replace(/<p>\s*<strong>Update \(([^)]*)\):<\/strong>([\s\S]*?)<\/p>\s*/g, (_m: string, when: string, rest: string) => { updates.push({ when, html: rest.trim() }); return ''; });
+  const sanitizedBody = sanitizeArticleBody(processBodyText(mainBody));
+  const sanitizedUpdates = updates.map((u) => ({ when: u.when, html: sanitizeArticleBody(u.html) }));
+  const a2: any = article;
+  const reg = regionInfo(a2.region);
+  const off = offenceInfo(a2.offence_type);
+  const status = caseStatusText(a2.case_status);
+  const srcUrls: string[] = Array.from(new Set([a2.source_url, ...(a2.source_urls || [])].filter(Boolean)));
+  // "Verified" only when the pipeline matched the same story at another independent outlet (gate_report.corroborating_sources)
+  // AND at least two distinct outlets are linked. Related-but-different stories in source_urls do not count on their own.
+  const allOutlets = independentOutlets(srcUrls);
+  const corroborating = Number(a2.gate_report?.corroborating_sources || 0);
+  const outlets = corroborating >= 1 && allOutlets.length >= 2 ? allOutlets.slice(0, Math.min(allOutlets.length, corroborating + 1)) : [];
+  const srcHosts = srcUrls.map((u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } }).filter(Boolean);
+  const unresolved = a2.case_status === 'convicted' || a2.case_status === 'acquitted' ? [] : [
+    "Whether anyone will be found guilty: no court has ruled on guilt, so everyone named is presumed innocent.",
+    ...(['reported', 'unknown', null, undefined].includes(a2.case_status) ? ["Whether any arrest has been made, as none was reported in the source."] : []),
+    ...(a2.case_status === 'arrested' ? ["Whether charges will be filed in court."] : []),
+    "Any details not stated by the sources below. GhanaCrimes has not added facts the sources did not report.",
+  ];
 
   return (
     <article className="mx-auto max-w-[760px]">
@@ -124,6 +159,16 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
           <> · <time dateTime={modifiedIso!}>{dateLabels.updated}</time></>
         )}
       </p>
+      {(a2.case_status || outlets.length >= 2) && (
+        <p className="mb-5 flex flex-wrap items-center justify-center gap-2">
+          <CaseStatusBadge status={a2.case_status} />
+          {outlets.length >= 2 && (
+            <span title={`The same story was reported independently by ${outlets.length} outlets. All sources are listed below.`} className="inline-block rounded-sm border border-emerald-700/40 px-1.5 py-0.5 font-sans text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+              Verified by {outlets.length} sources
+            </span>
+          )}
+        </p>
+      )}
 
       {article.subtitle && (
         <p className="mx-auto mb-6 max-w-[720px] text-center font-body text-[19px] leading-[1.5] text-foreground/80 md:text-[21px]">
@@ -131,7 +176,7 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
         </p>
       )}
 
-      <StoryUpdates updates={updates} />
+      <StoryUpdates updates={storyUpdates} />
 
       {thread && (
         thread.is_live && !thread.live_ended_at ? (
@@ -151,7 +196,7 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
 
       <div className="mb-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-y border-border py-3 text-center">
         <p className="font-sans text-[12px] uppercase tracking-[0.14em] text-muted-fg">
-          Reported by {authorHref ? <Link href={authorHref} className="not-italic text-foreground hover:text-primary">{article.author_name || "GhanaCrimes Data Desk"}</Link> : <span className="not-italic text-foreground">{article.author_name || "GhanaCrimes Data Desk"}</span>}
+          Reported by {authorHref ? <Link href={authorHref} className="not-italic text-foreground hover:text-primary">{displayByline(article.author_name)}</Link> : <span className="not-italic text-foreground">{displayByline(article.author_name)}</span>}
           <span className="mx-2">·</span>
           {readingTime}
         </p>
@@ -184,28 +229,73 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
         </div>
       </div>
 
-      {(() => { const img = getArticleImage(article); return (
+      {(() => { const img = getArticleImage(article); return img ? (
         <div className="mb-8 aspect-[16/9] w-full overflow-hidden">
-          {img ? (
           <img
             src={img}
             alt={article.title}
             className="h-full w-full object-cover"
           />
-          ) : (
-            <ArticleImageFallback categorySlug={article.category_slug} title={article.title} className="p-8" />
-          )}
         </div>
-      ); })()}
+      ) : null; })()}
 
       <div className="my-6 border-y border-border py-3">
         <SocialShareButtons title={article.title} summary={article.summary} />
       </div>
 
+      {(reg || off || status || srcHosts.length > 0) && (
+        <aside aria-label="Key facts" className="my-6 rounded-md border-l-4 border-primary bg-muted/60 px-5 py-4 font-sans text-sm">
+          <h2 className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-primary">Key facts</h2>
+          <dl className="grid grid-cols-[auto,1fr] gap-x-4 gap-y-1">
+            {off && (<><dt className="font-semibold">Crime type</dt><dd><Link href={off.href} className="underline underline-offset-2">{off.label}</Link></dd></>)}
+            {reg && (<><dt className="font-semibold">Region</dt><dd><Link href={`/regions/${reg.slug}`} className="underline underline-offset-2">{reg.name}</Link></dd></>)}
+            {status && (<><dt className="font-semibold">Case status</dt><dd>{status}</dd></>)}
+            {srcHosts.length > 0 && (<><dt className="font-semibold">Sources</dt><dd>{Array.from(new Set(srcHosts)).join(", ")}</dd></>)}
+            {sanitizedUpdates.length > 0 && (<><dt className="font-semibold">Updates</dt><dd>{sanitizedUpdates.length}</dd></>)}
+          </dl>
+        </aside>
+      )}
+
       <div
         className="article-body max-w-none py-4"
         dangerouslySetInnerHTML={{ __html: sanitizedBody }}
       />
+
+      <section aria-label="What we know and what we don't" className="my-6 grid gap-4 font-sans text-sm md:grid-cols-2">
+        <div className="rounded-md border border-border p-4">
+          <h2 className="mb-2 text-xs font-bold uppercase tracking-[0.16em]">What we know</h2>
+          <ul className="list-disc space-y-1 pl-4">
+            {article.summary && <li>{article.summary}</li>}
+            {status && <li>Case status: {status}.</li>}
+            {srcHosts.length > 0 && <li>Reported by {Array.from(new Set(srcHosts)).join(", ")}.</li>}
+          </ul>
+        </div>
+        {unresolved.length > 0 && (
+          <div className="rounded-md border border-border p-4">
+            <h2 className="mb-2 text-xs font-bold uppercase tracking-[0.16em]">What we don&apos;t know yet</h2>
+            <ul className="list-disc space-y-1 pl-4">{unresolved.map((t) => <li key={t}>{t}</li>)}</ul>
+          </div>
+        )}
+      </section>
+
+      {sanitizedUpdates.length > 0 && (
+        <section aria-label="Updates timeline" className="my-6">
+          <h2 className="mb-3 font-sans text-xs font-bold uppercase tracking-[0.16em] text-primary">Updates timeline</h2>
+          <ol className="relative space-y-4 border-l-2 border-primary pl-5">
+            {sanitizedUpdates.map((u, i) => (
+              <li key={i} className="font-sans text-sm">
+                <span className="absolute -left-[7px] mt-1.5 h-3 w-3 rounded-full bg-primary" aria-hidden />
+                <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{u.when}</p>
+                <div className="article-body" dangerouslySetInnerHTML={{ __html: u.html }} />
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
+      <div className="my-6 border-y border-border py-3">
+        <SocialShareButtons title={article.title} summary={article.summary} />
+      </div>
 
       <div className="mt-2 space-y-2 border-t border-border pt-4 font-sans text-[13px] text-muted-fg">
         {(() => {
@@ -231,9 +321,11 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
         })()}
         <p>
           Spotted an error?{" "}
-          <Link href={`/corrections?article=${encodeURIComponent(`/${article.category_slug}/${article.article_slug}`)}`} className="text-primary underline underline-offset-2">
+          <Link rel="nofollow" href={`/corrections?article=${encodeURIComponent(`/${article.category_slug}/${article.article_slug}`)}`} className="text-primary underline underline-offset-2">
             Request a correction
           </Link>
+          {" "}· <Link rel="nofollow" href={`/corrections?type=takedown&article=${encodeURIComponent(`/${article.category_slug}/${article.article_slug}`)}`} className="text-primary underline underline-offset-2">Request a takedown or privacy review</Link>
+          {" "}· <Link href="/tips" className="underline underline-offset-2">Send us a tip</Link>
           {" "}· <Link href="/editorial-policy" className="underline underline-offset-2">Editorial policy</Link>
         </p>
       </div>
@@ -253,9 +345,13 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
 
       <CommentsSection articleId={article.id} />
 
-      {article.tags && article.tags.length > 0 && (
+      <div className="my-8"><FollowGhanaCrimes /></div>
+
+      {(reg || off || (article.tags && article.tags.length > 0)) && (
         <div className="mt-8 flex flex-wrap gap-2 border-t border-border pt-6">
-          {article.tags.map((tag) => (
+          {off && <Link href={off.href} className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">{off.label}</Link>}
+          {reg && <Link href={`/regions/${reg.slug}`} className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">{reg.name}</Link>}
+          {(article.tags || []).map((tag) => (
             <span
               key={tag}
               className="rounded-full bg-muted px-3 py-1 text-xs font-medium"

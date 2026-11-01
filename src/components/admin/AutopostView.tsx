@@ -124,7 +124,7 @@ export default function AutopostView() {
   const run = async (mode: 'manual' | 'preview') => {
     setRunning(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ghanacrimes-autopost', {
+      const { data, error } = await supabase.functions.invoke('gc-ghanacrimes-autopost', {
         body: { mode },
       });
       if (error) throw error;

@@ -56,3 +56,36 @@ export function regionForName(name?: string | null) {
 export function isIndexableThread(slug: string, updateCount: number) {
   return updateCount >= 3 && !/qa-test|-test-/i.test(slug);
 }
+
+/** Cut text at a word boundary, never mid-word, and drop dangling punctuation/connectors. */
+export function clipAtWord(text: string, max: number): string {
+  const t = (text || '').replace(/\s+/g, ' ').trim();
+  if (t.length <= max) return t;
+  let cut = t.slice(0, max + 1);
+  const sp = cut.lastIndexOf(' ');
+  cut = sp > max * 0.5 ? cut.slice(0, sp) : t.slice(0, max);
+  return cut.replace(/[\s,;:\-–—(]+$/, '').replace(/\s+(and|or|of|the|a|an|in|on|at|to|for|with|by|as|over)$/i, '').replace(/[\s,;:\-–—]+$/, '');
+}
+
+/** Page <title> text: a hand-set SEO title wins, unless it is just an auto-truncated copy of the headline. */
+export function articleTitleText(a: { title: string; seo_title?: string | null }, max = 70): string {
+  const seo = (a.seo_title || '').trim();
+  const head = (a.title || '').trim();
+  if (seo && !(head.startsWith(seo) && head.length > seo.length)) return seo;
+  return clipAtWord(head, max);
+}
+
+/** Registrable domain (gna.org.gh, myjoyonline.com) so two pages from one outlet count once. */
+export function outletDomain(url: string): string | null {
+  try {
+    const parts = new URL(url).hostname.replace(/^www\./, '').toLowerCase().split('.');
+    const sld = parts.length >= 3 && /^(com|org|gov|edu|co|net|ac|mil)$/.test(parts[parts.length - 2]) && parts[parts.length - 1].length === 2;
+    return parts.slice(sld ? -3 : -2).join('.');
+  } catch { return null; }
+}
+
+/** Distinct outlets behind a story. Social links and our own domain do not count as independent sources. */
+export function independentOutlets(urls: (string | null | undefined)[]): string[] {
+  const skip = /^(x\.com|twitter\.com|facebook\.com|fb\.com|instagram\.com|tiktok\.com|youtube\.com|youtu\.be|t\.co|whatsapp\.com|ghanacrimes\.com)$/;
+  return [...new Set(urls.filter(Boolean).map((u) => outletDomain(u as string)).filter((d): d is string => !!d && !skip.test(d)))];
+}

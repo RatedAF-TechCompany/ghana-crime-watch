@@ -20,7 +20,7 @@ export function EditorialPage({ kicker, title, summary, updated, disclaimer, sec
       <p className="mt-3 font-sans text-lg text-muted-foreground">{summary}</p>
       {updated && (
         <p className="mt-2 font-sans text-xs text-muted-foreground">
-          Last updated {new Date(updated).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}. By GhanaCrimes Data Desk.
+          Last updated {new Date(updated).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}. By the GhanaCrimes Newsroom.
         </p>
       )}
       {disclaimer && <p className="mt-4 border-l-2 border-primary bg-card p-3 font-sans text-sm text-foreground">{disclaimer}</p>}

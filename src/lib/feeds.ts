@@ -22,17 +22,20 @@ export function escapeXml(s: string) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 }
 
-export async function buildRss(): Promise<Response> {
+export async function buildRss(opts: { self?: string; title?: string; limit?: number; maxAge?: number; link?: string; description?: string; filter?: (q: any) => any } = {}): Promise<Response> {
+  const self = opts.self ?? '/rss.xml'; const maxAge = opts.maxAge ?? 300;
   const supabase = createServerClient();
-  const { data } = await supabase
+  let query: any = supabase
     .from('articles')
     .select('title, summary, article_slug, category_slug, published_at, updated_at')
-    .eq('is_published', true)
+    .eq('is_published', true);
+  if (opts.filter) query = opts.filter(query);
+  const { data } = await query
     .order('published_at', { ascending: false })
-    .limit(50);
+    .limit(opts.limit ?? 50);
 
   const items = (data ?? [])
-    .map((a) => {
+    .map((a: any) => {
       const url = `${BASE_URL}/${a.category_slug}/${a.article_slug}`;
       return `    <item>
       <title>${escapeXml(a.title)}</title>
@@ -49,12 +52,12 @@ export async function buildRss(): Promise<Response> {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>GhanaCrimes</title>
-    <link>${BASE_URL}/</link>
-    <description>Factual, verified crime news from Ghana</description>
+    <title>${escapeXml(opts.title ?? 'GhanaCrimes')}</title>
+    <link>${BASE_URL}${opts.link ?? '/'}</link>
+    <description>${escapeXml(opts.description ?? 'Factual, verified crime news from Ghana')}</description>
     <language>en-gh</language>
     <lastBuildDate>${latest}</lastBuildDate>
-    <atom:link href="${BASE_URL}/rss.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="${BASE_URL}${self}" rel="self" type="application/rss+xml" />
 ${items}
   </channel>
 </rss>`;
@@ -62,7 +65,7 @@ ${items}
   return new Response(xml, {
     headers: {
       'Content-Type': 'application/rss+xml; charset=utf-8',
-      'Cache-Control': 'public, max-age=300, s-maxage=300',
+      'Cache-Control': `public, max-age=${maxAge}, s-maxage=${maxAge}`,
     },
   });
 }

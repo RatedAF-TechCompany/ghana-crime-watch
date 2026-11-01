@@ -3,6 +3,7 @@ import { X, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { NAV_CATEGORIES } from "@/lib/categories";
+import { useIsEmptySection } from "@/components/EmptySectionsContext";
 import Link from "next/link";
 
 interface NavigationDrawerProps {
@@ -11,6 +12,7 @@ interface NavigationDrawerProps {
 }
 
 export function NavigationDrawer({ open, onClose }: NavigationDrawerProps) {
+  const isEmpty = useIsEmptySection();
   return (
     <Sheet open={open} onOpenChange={onClose}>
       <SheetContent side="left" className="w-[320px] border-r border-border bg-background p-0">
@@ -34,7 +36,7 @@ export function NavigationDrawer({ open, onClose }: NavigationDrawerProps) {
             <Shield className="h-4 w-4 shrink-0" />
             Fraud Watch
           </Link>
-          {NAV_CATEGORIES.map((category) => (
+          {NAV_CATEGORIES.filter((c) => !isEmpty(`/${c.slug}`)).map((category) => (
             <Link
               key={category.slug}
               href={`/${category.slug}`}
@@ -43,6 +45,9 @@ export function NavigationDrawer({ open, onClose }: NavigationDrawerProps) {
             >
               {category.label}
             </Link>
+          ))}
+          {[["Latest", "/latest"], ["Scam Alerts", "/scam-alerts"], ["Court Case Tracker", "/courts/cases"], ["Weekly Roundup", "/roundup"], ["Emergency Contacts", "/emergency-contacts"], ["Alerts & RSS", "/alerts"]].map(([label, href]) => (
+            <Link key={href} href={href} onClick={onClose} className="border-b border-border/60 px-4 py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted hover:text-primary">{label}</Link>
           ))}
           <div className="border-t border-border mt-2 pt-2">
             <Link

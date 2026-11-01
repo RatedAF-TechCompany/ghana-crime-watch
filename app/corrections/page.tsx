@@ -7,6 +7,7 @@ import { SubmissionForm } from '@/components/SubmissionForm';
 import { BASE_URL } from '@/lib/utils';
 import { createServerClient } from '@/lib/supabase/server';
 import { formatGhanaDate } from '@/lib/article-meta';
+import { getMasthead } from '@/lib/masthead';
 
 export const revalidate = 600;
 
@@ -24,6 +25,7 @@ export default async function CorrectionsPage() {
     .order('created_at', { ascending: false })
     .limit(200);
   const entries = (log ?? []) as any[];
+  const masthead = await getMasthead();
   return (
     <Layout>
       <StaticPage title="Corrections" intro="We aim to be accurate. When we are not, we correct the record.">
@@ -35,6 +37,8 @@ export default async function CorrectionsPage() {
           <li>If a report identifies someone it should not, we remove the details or the article.</li>
         </ul>
         <p>Read more in our <Link href="/editorial-policy">Editorial Policy</Link>.</p>
+        <h2 id="takedown">Takedown and privacy requests</h2>
+        <p>If a story identifies a child, identifies the victim of a sexual offence, contains a private address or phone number, or reports a case that was later dropped or ended in acquittal, use the form below and begin your message with <strong>TAKEDOWN</strong>.{masthead.contactEmail ? <> You can also email <a href={`mailto:${masthead.contactEmail}`}>{masthead.contactEmail}</a> with TAKEDOWN in the subject line.</> : null} These requests go to the top of the editors&apos; queue and the details are removed while we review.</p>
         <h2>Corrections log</h2>
         {entries.length === 0 ? (
           <p>No corrections have been logged yet.</p>
@@ -51,6 +55,14 @@ export default async function CorrectionsPage() {
             ))}
           </ul>
         )}
+        <h2 id="transparency">Transparency</h2>
+        <ul>
+          <li>Most stories are summaries of reports from Ghanaian publishers and official bodies, written with AI assistance and automatic checks. Each one names and links its source. <Link href="/ai-use">How we use AI</Link>.</li>
+          <li>Labels such as &ldquo;Charged&rdquo; or &ldquo;Convicted&rdquo; come from the source report. When one is wrong, we fix it and log it above.</li>
+          <li>&ldquo;Verified by 2 sources&rdquo; (or more) appears only when at least two separate outlets or official bodies reported the story.</li>
+          <li>Off-topic items that slip through are unpublished, not deleted, and the change is recorded in our internal audit log.</li>
+          <li>Who is responsible for GhanaCrimes: {masthead.editor && masthead.editor !== 'GhanaCrimes Newsroom' ? <>Editor: {masthead.editor}. Full details: </> : null}<Link href="/masthead">Masthead</Link>.{masthead.contactEmail ? <> Email: <a href={`mailto:${masthead.contactEmail}`}>{masthead.contactEmail}</a>.</> : null} Our rules: <Link href="/editorial-policy">Editorial Policy</Link>.</li>
+        </ul>
         <h2>Request a correction</h2>
         <Suspense>
           <SubmissionForm

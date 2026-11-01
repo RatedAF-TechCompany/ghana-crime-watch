@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import { GoogleAnalytics } from '@/components/GoogleAnalytics';
 import { Providers } from './providers';
+import { EmptySectionsProvider } from '@/components/EmptySectionsContext';
+import { getEmptySections } from '@/lib/empty-sections';
 import { BASE_URL } from '@/lib/utils';
 import { Cormorant_Garamond, Inter, Libre_Baskerville, Lora } from 'next/font/google';
 import './globals.css';
@@ -55,7 +57,8 @@ export const viewport: Viewport = {
   themeColor: '#9A0044',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const emptySections = await getEmptySections();
   return (
     <html lang="en" suppressHydrationWarning className={`${baskerville.variable} ${inter.variable} ${lora.variable} ${cormorant.variable}`}>
       <head>
@@ -63,7 +66,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <GoogleAnalytics />
-        <Providers>{children}</Providers>
+        <Providers><EmptySectionsProvider value={emptySections}>{children}</EmptySectionsProvider></Providers>
       </body>
     </html>
   );

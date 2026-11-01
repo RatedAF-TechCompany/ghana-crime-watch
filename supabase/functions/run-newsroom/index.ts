@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "../_shared/sb.ts";
 import { AiCreditError, callGateway, newUsage, parseJson, type AiUsage } from "../_shared/ai-usage.ts";
 
 const corsHeaders = {
@@ -630,7 +630,7 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+    const lovableApiKey = ((Deno.env.get("GC_AI_API_KEY") ?? Deno.env.get("AI_API_KEY")) ?? Deno.env.get("LOVABLE_API_KEY"));
 
     if (!lovableApiKey) {
       throw new Error("LOVABLE_API_KEY is not configured");
@@ -1660,7 +1660,7 @@ Return ONLY valid JSON with exactly these keys:
 
         // Extract cities and update crime type stats from the article for the crime dashboard
         try {
-          const extractResponse = await fetch(`${supabaseUrl}/functions/v1/extract-cities`, {
+          const extractResponse = await fetch(`${supabaseUrl}/functions/v1/gc-extract-cities`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

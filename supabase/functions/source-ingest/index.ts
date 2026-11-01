@@ -1,15 +1,17 @@
 // Source-grounded ingestion: poll verified feeds, dedupe, gate, draft an original
 // attributed summary, and auto-publish only items that pass every check.
 // Auth: x-cron-secret header (vault secret) OR a staff user's JWT (manual run).
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient } from "../_shared/sb.ts";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { AiCreditError, callGateway, newUsage, parseJson } from "../_shared/ai-usage.ts";
-import { allowSourceNames, detectRegion, runGate, stripEditorialFiller, stripHtml, wordCount, type Analysis } from "../_shared/editorial-gate.ts";
+import { allowSourceNames, officialAttribution, hasGhanaSignal, redactProtected, toneDownGore, ensureAttribution, ensurePresumption, detectRegion, runGate, stripEditorialFiller, stripHtml, wordCount, type Analysis } from "../_shared/editorial-gate.ts";
 import { extractHeroImage } from "../_shared/extract-image.ts";
 
 const UA = "GhanaCrimesBot/1.0 (+https://www.ghanacrimes.com/about)";
-const MAX_AI_ITEMS = 20;
-const RUN_BUDGET_MS = 110_000; // stop early, well under the function timeout
+const MAX_AI_ITEMS = 4; // small, frequent runs (cron every 10 min) instead of 3 big ones a day
+const RUN_BUDGET_MS = 80_000; // stop early, well under the 150s function wall clock
+const DAILY_NEURON_CAP = 3500; // must match ai-proxy AI_CAP_GHANACRIMES
+const NEURON_BURST = 600; // headroom above the even-pacing line so breaking news is not starved
 const FRESH_WINDOW_H = 6;
 const MAX_ITEM_AGE_H = 48;
 const FIRST_POLL_MAX_AGE_H = 168;
@@ -252,7 +254,7 @@ const CATEGORY_FOR: Record<string, string> = {
 };
 // Court proceedings only: charges in court, plea, bail, remand, trial, ruling, sentence.
 const COURT_PROCEEDINGS = /\b(arraign\w*|in court|before (the|a|an) [\w ]{0,30}(court|judge|magistrate)|court (ruled|ordered|adjourned|granted|remanded|convicted|acquitted|sentenced|heard)|pleaded|plea|bail|remand\w*|trial|ruling|judg(e)?ment|sentenc\w*|convicted|acquitted|charge sheet)\b/i;
-const TRAFFIC_ENFORCEMENT = /\b(MTTD|motorists?|drivers?|traffic|road safety|speeding|okada|vehicles?)\b/i;
+const TRAFFIC_ENFORCEMENT = /\b(MTTD|motorists?|drivers?|traffic|road safety|speeding|okada)\b/i;
 
 function hasValidSourceUrl(url: string): boolean {
   try {
@@ -299,12 +301,13 @@ function slugify(s: string) {
 
 const SYSTEM = `You are a wire-service desk editor for GhanaCrimes, a Ghana crime news site.
 You receive SOURCE TEXT from one publisher. Return strict JSON only.
+Headline style: punchy, breaking-first, TMZ pace but legally safe. Lead with the strongest verified fact (who/what/where), active verbs, present tense, concrete place and number, e.g. "Police arrest 3 suspects over Kasoa robbery" or "Court remands ex-official over GH\u00a2 2m fraud". No clickbait questions, no 'shocking', no puns about victims. Keep 'alleged'/'suspected' in the headline when guilt is not proven, and never name a victim of a sexual offence or any minor in it.
 Rules for the draft:
 - Write an ORIGINAL factual summary of 80 to 180 words in plain, neutral English. Do not copy sentences.
 - Use ONLY facts present in the SOURCE TEXT. Never add names, numbers, dates, places, ages, motives or context that are not in it.
 - Attribute explicitly: include "according to <publisher name>" (or the official body quoted in the source).
 - Presumption of innocence: use alleged, suspected, arrested, charged, remanded. Never call anyone a killer, thief, criminal, murderer or robber unless the source says they were convicted.
-- Never name the victim of a sexual offence or domestic violence. Never give any identifying detail (name, school, community, relatives) of anyone under 18.
+- Never name the victim of a sexual offence or domestic violence. Never give any identifying detail (name, school, community, relatives) of anyone under 18. Redact these details and write the rest of the story; do not skip it.
 - No home addresses, phone numbers or graphic descriptions of injuries or bodies.
 - No commentary on guilt, evidence strength or likely outcomes of pending cases.
 - Every sentence must be directly supported by the SOURCE TEXT. If a sentence cannot be traced to the source, leave it out. A shorter article is better than an unsupported one.
@@ -359,7 +362,7 @@ Deno.serve(async (req) => {
     if (!lastProbe || Date.now() - lastProbe >= 60 * 60_000) {
       await supabase.from("site_settings").update({ value: new Date().toISOString() }).eq("key", "ingest_last_probe");
       try {
-        await callGateway(Deno.env.get("LOVABLE_API_KEY")!, newUsage(), { system: "Reply with OK.", user: "OK", max_tokens: 5, retryOn429: false });
+        await callGateway(((Deno.env.get("GC_AI_API_KEY") ?? Deno.env.get("AI_API_KEY")) ?? Deno.env.get("LOVABLE_API_KEY"))!, newUsage(), { system: "Reply with OK.", user: "OK", max_tokens: 5, retryOn429: false });
         await supabase.from("site_settings").update({ value: false }).eq("key", "ingest_paused");
         await supabase.from("site_settings").update({ value: "" }).eq("key", "ingest_paused_reason");
         await supabase.from("run_logs").insert({ status: "ingest_resumed", message: "source-ingest: AI gateway probe succeeded; ingest_paused cleared automatically" });
@@ -426,6 +429,22 @@ Deno.serve(async (req) => {
     }));
 
     // ---- 2. dedupe + gate + draft ----
+    // Cheap pre-AI hygiene: anything whose source date is older than MAX_ITEM_AGE_H never reaches the AI.
+    await supabase.from("raw_items").update({ status: "rejected", reason: "too_old (queue purge, pre-AI)" })
+      .eq("status", "new").lt("published_at", new Date(Date.now() - MAX_ITEM_AGE_H * 3600_000).toISOString());
+    // Neuron pacing: spread the daily cap evenly over the UTC day (+ burst headroom) so frequent runs never exhaust it early.
+    let pacedBudget = MAX_AI_ITEMS;
+    try {
+      const day = new Date().toISOString().slice(0, 10);
+      const { data: u } = await supabase.schema("public").from("ai_proxy_usage").select("neurons,calls").eq("day", day).eq("bucket", "ghanacrimes").maybeSingle();
+      const used = Number(u?.neurons ?? 0), calls = Number(u?.calls ?? 0);
+      const perCall = calls > 0 ? Math.max(40, used / calls) : 110;
+      const d0 = new Date(); d0.setUTCHours(0, 0, 0, 0);
+      const allowed = Math.min(DAILY_NEURON_CAP, DAILY_NEURON_CAP * ((Date.now() - d0.getTime()) / 86_400_000) + NEURON_BURST);
+      pacedBudget = Math.max(0, Math.min(MAX_AI_ITEMS, Math.floor((allowed - used) / perCall)));
+      (stats as any).neurons_used_today = Math.round(used); (stats as any).neurons_paced_allowed = Math.round(allowed);
+    } catch { /* usage table unreadable: fall back to MAX_AI_ITEMS; ai-proxy still hard-caps */ }
+    (stats as any).ai_budget_this_run = pacedBudget;
     const freshCut = new Date(Date.now() - FRESH_WINDOW_H * 3600_000).toISOString();
     const [{ data: freshQ }, { data: olderQ }] = await Promise.all([
       supabase.from("raw_items").select("*").eq("status", "new").lt("attempts", 3).gte("fetched_at", freshCut).order("fetched_at", { ascending: false }).limit(60),
@@ -440,21 +459,37 @@ Deno.serve(async (req) => {
     const { count: publishedToday } = await supabase.from("articles").select("id", { count: "exact", head: true })
       .eq("is_published", true).gte("published_at", startOfDay.toISOString()).eq("gate_report->>auto_published", "true");
     let autoCount = publishedToday || 0;
-    let aiBudget = paused ? 0 : MAX_AI_ITEMS;
+    let aiBudget = paused ? 0 : pacedBudget;
     const { data: recentRows } = await supabase.from("articles").select("id, title")
       .gte("created_at", new Date(Date.now() - 48 * 3600_000).toISOString()).neq("status", "rejected").limit(500);
     const recentIncidents: { id: string; title: string }[] = recentRows || [];
     const { data: publishedRecent } = await supabase.from("articles").select("id, title, summary")
       .eq("is_published", true).gte("published_at", new Date(Date.now() - 72 * 3600_000).toISOString()).limit(500);
+    // Staggered release (Oct 2026): stories from one run no longer share a timestamp. The first goes live now if nothing was
+    // published in the last STAGGER_MS; the rest wait as 'scheduled' and the DB job ghanacrimes.release_scheduled_article()
+    // publishes them one at a time (real release time = published_at). Scheduled stories count as published for merging.
+    const STAGGER_MS = 120_000;
+    const { data: schedRows } = await supabase.from("articles").select("id, title, summary").eq("status", "scheduled").limit(200);
+    for (const r of schedRows || []) (publishedRecent as any[] | null)?.push(r);
+    let queuedCount = (schedRows || []).length;
+    const { data: lastPub } = await supabase.from("articles").select("published_at").eq("is_published", true)
+      .order("published_at", { ascending: false }).limit(1).maybeSingle();
+    let lastPublishAt = lastPub?.published_at ? new Date(lastPub.published_at).getTime() : 0;
+    const releaseStatus = (): "published" | "scheduled" => {
+      if (!queuedCount && Date.now() - lastPublishAt >= STAGGER_MS) { lastPublishAt = Date.now(); return "published"; }
+      queuedCount++; (stats as any).scheduled = ((stats as any).scheduled || 0) + 1; return "scheduled";
+    };
     const { data: reviewRows } = await supabase.from("articles").select("id, title, summary, source_url, source_urls, gate_report")
       .eq("status", "review").gte("created_at", new Date(Date.now() - 72 * 3600_000).toISOString()).limit(300);
     const reviewDrafts: any[] = reviewRows || [];
     const { data: dupRows } = await supabase.from("articles").select("id, title, summary, status, offence_type, region")
-      .in("status", ["published", "review"]).gte("created_at", new Date(Date.now() - 48 * 3600_000).toISOString()).limit(500);
+      .in("status", ["published", "scheduled", "review"]).gte("created_at", new Date(Date.now() - 48 * 3600_000).toISOString()).limit(500);
     const dupPool: any[] = dupRows || [];
     const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
     // Soft flags that still need a human even when the story is corroborated (victim/minor protection, graphic, contempt).
-    const NEEDS_HUMAN = /^(ghana_link_unclear|possible_duplicate|sensitive_case_check|graphic_source_material|pending_case_commentary|guilty_language|evidence_speculation|headline_lead_mismatch|missing_attribution|editorial_filler)/;
+    // Loosened gate (Oct 2026): only these still hold a draft. Everything else is informational.
+    const NEEDS_HUMAN = /^(possible_duplicate|redaction_incomplete|graphic_terms_remaining|pending_case_commentary|guilty_language|evidence_speculation)/;
+    const BLOCKING = NEEDS_HUMAN;
     (stats as any).corroborated = 0; (stats as any).corroborated_published = 0; (stats as any).inactive_source = 0;
 
     // Attach a second outlet to a review draft; publish if 2+ independent outlets (or tier-1) and nothing needs a human.
@@ -467,12 +502,12 @@ Deno.serve(async (req) => {
       const flags: string[] = (g.soft_flags || []).filter((f: string) => !/^suspect_named_single_media_source/.test(f));
       g.soft_flags = flags;
       const hard = (g.hard_fails || []).length > 0;
-      const eligible = !hard && !flags.some((f) => NEEDS_HUMAN.test(f)) && (outlets.size >= 2 || g.source_tier === 1 || src.trust_tier === 1);
+      const eligible = !hard && !flags.some((f) => NEEDS_HUMAN.test(f));
       const publishNow = eligible && autoEnabled;
       g.auto_publish_eligible = eligible;
       if (publishNow) { g.auto_published = true; g.corroboration_published_at = new Date().toISOString(); delete g.held_reason; }
       const upd: any = { source_urls: urls, gate_report: g };
-      if (publishNow) upd.status = "published";
+      if (publishNow) upd.status = releaseStatus();
       const { error } = await supabase.from("articles").update(upd).eq("id", draft.id).eq("status", "review");
       if (error) return false;
       draft.source_urls = urls; draft.gate_report = g;
@@ -514,7 +549,7 @@ Deno.serve(async (req) => {
     };
 
     for (const item of queue || []) {
-      if (Date.now() - startedAt > RUN_BUDGET_MS) { (stats as any).stopped = "time_budget_110s"; break; }
+      if (Date.now() - startedAt > RUN_BUDGET_MS) { (stats as any).stopped = "time_budget_80s"; break; }
       const src: any = sourceById.get(item.source_id);
       if (!src) {
         // Deactivated source: do not let its items block the queue.
@@ -613,15 +648,19 @@ Deno.serve(async (req) => {
       sourceText = sourceText.slice(0, 7000);
 
       try {
-        const { content } = await callGateway(Deno.env.get("LOVABLE_API_KEY")!, usage, {
+        const { content } = await callGateway(((Deno.env.get("GC_AI_API_KEY") ?? Deno.env.get("AI_API_KEY")) ?? Deno.env.get("LOVABLE_API_KEY"))!, usage, {
           system: SYSTEM,
           user: `PUBLISHER: ${src.name}\nURL: ${item.url}\nSOURCE TEXT:\n${sourceText}`,
           max_tokens: 900, json: true, temperature: 0.1,
         });
         stats.ai_calls++;
         const out = extractJson<{ analysis: Analysis; title: string; summary: string; body: string }>(content);
-        const body = stripEditorialFiller((out.body || "").replace(/[\u2013\u2014]/g, ", ")).trim();
-        const title = stripEditorialFiller((out.title || item.title).replace(/[\u2013\u2014]/g, ", ")).trim().slice(0, 120);
+        let body = stripEditorialFiller((out.body || "").replace(/[\u2013\u2014]/g, ", ")).trim();
+        let title = stripEditorialFiller((out.title || item.title).replace(/[\u2013\u2014]/g, ", ")).trim().slice(0, 120);
+        // Loosened gate: fix instead of hold. Redact protected people, tone down gore, add attribution and presumption wording.
+        const red = redactProtected(title, body, out.analysis || {}, sourceText);
+        title = toneDownGore(red.title); body = toneDownGore(red.body);
+        body = ensurePresumption(ensureAttribution(body, src.name), out.analysis || {});
         const gate = runGate({ analysis: out.analysis || {}, draftTitle: title, draftBody: body, sourceText, isOfficial: src.trust_tier === 1, corroboratingSources: corroborating });
         stats.gated++;
 
@@ -637,10 +676,12 @@ Deno.serve(async (req) => {
           stats.rejected++; continue;
         }
         const ghanaText = `${title} ${body} ${item.title}`;
-        if (out.analysis?.ghanaian_central !== true || !hasGhanaLink(ghanaText)) {
-          gate.soft_flags.push("ghana_link_unclear");
-          report.soft_flags = gate.soft_flags;
+        if (!hasGhanaLink(ghanaText) && !hasGhanaSignal(sourceText)) {
+          // Clearly foreign with no Ghana link at all: skip.
+          await supabase.from("raw_items").update({ status: "rejected", reason: "no_ghana_link", gate_report: report }).eq("id", item.id);
+          stats.rejected++; continue;
         }
+        report.redactions = red.removed;
 
         // Near-duplicate check against published/review articles from the last 48h.
         const offence = out.analysis?.offence_type || null;
@@ -656,7 +697,7 @@ Deno.serve(async (req) => {
         }
         if (dup) {
           report.near_duplicate = { article_id: dup.id, status: dup.status, reason: dupWhy };
-          if (dup.status === "published" && await mergeInto(dup.id, item, src, `near_duplicate:${dupWhy}`)) {
+          if ((dup.status === "published" || dup.status === "scheduled") && await mergeInto(dup.id, item, src, `near_duplicate:${dupWhy}`)) {
             await supabase.from("raw_items").update({ gate_report: report }).eq("id", item.id);
             stats.thread_updates++; continue;
           }
@@ -667,7 +708,9 @@ Deno.serve(async (req) => {
           }
         }
 
-        const eligible = gate.soft_flags.length === 0 && (src.trust_tier === 1 || corroborating >= 1);
+        const officialClaim = officialAttribution(sourceText);
+        report.official_attribution = officialClaim;
+        const eligible = !gate.soft_flags.some((f) => BLOCKING.test(f));
         // No daily cap: duplicates are prevented by merge/one-URL-per-incident. Discovery items always go to review.
         const publishNow = eligible && autoEnabled && src.type !== "discovery";
         report.auto_publish_eligible = eligible;
@@ -696,15 +739,15 @@ Deno.serve(async (req) => {
 
         const { data: art, error: artErr } = await supabase.from("articles").insert({
           title, summary: (out.summary || "").slice(0, 300), body: html, category_slug: category, article_slug: slug,
-          status: publishNow ? "published" : "review", source_url: item.url, source_urls: sourceUrls,
+          status: publishNow ? releaseStatus() : "review", source_url: item.url, source_urls: sourceUrls,
           source_published_at: item.published_at, gate_report: report, region: out.analysis?.region || detectRegion(sourceText),
           offence_type: out.analysis?.offence_type || null, case_status: out.analysis?.case_status || null,
           thread_id: threadId, author_name: null, hero_image: null,
-          seo_title: title.slice(0, 60), seo_description: (out.summary || "").slice(0, 155),
-        }).select("id").single();
+          seo_title: clipWords(title, 65), seo_description: clipWords(out.summary || "", 155),
+        }).select("id, status").single();
         if (artErr) throw artErr;
         recentIncidents.push({ id: art.id, title: item.title });
-        dupPool.push({ id: art.id, title, summary: out.summary || "", status: publishNow ? "published" : "review", offence_type: offence, region: out.analysis?.region || null });
+        dupPool.push({ id: art.id, title, summary: out.summary || "", status: art.status || (publishNow ? "published" : "review"), offence_type: offence, region: out.analysis?.region || null });
         if (publishNow) (publishedRecent as any[] | null)?.push({ id: art.id, title, summary: out.summary || "" });
 
         try {
@@ -715,7 +758,7 @@ Deno.serve(async (req) => {
         }
 
         await supabase.from("raw_items").update({ status: publishNow ? "published" : "review", article_id: art.id, thread_id: threadId, gate_report: report, reason: gate.soft_flags.join(", ") || report.held_reason || null }).eq("id", item.id);
-        await supabase.from("audit_logs").insert({ action: publishNow ? "auto_published" : "sent_to_review", resource_type: "article", resource_id: art.id, details: { raw_item_id: item.id, flags: gate.soft_flags, source: src.name } });
+        await supabase.from("audit_logs").insert({ action: publishNow ? (art.status === "scheduled" ? "auto_published_scheduled" : "auto_published") : "sent_to_review", resource_type: "article", resource_id: art.id, details: { raw_item_id: item.id, flags: gate.soft_flags, source: src.name } });
         if (publishNow) { stats.published++; autoCount++; } else stats.review++;
       } catch (e) {
         if (e instanceof AiCreditError) {
@@ -742,3 +785,13 @@ Deno.serve(async (req) => {
     return json({ error: String((e as Error).message || e), stats }, 500);
   }
 });
+
+/** Cut at a word boundary with no dangling comma or connector (used for SEO title/description). */
+function clipWords(text: string, max: number): string {
+  const t = (text || "").replace(/\s+/g, " ").trim();
+  if (t.length <= max) return t;
+  let cut = t.slice(0, max + 1);
+  const sp = cut.lastIndexOf(" ");
+  cut = sp > max * 0.5 ? cut.slice(0, sp) : t.slice(0, max);
+  return cut.replace(/[\s,;:\-\u2013\u2014(]+$/, "").replace(/\s+(and|or|of|the|a|an|in|on|at|to|for|with|by|as|over)$/i, "").replace(/[\s,;:\-]+$/, "");
+}

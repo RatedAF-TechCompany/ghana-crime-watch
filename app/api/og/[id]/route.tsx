@@ -33,8 +33,11 @@ async function resolveCard(id: string): Promise<Card> {
   return { headline: 'Ghana crime news and court reports', kicker: 'GhanaCrimes' };
 }
 
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+const RATIOS: Record<string, number> = { '16x9': OG_HEIGHT, '4x3': 900, '1x1': 1200 };
+
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const height = RATIOS[new URL(req.url).searchParams.get('ar') ?? ''] ?? OG_HEIGHT;
   const card = await resolveCard(decodeURIComponent(id));
   const headline = card.headline.length > 140 ? `${card.headline.slice(0, 137)}...` : card.headline;
   const meta = [card.kicker, card.region ? `${card.region.replace(/\s+region$/i, '')} Region` : null, card.date ? formatGhanaDate(card.date) : null]
@@ -57,7 +60,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     ),
     {
       width: OG_WIDTH,
-      height: OG_HEIGHT,
+      height,
       headers: { 'Cache-Control': 'public, max-age=3600, s-maxage=86400' },
     },
   );

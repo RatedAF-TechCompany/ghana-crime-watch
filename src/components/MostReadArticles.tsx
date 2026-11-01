@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getCategoryLabel } from "@/lib/categories";
 import { getArticleImage } from "@/lib/article-image";
-import { ArticleImageFallback } from "@/components/ArticleImage";
 
 interface Article {
   id: string;
@@ -127,6 +126,7 @@ export function MostReadArticles() {
                     </h4>
                   </Link>
                 </div>
+                {getArticleImage(a) && (
                 <Link
                   href={`/${a.category_slug}/${a.article_slug}`}
                   className="shrink-0"
@@ -134,16 +134,15 @@ export function MostReadArticles() {
                   tabIndex={-1}
                 >
                   <div className="h-[74px] w-[120px] overflow-hidden bg-muted">
-                    {(() => { const img = getArticleImage(a); return img ? (
-                      <img
-                        src={img}
-                        alt=""
-                        loading="lazy"
-                        className="h-full w-full object-cover"
-                      />
-                    ) : <ArticleImageFallback categorySlug={a.category_slug} title={a.title} className="p-2 [&>span]:text-[8px] [&>span:nth-child(2)]:line-clamp-2" />; })()}
+                    <img
+                      src={getArticleImage(a)!}
+                      alt=""
+                      loading="lazy"
+                      className="h-full w-full object-cover"
+                    />
                   </div>
                 </Link>
+                )}
               </li>
             ))}
           </ol>
