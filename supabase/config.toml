@@ -1,4 +1,4 @@
-project_id = "zninjnjujptjxdikehun"
+project_id = "rscqxztgtpcifcqxjskh"
 
 [functions.send-comment-verification]
 verify_jwt = false
