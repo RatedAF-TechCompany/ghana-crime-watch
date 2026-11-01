@@ -157,3 +157,15 @@ export async function getLatestWire(limit = 80) {
     .limit(limit);
   return (data ?? []).filter((a: any) => a.published_at) as any[];
 }
+
+// Developing-story updates for an article (newest first). Never blocks the page on error.
+export const getStoryUpdates = cache(async (articleId: string) => {
+  const supabase = createServerClient();
+  const { data, error } = await (supabase as any)
+    .from('story_updates')
+    .select('id, posted_at, summary, body_md, sources, kind')
+    .eq('article_id', articleId)
+    .order('posted_at', { ascending: false })
+    .limit(50);
+  return error ? [] : (data ?? []);
+});

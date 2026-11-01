@@ -20,13 +20,19 @@ import { LiveDevelopingPill } from "@/components/LiveDevelopingPill";
 import { sanitizeArticleBody } from "@/lib/sanitize";
 import { useEffect, useRef, type ReactNode } from "react";
 import { getArticleImage } from "@/lib/article-image";
+<<<<<<< HEAD
 import { independentOutlets, publishedUpdatedLabels } from "@/lib/article-meta";
 import { CaseStatusBadge } from "@/components/CaseStatusBadge";
 import { displayByline } from "@/lib/authors";
+=======
+import { ArticleImageFallback } from "@/components/ArticleImage";
+import { publishedUpdatedLabels } from "@/lib/article-meta";
+import { StoryUpdates, type StoryUpdate } from "@/components/StoryUpdates";
+>>>>>>> origin/main
 
 type ThreadInfo = { thread_slug: string; is_live: boolean; live_ended_at: string | null } | null;
 
-export default function ArticleView({ categorySlug, articleSlug, initialArticle, thread = null, authorHref, children }: { categorySlug: string; articleSlug: string; initialArticle?: any; thread?: ThreadInfo; authorHref?: string; children?: ReactNode }) {
+export default function ArticleView({ categorySlug, articleSlug, initialArticle, thread = null, authorHref, children, updates = [] }: { categorySlug: string; articleSlug: string; initialArticle?: any; thread?: ThreadInfo; authorHref?: string; children?: ReactNode; updates?: StoryUpdate[] }) {
   const { isPlaying, isPaused, isSupported, speak, stop, togglePlayPause } = useTextToSpeech();
 
   // Determine if WhatsApp CTA should be shown (25% probability, memoized per article)
@@ -174,6 +180,8 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
           {article.subtitle}
         </p>
       )}
+
+      <StoryUpdates updates={updates} />
 
       {thread && (
         thread.is_live && !thread.live_ended_at ? (

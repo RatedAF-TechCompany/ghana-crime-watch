@@ -4,7 +4,7 @@ import { Layout } from '@/components/Layout';
 import { BASE_URL } from '@/lib/utils';
 import ArticleView from '@/components/ArticleView';
 import { JsonLd } from '@/components/JsonLd';
-import { getArticle, findSlugRedirect, getArticleContext, getArticleRouteState } from '@/lib/server-data';
+import { getArticle, findSlugRedirect, getArticleContext, getArticleRouteState, getStoryUpdates } from '@/lib/server-data';
 import { getCategoryLabel, isValidCategory } from '@/lib/categories';
 import { OG_HEIGHT, OG_WIDTH, articleModified, articleSocialImage, clipAtWord, articleTitleText, formatGhanaDate, regionForName, topicForText } from '@/lib/article-meta';
 import { publisherRef, getMasthead } from '@/lib/masthead';
@@ -155,6 +155,7 @@ export default async function ArticlePage({ params }: { params: Params }) {
           },
         ]}
       />
+<<<<<<< HEAD
       <ArticleView categorySlug={categorySlug} articleSlug={articleSlug} initialArticle={article} thread={ctx.thread} authorHref={author?.href}>
         {later.length > 0 && <LinkList title="What happened next" rows={later as LinkRow[]} />}
         {courtCase && (
@@ -166,6 +167,9 @@ export default async function ArticlePage({ params }: { params: Params }) {
             <p className="mt-2"><a href={`/courts/cases/${courtCase.c.slug}`} className="text-primary underline underline-offset-2">Status and full timeline of this case</a></p>
           </section>
         )}
+=======
+      <ArticleView categorySlug={categorySlug} articleSlug={articleSlug} initialArticle={article} thread={ctx.thread} authorHref={author?.href} updates={await getStoryUpdates(article.id)}>
+>>>>>>> origin/main
         {ctx.thread && (
           <section className="mt-10 border-t border-border pt-6">
             <h2 className="mb-3 font-headline text-xl font-bold text-foreground">Follow this story</h2>
