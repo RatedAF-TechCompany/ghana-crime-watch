@@ -155,8 +155,7 @@ export default async function ArticlePage({ params }: { params: Params }) {
           },
         ]}
       />
-<<<<<<< HEAD
-      <ArticleView categorySlug={categorySlug} articleSlug={articleSlug} initialArticle={article} thread={ctx.thread} authorHref={author?.href}>
+      <ArticleView categorySlug={categorySlug} articleSlug={articleSlug} initialArticle={article} thread={ctx.thread} authorHref={author?.href} updates={await getStoryUpdates(article.id)}>
         {later.length > 0 && <LinkList title="What happened next" rows={later as LinkRow[]} />}
         {courtCase && (
           <section className="mt-8 rounded-md border border-border bg-card p-4 font-sans text-sm">
@@ -167,9 +166,6 @@ export default async function ArticlePage({ params }: { params: Params }) {
             <p className="mt-2"><a href={`/courts/cases/${courtCase.c.slug}`} className="text-primary underline underline-offset-2">Status and full timeline of this case</a></p>
           </section>
         )}
-=======
-      <ArticleView categorySlug={categorySlug} articleSlug={articleSlug} initialArticle={article} thread={ctx.thread} authorHref={author?.href} updates={await getStoryUpdates(article.id)}>
->>>>>>> origin/main
         {ctx.thread && (
           <section className="mt-10 border-t border-border pt-6">
             <h2 className="mb-3 font-headline text-xl font-bold text-foreground">Follow this story</h2>
