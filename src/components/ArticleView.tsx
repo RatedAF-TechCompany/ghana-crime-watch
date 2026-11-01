@@ -19,10 +19,11 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { getArticleImage } from "@/lib/article-image";
 import { ArticleImageFallback } from "@/components/ArticleImage";
 import { publishedUpdatedLabels } from "@/lib/article-meta";
+import { StoryUpdates, type StoryUpdate } from "@/components/StoryUpdates";
 
 type ThreadInfo = { thread_slug: string; is_live: boolean; live_ended_at: string | null } | null;
 
-export default function ArticleView({ categorySlug, articleSlug, initialArticle, thread = null, authorHref, children }: { categorySlug: string; articleSlug: string; initialArticle?: any; thread?: ThreadInfo; authorHref?: string; children?: ReactNode }) {
+export default function ArticleView({ categorySlug, articleSlug, initialArticle, thread = null, authorHref, children, updates = [] }: { categorySlug: string; articleSlug: string; initialArticle?: any; thread?: ThreadInfo; authorHref?: string; children?: ReactNode; updates?: StoryUpdate[] }) {
   const { isPlaying, isPaused, isSupported, speak, stop, togglePlayPause } = useTextToSpeech();
 
   // Determine if WhatsApp CTA should be shown (25% probability, memoized per article)
@@ -129,6 +130,8 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
           {article.subtitle}
         </p>
       )}
+
+      <StoryUpdates updates={updates} />
 
       {thread && (
         thread.is_live && !thread.live_ended_at ? (

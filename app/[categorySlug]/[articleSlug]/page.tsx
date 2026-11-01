@@ -4,7 +4,7 @@ import { Layout } from '@/components/Layout';
 import { BASE_URL } from '@/lib/utils';
 import ArticleView from '@/components/ArticleView';
 import { JsonLd } from '@/components/JsonLd';
-import { getArticle, findSlugRedirect, getArticleContext, getArticleRouteState } from '@/lib/server-data';
+import { getArticle, findSlugRedirect, getArticleContext, getArticleRouteState, getStoryUpdates } from '@/lib/server-data';
 import { getCategoryLabel, isValidCategory } from '@/lib/categories';
 import { OG_HEIGHT, OG_WIDTH, articleModified, articleSocialImage, formatGhanaDate, regionForName, topicForText } from '@/lib/article-meta';
 import { getMasthead } from '@/lib/masthead';
@@ -141,7 +141,7 @@ export default async function ArticlePage({ params }: { params: Params }) {
           },
         ]}
       />
-      <ArticleView categorySlug={categorySlug} articleSlug={articleSlug} initialArticle={article} thread={ctx.thread} authorHref={author?.href}>
+      <ArticleView categorySlug={categorySlug} articleSlug={articleSlug} initialArticle={article} thread={ctx.thread} authorHref={author?.href} updates={await getStoryUpdates(article.id)}>
         {ctx.thread && (
           <section className="mt-10 border-t border-border pt-6">
             <h2 className="mb-3 font-headline text-xl font-bold text-foreground">Follow this story</h2>
