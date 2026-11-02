@@ -8,6 +8,7 @@ import { BreakingNewsTicker } from "./BreakingNewsTicker";
 import { NAV_CATEGORIES } from "@/lib/categories";
 import { useIsEmptySection } from "@/components/EmptySectionsContext";
 import { WhatsAppFollowBlock } from "@/components/WhatsAppFollowBlock";
+import { EmergencyButton } from "@/components/EmergencyButton";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -86,6 +87,7 @@ export function Layout({ children }: LayoutProps) {
       <main className="mx-auto w-full max-w-editorial flex-1 bg-card px-4 py-8 md:px-12 md:py-12">
         {children}
       </main>
+      <EmergencyButton />
       <footer className="mt-12 border-t border-pale-rule bg-footer-cream">
         <div className="mx-auto max-w-editorial px-4 py-12 md:px-12">
           <div className="mb-10 text-center">

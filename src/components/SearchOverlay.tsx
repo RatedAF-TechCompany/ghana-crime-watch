@@ -1,5 +1,4 @@
 'use client';
-import { ilikeOrTerms } from "@/lib/postgrest-filter";
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,16 +32,10 @@ export function SearchOverlay({ open, onClose }: SearchOverlayProps) {
     queryFn: async () => {
       if (!debouncedQuery.trim()) return [];
 
-      const { data, error } = await supabase
-        .from("articles")
-        .select("id, title, summary, category_slug, article_slug, published_at")
-        .eq("is_published", true)
-        .or(ilikeOrTerms(["title", "summary", "body"], debouncedQuery))
-        .order("published_at", { ascending: false })
-        .limit(10);
+      const { data, error } = await (supabase as any).rpc("search_articles", { q: debouncedQuery, lim: 10 });
 
       if (error) throw error;
-      return data;
+      return (data ?? []) as { id: string; title: string; summary: string; category_slug: string; article_slug: string; published_at: string }[];
     },
     enabled: debouncedQuery.trim().length > 0,
   });
@@ -66,7 +59,7 @@ export function SearchOverlay({ open, onClose }: SearchOverlayProps) {
         <div className="space-y-4">
           <Input
             type="search"
-            placeholder="Search by title, summary, or content..."
+            placeholder="Search stories (typos are fine)..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full"
@@ -101,7 +94,7 @@ export function SearchOverlay({ open, onClose }: SearchOverlayProps) {
                 </div>
               ) : (
                 <p className="py-4 text-center text-sm text-muted-foreground">
-                  No results found
+                  No results found. <Link href={`/search?q=${encodeURIComponent(debouncedQuery)}`} onClick={onClose} className="underline">Open full search</Link>
                 </p>
               )}
             </div>

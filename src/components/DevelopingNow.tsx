@@ -28,9 +28,35 @@ async function getDevelopingThreads(): Promise<Thread[]> {
   }
 }
 
+type Updated = { article_id: string; posted_at: string; title: string; href: string };
+
+/** Published articles that got a material dated update in the last 72h (story_updates). */
+async function getUpdatedStories(): Promise<Updated[]> {
+  try {
+    const supabase = createServerClient() as any;
+    const since = new Date(Date.now() - WINDOW_HOURS * 3600_000).toISOString();
+    const { data } = await supabase.from('story_updates')
+      .select('article_id, posted_at, articles!inner(title, category_slug, article_slug, is_published)')
+      .eq('is_material', true).gte('posted_at', since).eq('articles.is_published', true)
+      .order('posted_at', { ascending: false }).limit(20);
+    const seen = new Set<string>();
+    const out: Updated[] = [];
+    for (const r of (data ?? []) as any[]) {
+      if (seen.has(r.article_id)) continue;
+      seen.add(r.article_id);
+      out.push({ article_id: r.article_id, posted_at: r.posted_at, title: r.articles.title, href: `/${r.articles.category_slug}/${r.articles.article_slug}` });
+    }
+    return out.slice(0, 5);
+  } catch {
+    return [];
+  }
+}
+
+const hhmm = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Accra' });
+
 export async function DevelopingNow() {
-  const threads = await getDevelopingThreads();
-  if (!threads.length) return null;
+  const [threads, updated] = await Promise.all([getDevelopingThreads(), getUpdatedStories()]);
+  if (!threads.length && !updated.length) return null;
   return (
     <section aria-labelledby="developing-now" className="mb-10 rounded-md border border-primary/30 bg-primary/5 px-4 py-3">
       <h2 id="developing-now" className="mb-2 flex items-center gap-2 font-sans text-xs font-bold uppercase tracking-[0.16em] text-primary">
@@ -42,6 +68,12 @@ export async function DevelopingNow() {
             <Link href={`/live/${t.thread_slug}`} className="font-headline text-base font-bold leading-snug hover:text-primary hover:underline">
               {t.title}
             </Link>
+          </li>
+        ))}
+        {updated.map((u) => (
+          <li key={u.article_id} className="flex items-baseline gap-2">
+            <time dateTime={u.posted_at} className="shrink-0 font-sans text-[11px] font-bold text-primary">Updated {hhmm(u.posted_at)} GMT</time>
+            <Link href={u.href} className="font-headline text-base font-bold leading-snug hover:text-primary hover:underline">{u.title}</Link>
           </li>
         ))}
       </ul>
