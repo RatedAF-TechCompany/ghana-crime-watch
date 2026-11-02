@@ -44,6 +44,7 @@ export default async function CourtCasePage({ params }: { params: Params }) {
           {c.next_hearing ? (
             <>
               <p className="mt-1 text-xl font-bold">{formatHearing(c.next_hearing)}</p>
+              {upcoming && <a href={`/courts/cases/${c.slug}/calendar.ics`} className="mt-1 inline-block text-xs text-primary underline">Add to calendar (.ics)</a>}
               {c.next_hearing_text && <blockquote className="mt-2 border-l-2 border-border pl-3 text-sm text-muted-foreground">&ldquo;{c.next_hearing_text}&rdquo;</blockquote>}
               {hearingSource && (
                 <p className="mt-2 text-xs text-muted-foreground">

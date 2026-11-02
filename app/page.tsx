@@ -4,6 +4,8 @@ import { BASE_URL } from '@/lib/utils';
 import HomeView from '@/components/HomeView';
 import { DevelopingNow } from '@/components/DevelopingNow';
 import { FollowRegion } from '@/components/FollowRegion';
+import { ThisWeekInCourt } from '@/components/ThisWeekInCourt';
+import { MomoChecker } from '@/components/MomoChecker';
 import { NewsletterSignup } from '@/components/NewsletterSignup';
 import { JsonLd } from '@/components/JsonLd';
 import { getHomeArticles } from '@/lib/server-data';
@@ -55,6 +57,10 @@ export default async function Page() {
       <DevelopingNow />
       <FollowRegion />
       <HomeView initialArticles={initialArticles} />
+      <div className="mt-10 grid gap-0 md:grid-cols-2 md:gap-6">
+        <ThisWeekInCourt />
+        <MomoChecker />
+      </div>
       <div className="mx-auto mt-14 max-w-2xl">
         <NewsletterSignup />
       </div>
