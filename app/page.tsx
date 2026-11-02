@@ -3,6 +3,7 @@ import { Layout } from '@/components/Layout';
 import { BASE_URL } from '@/lib/utils';
 import HomeView from '@/components/HomeView';
 import { DevelopingNow } from '@/components/DevelopingNow';
+import { AudioBulletin } from '@/components/AudioBulletin';
 import { FollowRegion } from '@/components/FollowRegion';
 import { ThisWeekInCourt } from '@/components/ThisWeekInCourt';
 import { MomoChecker } from '@/components/MomoChecker';
@@ -55,6 +56,7 @@ export default async function Page() {
         ]}
       />
       <DevelopingNow />
+      <AudioBulletin />
       <FollowRegion />
       <HomeView initialArticles={initialArticles} />
       <div className="mt-10 grid gap-0 md:grid-cols-2 md:gap-6">

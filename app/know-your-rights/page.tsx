@@ -22,7 +22,7 @@ export default function KnowYourRights() {
               <h2 className="font-serif text-xl font-bold">{t.title}</h2>
               {t.body.trim() ? <div className="mt-2 font-body whitespace-pre-line">{t.body}</div>
                 : <p className="mt-2 font-sans text-sm italic text-muted-fg">Guide coming soon.</p>}
-              {t.sources.length > 0 && <ul className="mt-2 font-sans text-xs">{t.sources.map((s) => <li key={s.url}><a className="underline" href={s.url} rel="noopener" target="_blank">{s.label}</a></li>)}</ul>}
+              {t.sources.length > 0 && <ul className="mt-2 font-sans text-xs">{t.sources.map((s) => <li key={s.label}><a className="underline" href={s.url} rel="noopener" target="_blank">{s.label}</a></li>)}</ul>}
             </section>
           ))}
         </div>

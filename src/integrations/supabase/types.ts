@@ -44,6 +44,7 @@ type DatabaseBase = {
       }
       articles: {
         Row: {
+          district: string | null
           article_slug: string
           author_id: string | null
           author_name: string | null
@@ -79,6 +80,7 @@ type DatabaseBase = {
           view_count: number
         }
         Insert: {
+          district?: string | null
           article_slug: string
           author_id?: string | null
           author_name?: string | null
@@ -114,6 +116,7 @@ type DatabaseBase = {
           view_count?: number
         }
         Update: {
+          district?: string | null
           article_slug?: string
           author_id?: string | null
           author_name?: string | null

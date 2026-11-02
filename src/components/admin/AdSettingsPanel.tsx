@@ -23,7 +23,7 @@ export function AdSettingsPanel() {
     const { data, error } = await supabase
       .from("site_settings")
       .select("key, value, label")
-      .in("key", ["ad_calabashe", "ad_whatsapp_cta"]);
+      .in("key", ["ad_whatsapp_cta"]);
 
     if (error) {
       toast({ title: "Error loading ad settings", description: error.message, variant: "destructive" });
@@ -58,7 +58,7 @@ export function AdSettingsPanel() {
         prev.map((s) => (s.key === key ? { ...s, enabled: !newValue } : s))
       );
     } else {
-      toast({ title: `${key === "ad_calabashe" ? "Calabashe Ad" : "WhatsApp CTA"} ${newValue ? "enabled" : "disabled"}` });
+      toast({ title: `WhatsApp CTA ${newValue ? "enabled" : "disabled"}` });
     }
   };
 
