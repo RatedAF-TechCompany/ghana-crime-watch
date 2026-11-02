@@ -32,6 +32,7 @@ const STATIC_PATHS = [
   '/fraud-watch/directory',
   '/courts',
   '/safety',
+  '/know-your-rights',
   '/explainers',
   '/regions',
   '/topics',

@@ -17,7 +17,6 @@ import { formatArticleBody } from "@/lib/paragraphs";
 import { caseStatusText, offenceInfo, regionInfo } from "@/lib/crime-labels";
 import { BookmarkButton } from "@/components/BookmarkButton";
 import { WhatsAppChannelCTA, useShouldShowWhatsAppCTA } from "@/components/WhatsAppChannelCTA";
-import { AdBanner } from "@/components/AdBanner";
 import { LiveDevelopingPill } from "@/components/LiveDevelopingPill";
 import { sanitizeArticleBody } from "@/lib/sanitize";
 import { useEffect, useRef, type ReactNode } from "react";
@@ -342,10 +341,6 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
 
       <div className="my-8"><NewsletterSignup /></div>
 
-      {/* Calabashe Ad - always shown if enabled */}
-      <div className="my-8">
-        <AdBanner slotId={3} probability={1} />
-      </div>
 
       {/* WhatsApp CTA - shown based on probability */}
       {showWhatsAppCTA && (

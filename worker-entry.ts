@@ -3,6 +3,7 @@
 import handler from "./.open-next/worker.js";
 import { pingIndexNow } from "./src/lib/indexnow";
 import { isValidCategory } from "./src/lib/categories";
+import { maybeBuildBulletin, bulletinRoute } from "./src/lib/bulletin";
 
 // @ts-ignore
 export { DOQueueHandler, DOShardedTagCache, BucketCachePurge } from "./.open-next/worker.js";
@@ -42,6 +43,7 @@ export default {
   // Every 15 min: ping IndexNow with articles published since the last run and pre-render their share cards.
   async scheduled(_event: unknown, env: any, ctx: any): Promise<void> {
     ctx.waitUntil(pingRecentlyPublished(env, ctx).catch((e) => reportError(env, `Cron ${String(e?.message || e).slice(0, 80)}`, String(e?.stack || e))));
+    ctx.waitUntil(maybeBuildBulletin(env).then((r) => console.log("bulletin", r)).catch((e) => reportError(env, `Bulletin ${String(e?.message || e).slice(0, 80)}`, String(e?.stack || e))));
   },
 };
 
@@ -73,6 +75,19 @@ async function handleFetch(request: Request, env: any, ctx: any): Promise<Respon
       url.hostname = CANONICAL_HOST;
       url.port = "";
       return new Response(null, { status: 301, headers: { Location: url.toString(), "Cache-Control": "public, max-age=3600" } });
+    }
+    if (url.pathname === "/__internal/mail" && request.method === "POST") return internalMail(request, env);
+    if (url.pathname === "/__internal/bulletin" && request.method === "POST") {
+      if (!env.GC_MAIL_SECRET || request.headers.get("x-gc-mail") !== env.GC_MAIL_SECRET) return new Response("forbidden", { status: 403 });
+      return new Response(await maybeBuildBulletin(env, true).catch((e) => `error ${e?.message || e}`));
+    }
+    if (url.pathname === "/__internal/push" && request.method === "POST") {
+      if (!env.GC_MAIL_SECRET || request.headers.get("x-gc-mail") !== env.GC_MAIL_SECRET) return new Response("forbidden", { status: 403 });
+      return new Response(await sendPushAlerts(env));
+    }
+    if (request.method === "GET" && (url.pathname === "/podcast.xml" || url.pathname.startsWith("/audio/"))) {
+      const r = await bulletinRoute(url, env);
+      if (r) return r;
     }
     const alias = EDGE_REDIRECTS[url.pathname.replace(/\/+$/, "") || "/"];
     if (alias && request.method === "GET") {
@@ -347,19 +362,20 @@ async function vapidJwt(env: any, aud: string): Promise<string> {
   const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, enc.encode(`${head}.${body}`));
   return `${head}.${body}.${b64url(sig)}`;
 }
-async function sendPushAlerts(env: any): Promise<void> {
-  if (!env.VAPID_PRIVATE_JWK || !env.GC_ALERT_SECRET || !env.GC_OG) return;
+async function sendPushAlerts(env: any): Promise<string> {
+  if (!env.VAPID_PRIVATE_JWK || !env.GC_ALERT_SECRET || !env.GC_OG) return "no config";
   const day = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
   const capKey = `push-count:${day}`;
   const sent = Number((await env.GC_OG.get(capKey)) || 0);
-  if (sent >= PUSH_DAILY_CAP) return;
+  if (sent >= PUSH_DAILY_CAP) return "daily cap";
   const base = env.NEXT_PUBLIC_SUPABASE_URL, anon = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const rpc = (fn: string, body: unknown) => fetch(`${base}/rest/v1/rpc/${fn}`, { method: "POST",
     headers: { apikey: anon, Authorization: `Bearer ${anon}`, "Content-Profile": "ghanacrimes", "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const res = await rpc("push_targets", { p_secret: env.GC_ALERT_SECRET });
-  if (!res.ok) { console.error("push_targets", res.status); return; }
+  if (!res.ok) { console.error("push_targets", res.status); return `targets ${res.status}`; }
   const targets = (await res.json()) as { endpoint: string }[];
-  if (!targets.length) return;
+  if (!targets.length) return "no targets";
+  const out: number[] = [];
   await env.GC_OG.put(capKey, String(sent + 1), { expirationTtl: 2 * 86400 });
   const jwts = new Map<string, string>();
   for (const { endpoint } of targets.slice(0, 500)) {
@@ -367,7 +383,29 @@ async function sendPushAlerts(env: any): Promise<void> {
       const aud = new URL(endpoint).origin;
       if (!jwts.has(aud)) jwts.set(aud, await vapidJwt(env, aud));
       const r = await fetch(endpoint, { method: "POST", headers: { TTL: "21600", Urgency: "high", Authorization: `vapid t=${jwts.get(aud)}, k=${VAPID_PUBLIC_KEY}` } });
+      out.push(r.status);
       if (r.status === 404 || r.status === 410 || r.status >= 400) await rpc("push_result", { p_secret: env.GC_ALERT_SECRET, p_endpoint: endpoint, p_status: r.status });
     } catch (e) { console.error("push send", e); }
+  }
+  return `sent ${out.join(",")}`;
+}
+
+// ---- Outbound email from @ghanacrimes.com via the Cloudflare send_email binding (free for verified destination addresses).
+// Called by ghanacrimes.send_pending_notifications() with a shared secret held in Supabase Vault and a Worker secret.
+async function internalMail(request: Request, env: any): Promise<Response> {
+  if (!env.GC_MAIL_SECRET || request.headers.get("x-gc-mail") !== env.GC_MAIL_SECRET) return new Response("forbidden", { status: 403 });
+  if (!env.EMAIL) return new Response("no email binding", { status: 500 });
+  try {
+    const m: any = await request.json();
+    const headers: Record<string, string> = {};
+    for (const [k, v] of Object.entries(m.headers || {})) if (/^List-Unsubscribe(-Post)?$/i.test(k)) headers[k] = String(v);
+    const fm = /^\s*(.*?)\s*<([^>]+@ghanacrimes\.com)>\s*$/i.exec(String(m.from || ""));
+    const from = fm ? { name: fm[1] || "GhanaCrimes", email: fm[2] } : { email: "alerts@ghanacrimes.com", name: "GhanaCrimes Alerts" };
+    const r = await env.EMAIL.send({ to: m.to, from,
+      subject: String(m.subject || "").slice(0, 180), text: String(m.text || ""), ...(m.html ? { html: m.html } : {}),
+      replyTo: "officeofnajib@gmail.com", ...(Object.keys(headers).length ? { headers } : {}) });
+    return Response.json({ id: r?.messageId || null });
+  } catch (e: any) {
+    return Response.json({ error: String(e?.code || ""), message: String(e?.message || e) }, { status: 502 });
   }
 }

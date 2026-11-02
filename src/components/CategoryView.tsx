@@ -3,7 +3,6 @@ import Link from "next/link";
 import { HeroArticle } from "@/components/HeroArticle";
 import { ArticleCard } from "@/components/ArticleCard";
 import { Button } from "@/components/ui/button";
-import { AdBanner } from "@/components/AdBanner";
 import { SectionHeading } from "@/components/broadcast/SectionHeading";
 import { StoryGrid } from "@/components/broadcast/StoryGrid";
 export default function CategoryView({ categorySlug, articles, page, hasNext }: { categorySlug: string; articles: any[]; page: number; hasNext: boolean }) {
@@ -25,9 +24,6 @@ export default function CategoryView({ categorySlug, articles, page, hasNext }: 
     <div className="space-y-10">
       {lead && <HeroArticle article={lead} />}
 
-      <div className="mx-auto max-w-3xl">
-        <AdBanner slotId={4} probability={0.5} />
-      </div>
 
       {grid1.length > 0 && (
         <StoryGrid>

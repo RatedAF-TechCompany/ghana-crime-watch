@@ -6,7 +6,6 @@ import { HeroArticle } from "@/components/HeroArticle";
 import { ArticleCard } from "@/components/ArticleCard";
 import { MostReadArticles } from "@/components/MostReadArticles";
 import { EditorialSectionHeading } from "@/components/editorial/EditorialSectionHeading";
-import { AdBanner } from "@/components/AdBanner";
 import { LiveNowModule } from "@/components/LiveNowModule";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -171,10 +170,6 @@ export default function HomeView({ initialArticles }: { initialArticles?: any[] 
       {/* Live Now */}
       <LiveNowModule />
 
-      {/* Ad slot */}
-      <div className="mx-auto max-w-3xl">
-        <AdBanner slotId={0} probability={1} />
-      </div>
 
       {/* Most popular + Writers */}
       <MostReadArticles />
