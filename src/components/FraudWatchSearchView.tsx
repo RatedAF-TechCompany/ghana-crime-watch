@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
+import { ilikeOr } from "@/lib/postgrest-filter";
 import { getRelativeTime } from "@/lib/time";
 
 const PLATFORMS = ["All", "Instagram", "X", "TikTok", "Facebook", "WhatsApp", "Telegram", "Website", "Other"];
@@ -56,14 +57,12 @@ export default function FraudWatchSearchView() {
     }
 
     let dbQuery = supabase
-      .from("fraud_accounts")
+      .from("fraud_accounts_public" as any)
       .select("id, platform, account_name, account_handle, account_link, status, reports_count, total_reported_loss, last_reported_at, views_count, created_at");
 
     // Public can only see non-pending unless they're admin (RLS handles this)
     if (q.trim()) {
-      dbQuery = dbQuery.or(
-        `account_name.ilike.%${q}%,account_handle.ilike.%${q}%,account_link.ilike.%${q}%`
-      );
+      dbQuery = dbQuery.or(ilikeOr(["account_name", "account_handle", "account_link"], q));
     }
 
     if (pf !== "All") dbQuery = dbQuery.eq("platform", pf);
@@ -116,7 +115,7 @@ export default function FraudWatchSearchView() {
             <ArrowLeft className="h-4 w-4" />
             Fraud Watch Home
           </Link>
-          <h1 className="font-serif text-2xl font-bold mb-4">Search Suspicious Accounts</h1>
+          <h2 className="font-serif text-2xl font-bold mb-4">Search Suspicious Accounts</h2>
           <form onSubmit={handleSearch} className="flex gap-2">
             <Input
               value={query}
@@ -218,7 +217,7 @@ export default function FraudWatchSearchView() {
             <Shield className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-30" />
             <p className="text-muted-foreground mb-2">No accounts found</p>
             <p className="text-sm text-muted-foreground mb-6">
-              {query ? `No results for "${query}"` : "No accounts match your filters"}
+              {query ? `No results for "${query}"` : "No accounts match your filters"}{" "}Only accounts reviewed by our moderators are listed; new reports appear here once checked.
             </p>
             <Link href="/fraud-watch/report">
               <Button size="sm" variant="outline">Report This Account</Button>

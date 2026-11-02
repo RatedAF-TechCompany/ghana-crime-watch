@@ -1,4 +1,5 @@
 'use client';
+import { ilikeOrTerms } from "@/lib/postgrest-filter";
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -36,7 +37,7 @@ export function SearchOverlay({ open, onClose }: SearchOverlayProps) {
         .from("articles")
         .select("id, title, summary, category_slug, article_slug, published_at")
         .eq("is_published", true)
-        .or(`title.ilike.%${debouncedQuery}%,summary.ilike.%${debouncedQuery}%,body.ilike.%${debouncedQuery}%`)
+        .or(ilikeOrTerms(["title", "summary", "body"], debouncedQuery))
         .order("published_at", { ascending: false })
         .limit(10);
 

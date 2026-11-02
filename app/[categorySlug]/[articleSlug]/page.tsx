@@ -6,7 +6,7 @@ import ArticleView from '@/components/ArticleView';
 import { JsonLd } from '@/components/JsonLd';
 import { getArticle, findSlugRedirect, getArticleContext, getArticleRouteState, getStoryUpdates } from '@/lib/server-data';
 import { getCategoryLabel, isValidCategory } from '@/lib/categories';
-import { OG_HEIGHT, OG_WIDTH, articleModified, articleSocialImage, clipAtWord, articleTitleText, formatGhanaDate, regionForName, topicForText } from '@/lib/article-meta';
+import { OG_HEIGHT, OG_WIDTH, articleModified, articleSocialImage, clipAtWord, articleTitleText, formatGhanaDate, regionForName, topicForText, metaDescription } from '@/lib/article-meta';
 import { publisherRef, getMasthead } from '@/lib/masthead';
 import { bylineAuthor, displayByline } from '@/lib/authors';
 import { formatHearing, getCaseForArticle } from '@/lib/court-cases';
@@ -64,7 +64,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   }
 
   const title = articleTitleText(article);
-  const description = article.seo_description || article.summary || '';
+  const description = metaDescription(article.seo_description, article.summary);
   const socialImage = imageMeta(article);
   const canonical = `${BASE_URL}/${categorySlug}/${articleSlug}`;
 

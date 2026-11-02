@@ -89,3 +89,19 @@ export function independentOutlets(urls: (string | null | undefined)[]): string[
   const skip = /^(x\.com|twitter\.com|facebook\.com|fb\.com|instagram\.com|tiktok\.com|youtube\.com|youtu\.be|t\.co|whatsapp\.com|ghanacrimes\.com)$/;
   return [...new Set(urls.filter(Boolean).map((u) => outletDomain(u as string)).filter((d): d is string => !!d && !skip.test(d)))];
 }
+
+/**
+ * Meta/OG description: complete sentences are used as-is; anything longer than `max`, or a stored
+ * seo_description that was hard-cut mid-sentence, is clipped at a word boundary with an ellipsis.
+ */
+export function metaDescription(seo: string | null | undefined, summary: string | null | undefined, max = 160): string {
+  const done = (s: string) => /[.!?…"'”’)]$/.test(s);
+  const clean = (s: string | null | undefined) => (s || '').replace(/\s+/g, ' ').trim();
+  const a = clean(seo), b = clean(summary);
+  let src = a && (done(a) || !b) ? a : b || a;
+  if (src.length <= max && done(src)) return src;
+  // Stored text that stops mid-word: drop the partial last word before clipping.
+  if (src.length <= max && src === a && !done(a)) src = src.replace(/\s+\S*$/, '');
+  const clipped = clipAtWord(src, max - 1);
+  return clipped ? `${clipped}…` : '';
+}

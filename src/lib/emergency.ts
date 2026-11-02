@@ -6,7 +6,7 @@ export const VERIFIED_ON = '2026-10-27';
 
 export interface Contact { name: string; what: string; lines: { label: string; value: string; tel?: string }[]; source: { label: string; href: string } }
 
-const MINT = { label: 'Ministry of the Interior: contact page (emergency numbers)', href: 'https://www.mint.gov.gh/contact-us/' };
+const MINT = { label: 'Ministry of the Interior: contact page (emergency numbers)', href: 'https://mint.gov.gh/public/contact' };
 
 export const NATIONAL: Contact[] = [
   { name: 'Ghana Police Service', what: 'Crime in progress, threats to life, any police emergency.',

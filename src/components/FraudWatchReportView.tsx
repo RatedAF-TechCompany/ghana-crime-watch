@@ -23,6 +23,8 @@ const GHANA_REGIONS = [
   "Outside Ghana",
 ];
 
+const EVIDENCE_TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "application/pdf": "pdf" };
+
 export default function FraudWatchReportView() {
   const router = useRouter();
   const { toast } = useToast();
@@ -75,6 +77,10 @@ export default function FraudWatchReportView() {
         toast({ title: `${f.name} is too large`, description: "Max 10MB per file", variant: "destructive" });
         return false;
       }
+      if (!EVIDENCE_TYPES[f.type]) {
+        toast({ title: `${f.name} is not supported`, description: "Use JPG, PNG, WebP or PDF", variant: "destructive" });
+        return false;
+      }
       return true;
     });
     const combined = [...uploadedFiles, ...valid].slice(0, 5);
@@ -90,13 +96,12 @@ export default function FraudWatchReportView() {
     setUploading(true);
     const urls: string[] = [];
     for (const file of uploadedFiles) {
-      const ext = file.name.split(".").pop();
-      const path = `fraud-evidence/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabase.storage.from("article-images").upload(path, file);
-      if (!error) {
-        const { data } = supabase.storage.from("article-images").getPublicUrl(path);
-        urls.push(data.publicUrl);
-      }
+      const ext = EVIDENCE_TYPES[file.type];
+      if (!ext || file.size > 10 * 1024 * 1024) continue;
+      // Private bucket (not publicly readable); staff view evidence in the Supabase dashboard / signed URLs.
+      const path = `reports/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from("fraud-evidence").upload(path, file, { contentType: file.type, upsert: false });
+      if (!error) urls.push(`fraud-evidence/${path}`);
     }
     setUploading(false);
     return urls;
@@ -364,7 +369,7 @@ export default function FraudWatchReportView() {
                   <input
                     type="file"
                     multiple
-                    accept="image/*,.pdf"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
                     className="hidden"
                     onChange={handleFileChange}
                   />

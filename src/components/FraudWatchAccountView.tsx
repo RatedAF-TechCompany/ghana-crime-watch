@@ -48,7 +48,7 @@ export default function FraudWatchAccountView({ accountId }: { accountId: string
     supabase.rpc("increment_fraud_account_views", { account_id: id }).then(() => {});
 
     const [accountRes, reportsRes, notesRes] = await Promise.all([
-      supabase.from("fraud_accounts").select("*").eq("id", id).single(),
+      supabase.from("fraud_accounts_public" as any).select("*").eq("id", id).single(),
       supabase.from("fraud_reports").select("payment_method, amount, currency, incident_date, region, description, created_at, evidence_files").eq("fraud_account_id", id).eq("is_public", true).order("created_at", { ascending: false }),
       supabase.from("fraud_admin_notes").select("note, admin_name, created_at").eq("fraud_account_id", id).order("created_at", { ascending: false }),
     ]);
@@ -274,9 +274,9 @@ export default function FraudWatchAccountView({ accountId }: { accountId: string
                       <span className="text-xs text-muted-foreground shrink-0">{getRelativeTime(report.created_at)}</span>
                     </div>
                     <p className="text-sm text-foreground">{report.description}</p>
-                    {report.evidence_files && report.evidence_files.length > 0 && (
+                    {report.evidence_files && report.evidence_files.filter((u: string) => /^https:\/\//.test(u)).length > 0 && (
                       <div className="flex gap-2 mt-2 flex-wrap">
-                        {report.evidence_files.map((url: string, ei: number) => (
+                        {report.evidence_files.filter((u: string) => /^https:\/\//.test(u)).map((url: string, ei: number) => (
                           url.match(/\.(jpg|jpeg|png|webp|gif)$/i) ? (
                             <a key={ei} href={url} target="_blank" rel="noopener noreferrer">
                               <img src={url} alt="Evidence" className="h-16 w-16 object-cover rounded border border-border hover:opacity-80 transition-opacity" />

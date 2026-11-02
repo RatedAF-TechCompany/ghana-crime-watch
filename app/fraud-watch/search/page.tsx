@@ -11,8 +11,11 @@ export const metadata: Metadata = {
 
 export default function FraudWatchSearchPage() {
   return (
-    <Suspense fallback={<div className="container py-8">Loading search...</div>}>
-      <FraudWatchSearchView />
-    </Suspense>
+    <>
+      <h1 className="sr-only">Search Suspicious Accounts on GhanaCrimes Fraud Watch</h1>
+      <Suspense fallback={<div className="container py-8">Loading search...</div>}>
+        <FraudWatchSearchView />
+      </Suspense>
+    </>
   );
 }

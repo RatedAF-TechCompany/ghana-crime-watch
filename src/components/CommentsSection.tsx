@@ -92,7 +92,7 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
 
     // Honeypot check
     if (honeypot) {
-      toast.success("Comment published!");
+      toast.success("Thanks! Your comment is awaiting moderation and will appear once approved.");
       resetForm(parentId);
       return;
     }
@@ -115,13 +115,13 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
         parent_id: parentId,
         commenter_name: data.name.trim(),
         comment_text: data.comment.trim(),
-        is_verified: true,
-        is_approved: true,
+        is_verified: false,
+        is_approved: false,
       });
 
       if (error) throw error;
 
-      toast.success("Comment published!");
+      toast.success("Thanks! Your comment is awaiting moderation and will appear once approved.");
       resetForm(parentId);
       queryClient.invalidateQueries({ queryKey: ["comments", articleId] });
     } catch (error: any) {
