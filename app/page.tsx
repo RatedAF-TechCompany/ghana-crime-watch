@@ -3,6 +3,7 @@ import { Layout } from '@/components/Layout';
 import { BASE_URL } from '@/lib/utils';
 import HomeView from '@/components/HomeView';
 import { DevelopingNow } from '@/components/DevelopingNow';
+import { FollowRegion } from '@/components/FollowRegion';
 import { NewsletterSignup } from '@/components/NewsletterSignup';
 import { JsonLd } from '@/components/JsonLd';
 import { getHomeArticles } from '@/lib/server-data';
@@ -52,6 +53,7 @@ export default async function Page() {
         ]}
       />
       <DevelopingNow />
+      <FollowRegion />
       <HomeView initialArticles={initialArticles} />
       <div className="mx-auto mt-14 max-w-2xl">
         <NewsletterSignup />

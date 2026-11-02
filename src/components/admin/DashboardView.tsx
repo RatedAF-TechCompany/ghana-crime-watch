@@ -262,12 +262,15 @@ export default function DashboardView() {
               </Button>
             </>
           )}
-          {(userRole === 'admin' || userRole === 'editor') && (
+          {(userRole === 'admin' || userRole === 'editor') && (<>
+            <Button variant="outline" size="sm" onClick={() => router.push('/admin/moderation')}>
+              Moderation
+            </Button>
             <Button variant="outline" size="sm" onClick={() => router.push('/admin/fraud-watch')}>
               <Shield className="h-4 w-4 mr-2" />
               Fraud Watch
             </Button>
-          )}
+          </>)}
           {(userRole === 'admin' || userRole === 'editor') && (
             <Button size="sm" onClick={() => router.push('/admin/review')}>
               <ShieldAlert className="h-4 w-4 mr-2" />

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Layout } from '@/components/Layout';
 import { createServerClient } from '@/lib/supabase/server';
-import { ilikeOrTerms } from '@/lib/postgrest-filter';
+import { SearchAutocomplete } from '@/components/SearchAutocomplete';
 import { getCategoryLabel } from '@/lib/categories';
 
 export const metadata: Metadata = { title: 'Search', robots: { index: false } };
@@ -15,13 +15,7 @@ export default async function SearchPage({ searchParams }: { searchParams: SP })
   let results: { id: string; title: string; summary: string; category_slug: string; article_slug: string }[] = [];
   if (term.length >= 2) {
     const supabase = createServerClient();
-    const { data } = await supabase
-      .from('articles')
-      .select('id, title, summary, category_slug, article_slug')
-      .eq('is_published', true)
-      .or(ilikeOrTerms(['title', 'summary', 'body'], term))
-      .order('published_at', { ascending: false })
-      .limit(30);
+    const { data } = await (supabase as any).rpc('search_articles', { q: term, lim: 30 });
     results = data ?? [];
   }
   return (
@@ -29,7 +23,7 @@ export default async function SearchPage({ searchParams }: { searchParams: SP })
       <div className="mx-auto max-w-2xl">
         <h1 className="mb-4 font-headline text-3xl font-bold">Search</h1>
         <form action="/search" method="get" className="mb-8 flex gap-2" role="search">
-          <input name="q" type="search" defaultValue={q} placeholder="Search GhanaCrimes" className="h-11 flex-1 rounded-md border border-input bg-background px-3 font-sans text-sm" />
+          <SearchAutocomplete defaultValue={q} />
           <button type="submit" className="h-11 rounded-md bg-primary px-5 font-sans text-sm font-semibold text-primary-foreground">Search</button>
         </form>
         {term.length >= 2 && <p className="mb-4 font-sans text-sm text-muted-fg">{results.length} result{results.length === 1 ? '' : 's'}</p>}
