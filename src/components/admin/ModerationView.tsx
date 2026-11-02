@@ -25,7 +25,7 @@ export default function ModerationView() {
         ? db.from('fraud_accounts').select('id, platform, account_name, account_handle, status, reports_count, total_reported_loss, created_at').order('created_at', { ascending: false }).limit(100)
         : tab === 'reports'
           ? db.from('fraud_reports').select('id, reference_id, payment_method, amount, currency, region, description, created_at, fraud_account_id').order('created_at', { ascending: false }).limit(100)
-          : db.from('tips').select('id, tip_text, location, status, created_at').order('created_at', { ascending: false }).limit(100);
+          : db.from('tips').select('id, tip_text, location, status, created_at, led_to_article_id').order('created_at', { ascending: false }).limit(100);
     const { data, error } = await q;
     if (error) setErr(error.message);
     setRows(data ?? []);
@@ -76,6 +76,11 @@ export default function ModerationView() {
               <p className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleString('en-GB')} · {r.location || 'no location'} · {r.status}</p>
               <p className="my-2 whitespace-pre-wrap">{r.tip_text}</p>
               {r.status === 'new' && <button disabled={busy} className="rounded bg-muted px-3 py-1" onClick={() => act(() => db.from('tips').update({ status: 'reviewed' }).eq('id', r.id))}>Mark reviewed</button>}
+              {r.led_to_article_id ? <span className="ml-2 text-xs text-green-700">Linked to article (tipster follow-up queued if they left an email)</span>
+                : <button disabled={busy} className="ml-2 rounded bg-muted px-3 py-1" onClick={() => {
+                    const id = window.prompt('Article ID (UUID) this tip led to:')?.trim();
+                    if (id && /^[0-9a-f-]{36}$/i.test(id)) act(() => db.from('tips').update({ led_to_article_id: id }).eq('id', r.id));
+                  }}>Led to article…</button>}
             </>)}
           </li>
         ))}

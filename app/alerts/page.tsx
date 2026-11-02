@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Layout } from '@/components/Layout';
+import { PushOptIn } from '@/components/PushOptIn';
+import { NewsletterSignup } from '@/components/NewsletterSignup';
 import { WhatsAppFollowBlock } from '@/components/WhatsAppFollowBlock';
 import { BASE_URL } from '@/lib/utils';
 import { REGIONS, TOPICS } from '@/lib/hubs';
@@ -24,6 +26,12 @@ export default function AlertsPage() {
           (for example Feedly, Inoreader or your phone&apos;s news app) to get new reports for a region or topic.
         </p>
         <WhatsAppFollowBlock className="mt-6" />
+
+        <h2 className="mt-8 font-serif text-xl font-bold text-foreground">Breaking alerts on this device</h2>
+        <div className="mt-3"><PushOptIn /></div>
+
+        <h2 className="mt-8 font-serif text-xl font-bold text-foreground">Daily Crime Brief by email</h2>
+        <div className="mt-3"><NewsletterSignup /></div>
 
         <h2 className="mt-8 font-serif text-xl font-bold text-foreground">Main feeds</h2>
         <ul className="mt-3 space-y-1 text-sm">

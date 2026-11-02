@@ -1,3 +1,4 @@
+import { FollowStory } from '@/components/FollowStory';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -56,6 +57,7 @@ export default async function CourtCasePage({ params }: { params: Params }) {
             </>
           ) : <p className="mt-1 text-sm text-muted-foreground">No hearing date has been reported.</p>}
         </section>
+        <FollowStory caseId={c.id} label="case" />
 
         <h2 className="mt-8 font-serif text-xl font-bold">Timeline</h2>
         <ol className="mt-3 space-y-4 border-l border-border pl-4">

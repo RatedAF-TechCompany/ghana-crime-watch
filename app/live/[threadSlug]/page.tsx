@@ -1,3 +1,4 @@
+import { FollowStory } from '@/components/FollowStory';
 import { publisherRef } from '@/lib/masthead';
 import type { Metadata } from 'next';
 import { cache } from 'react';
@@ -136,6 +137,7 @@ export default async function LiveThreadPage({ params }: { params: Params }) {
             </ul>
           </section>
         )}
+        {live && <FollowStory threadId={thread.id} label="live story" />}
       </article>
     </Layout>
   );

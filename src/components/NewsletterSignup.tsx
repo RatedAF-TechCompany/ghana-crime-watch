@@ -33,7 +33,7 @@ export function NewsletterSignup() {
           throw error;
         }
       } else {
-        toast.success("You're on the list. We'll email you when the daily digest launches.");
+        toast.success("Check your inbox: we sent a link to confirm your daily Crime Brief (7am UK time).");
         setEmail("");
       }
     } catch (error) {
@@ -53,7 +53,7 @@ export function NewsletterSignup() {
         <div>
           <h3 className="font-serif text-lg font-bold">Daily Crime Digest</h3>
           <p className="text-sm text-muted-foreground">
-            Join the list. The daily digest of Ghana's top crime stories launches soon.
+            Get the daily Crime Brief: the last 24 hours of Ghana crime news at 7am UK time. Confirm by email; unsubscribe any time.
           </p>
         </div>
       </div>

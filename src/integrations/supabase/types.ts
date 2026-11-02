@@ -54,6 +54,8 @@ type DatabaseBase = {
           created_at: string
           gate_report: Json | null
           hero_image: string | null
+          hero_image_alt: string | null
+          hero_image_credit: string | null
           id: string
           is_published: boolean
           offence_type: string | null
@@ -87,6 +89,8 @@ type DatabaseBase = {
           created_at?: string
           gate_report?: Json | null
           hero_image?: string | null
+          hero_image_alt?: string | null
+          hero_image_credit?: string | null
           id?: string
           is_published?: boolean
           offence_type?: string | null
@@ -120,6 +124,8 @@ type DatabaseBase = {
           created_at?: string
           gate_report?: Json | null
           hero_image?: string | null
+          hero_image_alt?: string | null
+          hero_image_credit?: string | null
           id?: string
           is_published?: boolean
           offence_type?: string | null
@@ -1307,6 +1313,7 @@ type DatabaseBase = {
           created_at: string
           id: string
           location: string | null
+          led_to_article_id: string | null
           status: string
           tip_text: string
         }
@@ -1315,6 +1322,7 @@ type DatabaseBase = {
           created_at?: string
           id?: string
           location?: string | null
+          led_to_article_id?: string | null
           status?: string
           tip_text: string
         }
@@ -1323,6 +1331,7 @@ type DatabaseBase = {
           created_at?: string
           id?: string
           location?: string | null
+          led_to_article_id?: string | null
           status?: string
           tip_text?: string
         }
