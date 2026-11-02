@@ -282,3 +282,10 @@
     color: inherit;
   }
 }
+
+/* Lite mode (low data): hide photos, ads and embeds; toggled by LiteModeToggle, stored in localStorage. */
+html.lite main img:not([data-keep]),
+html.lite main picture,
+html.lite main iframe,
+html.lite main video,
+html.lite [data-ad] { display: none !important; }

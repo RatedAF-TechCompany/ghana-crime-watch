@@ -18,6 +18,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => syncSessionCookie(!!data.session));
+    if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(() => {});
+    try { if (localStorage.getItem('gc_lite') === '1') document.documentElement.classList.add('lite'); } catch {}
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => syncSessionCookie(!!session));
     // Refresh the session when the tab regains focus/visibility (no-op if signed out or still fresh).
     const refresh = () => {

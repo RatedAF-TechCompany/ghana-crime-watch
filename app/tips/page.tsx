@@ -4,6 +4,7 @@ import { Layout } from '@/components/Layout';
 import { StaticPage } from '@/components/StaticPage';
 import { SubmissionForm } from '@/components/SubmissionForm';
 import { BASE_URL } from '@/lib/utils';
+import { hasWhatsAppTipLine, whatsAppTipLink } from '@/lib/channels';
 
 export const metadata: Metadata = {
   title: 'Send a Tip',
@@ -23,6 +24,12 @@ export default function TipsPage() {
           <li>You can also email the newsroom at <a href="mailto:editor@ghanacrimes.com">editor@ghanacrimes.com</a>.</li>
           <li>If someone is in immediate danger, contact the Ghana Police Service first.</li>
         </ul>
+        {/* WhatsApp tip line appears only once NEXT_PUBLIC_WHATSAPP_TIP_NUMBER (233XXXXXXXXX) is set at build time. */}
+        {hasWhatsAppTipLine() && (
+          <p className="not-prose my-4">
+            <a href={whatsAppTipLink()} target="_blank" rel="noopener noreferrer" className="inline-block rounded-md bg-green-700 px-4 py-2 font-sans text-sm font-semibold text-white">Send a tip on WhatsApp</a>
+          </p>
+        )}
         <Suspense>
           <SubmissionForm
             table="tips"

@@ -1,4 +1,5 @@
 'use client';
+import { FollowStory } from '@/components/FollowStory';
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -231,13 +232,18 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
       </div>
 
       {(() => { const img = getArticleImage(article); return img ? (
-        <div className="mb-8 aspect-[16/9] w-full overflow-hidden">
-          <img
-            src={img}
-            alt={article.title}
-            className="h-full w-full object-cover"
-          />
-        </div>
+        <figure className="mb-8">
+          <div className="aspect-[16/9] w-full overflow-hidden">
+            <img
+              src={img}
+              alt={(article as any).hero_image_alt || article.title}
+              className="h-full w-full object-cover"
+            />
+          </div>
+          {(article as any).hero_image_credit && (
+            <figcaption className="mt-1 font-sans text-[11px] text-muted-fg">Photo: {(article as any).hero_image_credit}</figcaption>
+          )}
+        </figure>
       ) : null; })()}
 
       <div className="my-6 border-y border-border py-3">
@@ -293,6 +299,8 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
           </ol>
         </section>
       )}
+
+      <FollowStory articleId={article.id} />
 
       <div className="my-6 border-y border-border py-3">
         <SocialShareButtons title={article.title} summary={article.summary} />

@@ -17,6 +17,11 @@ async function resolveCard(id: string): Promise<Card> {
       .eq('id', id).eq('is_published', true).maybeSingle();
     if (data) return { headline: data.title, kicker: getCategoryLabel(data.category_slug), region: data.region, date: data.published_at };
   }
+  if (id.startsWith('scam-') && UUID.test(id.slice(5))) {
+    const { data } = await supabase.from('articles').select('title, region, published_at')
+      .eq('id', id.slice(5)).eq('is_published', true).maybeSingle();
+    if (data) return { headline: data.title, kicker: 'Scam of the day', region: data.region, date: data.published_at };
+  }
   if (id.startsWith('topic-')) {
     const t = getTopic(id.slice(6));
     if (t) return { headline: `${t.label} in Ghana`, kicker: 'Topic' };

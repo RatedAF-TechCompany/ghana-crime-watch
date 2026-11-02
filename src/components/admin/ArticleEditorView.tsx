@@ -34,6 +34,8 @@ export default function ArticleEditorView({ id }: { id: string }) {
     category_slug: 'top-stories',
     article_slug: '',
     hero_image: '',
+    hero_image_alt: '',
+    hero_image_credit: '',
     author_name: '',
     tags: [],
     seo_title: '',
@@ -348,6 +350,18 @@ export default function ArticleEditorView({ id }: { id: string }) {
             value={formData.hero_image || ''}
             onChange={(url) => setFormData({ ...formData, hero_image: url })}
           />
+          {formData.hero_image && (
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-1">
+                <Label htmlFor="hero_alt">Image alt text (describe the photo; never identify a minor)</Label>
+                <Input id="hero_alt" maxLength={300} value={(formData as any).hero_image_alt || ''} onChange={(e) => setFormData({ ...formData, hero_image_alt: e.target.value } as any)} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="hero_credit">Image credit (required for third-party photos)</Label>
+                <Input id="hero_credit" maxLength={200} value={(formData as any).hero_image_credit || ''} onChange={(e) => setFormData({ ...formData, hero_image_credit: e.target.value } as any)} placeholder="e.g. Ghana Police Service" />
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label>Article Body *</Label>

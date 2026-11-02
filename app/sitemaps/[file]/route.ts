@@ -27,6 +27,7 @@ const STATIC_PATHS = [
   '/statistics',
   '/map/live',
   '/crime-this-week',
+  '/scam-of-the-day',
   '/agencies',
   '/fraud-watch/directory',
   '/courts',

@@ -9,6 +9,7 @@ import { NAV_CATEGORIES } from "@/lib/categories";
 import { useIsEmptySection } from "@/components/EmptySectionsContext";
 import { WhatsAppFollowBlock } from "@/components/WhatsAppFollowBlock";
 import { EmergencyButton } from "@/components/EmergencyButton";
+import { LiteModeToggle } from "@/components/LiteModeToggle";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -33,6 +34,8 @@ const FOOTER_COLUMNS: { title: string; links: { label: string; to: string }[] }[
     title: "Public safety",
     links: [
       { label: "Scam Alerts", to: "/scam-alerts" },
+      { label: "Scam of the Day", to: "/scam-of-the-day" },
+      { label: "Know Your Rights", to: "/know-your-rights" },
       { label: "Fraud Watch Directory", to: "/fraud-watch/directory" },
       { label: "Court Case Tracker", to: "/courts/cases" },
       { label: "Courts", to: "/courts" },
@@ -121,6 +124,8 @@ export function Layout({ children }: LayoutProps) {
           <div className="mt-10 flex flex-col items-start justify-between gap-3 border-t border-pale-rule pt-6 font-sans text-xs text-muted-fg sm:flex-row sm:items-center">
             <span>© {new Date().getFullYear()} GhanaCrimes. All rights reserved.</span>
             <span className="flex flex-wrap gap-4">
+              <LiteModeToggle />
+              <Link href="/lite" className="hover:text-primary">Text-only</Link>
               <Link href="/editorial-policy" className="hover:text-primary">Editorial Policy</Link>
               <Link href="/corrections" className="hover:text-primary">Corrections</Link>
               <Link href="/privacy" className="hover:text-primary">Privacy</Link>

@@ -1,5 +1,4 @@
 import type { NextConfig } from 'next';
-import withPWA from '@ducanh2912/next-pwa';
 import fs from 'node:fs';
 
 async function makeIcons() {
@@ -66,9 +65,13 @@ const nextConfig: NextConfig = {
       { key: 'X-Content-Type-Options', value: 'nosniff' },
       { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
       { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), browsing-topics=()' },
-      { key: 'Content-Security-Policy', value: "frame-ancestors 'self' https://lovable.dev https://*.lovable.dev https://*.lovable.app https://*.lovableproject.com" },
       { key: 'Content-Security-Policy-Report-Only', value: "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://*.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org https://rscqxztgtpcifcqxjskh.supabase.co https://police.gov.gh https://*.police.gov.gh https://*.interpol.int https://*.google-analytics.com https://*.googletagmanager.com; font-src 'self' data:; connect-src 'self' https://rscqxztgtpcifcqxjskh.supabase.co wss://rscqxztgtpcifcqxjskh.supabase.co https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com; media-src 'self' https://rscqxztgtpcifcqxjskh.supabase.co; worker-src 'self' blob:; manifest-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; report-uri /api/csp-report" },
-    ] }];
+    ] },
+    { source: '/:path((?!embed/).*)', headers: [
+      { key: 'Content-Security-Policy', value: "frame-ancestors 'self' https://lovable.dev https://*.lovable.dev https://*.lovable.app https://*.lovableproject.com" },
+    ] },
+    { source: '/embed/:path*', headers: [{ key: 'Content-Security-Policy', value: 'frame-ancestors *' }] },
+    ];
   },
   outputFileTracingRoot: process.cwd(),
   // Lint runs separately (npm run lint); auto-generated files must not block deploys.
@@ -89,32 +92,8 @@ const nextConfig: NextConfig = {
   },
 };
 
+// The service worker is hand-written (public/sw.js: push + offline reading); next-pwa/Workbox is no longer used.
 export default async function config() {
   await makeIcons();
-  return withPWA({
-  dest: 'public',
-  disable: process.env.NODE_ENV === 'development',
-  workboxOptions: {
-    runtimeCaching: [
-      {
-        // NetworkFirst for Supabase REST API — 5-min TTL, 100 entries
-        urlPattern: /^https:\/\/rscqxztgtpcifcqxjskh\.supabase\.co\/rest\/v1\/.*/i,
-        handler: 'NetworkFirst',
-        options: {
-          cacheName: 'api-cache',
-          expiration: { maxEntries: 100, maxAgeSeconds: 60 * 5 },
-        },
-      },
-      {
-        // CacheFirst for Supabase Storage images — 7-day TTL, 100 entries
-        urlPattern: /^https:\/\/rscqxztgtpcifcqxjskh\.supabase\.co\/storage\/v1\/.*/i,
-        handler: 'CacheFirst',
-        options: {
-          cacheName: 'image-cache',
-          expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 7 },
-        },
-      },
-    ],
-  },
-  })(nextConfig);
+  return nextConfig;
 }

@@ -317,6 +317,7 @@ async function pingRecentlyPublished(env: any, ctx: any): Promise<void> {
   if (!res.ok) { console.error("IndexNow: article query failed", res.status); return; }
   const rows = (await res.json()) as { id: string; category_slug: string; article_slug: string; published_at: string }[];
   if (!rows.length) return;
+  if (rows.some((x) => x.published_at >= since)) ctx.waitUntil(sendPushAlerts(env).catch((e) => console.error("push failed", e)));
   const urls = rows.map((r) => `https://${CANONICAL_HOST}/${r.category_slug}/${r.article_slug}`);
   urls.push(`https://${CANONICAL_HOST}/`, `https://${CANONICAL_HOST}/latest`);
   console.log("IndexNow ping", urls.length, await pingIndexNow(urls));
@@ -330,5 +331,43 @@ async function pingRecentlyPublished(env: any, ctx: any): Promise<void> {
       const img: Response = await (handler as any).fetch(new Request(u.toString()), env, ctx);
       if (img.ok) await env.GC_OG.put(k, await img.arrayBuffer(), { expirationTtl: OG_TTL });
     } catch (e) { console.error("og prerender failed", r.id, e); }
+  }
+}
+
+// ---- Web push (payload-free VAPID): the service worker fetches /api/push/latest on each push. ----
+// Max 4 sends per London day, only when a new story was published in the last cron window.
+const VAPID_PUBLIC_KEY = "BNjdhkXSDckcdF7VuQVIDQ9XifEcqsHjjBNnsQJmKwAemtKv4af-cADXt96lQ3phKyvlwfK-lwOAxWj_S-I3C0w";
+const PUSH_DAILY_CAP = 4;
+const b64url = (b: ArrayBuffer | Uint8Array) => btoa(String.fromCharCode(...new Uint8Array(b as ArrayBuffer))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+async function vapidJwt(env: any, aud: string): Promise<string> {
+  const key = await crypto.subtle.importKey("jwk", JSON.parse(env.VAPID_PRIVATE_JWK), { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+  const enc = new TextEncoder();
+  const head = b64url(enc.encode(JSON.stringify({ typ: "JWT", alg: "ES256" })));
+  const body = b64url(enc.encode(JSON.stringify({ aud, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: "mailto:editor@ghanacrimes.com" })));
+  const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, enc.encode(`${head}.${body}`));
+  return `${head}.${body}.${b64url(sig)}`;
+}
+async function sendPushAlerts(env: any): Promise<void> {
+  if (!env.VAPID_PRIVATE_JWK || !env.GC_ALERT_SECRET || !env.GC_OG) return;
+  const day = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+  const capKey = `push-count:${day}`;
+  const sent = Number((await env.GC_OG.get(capKey)) || 0);
+  if (sent >= PUSH_DAILY_CAP) return;
+  const base = env.NEXT_PUBLIC_SUPABASE_URL, anon = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const rpc = (fn: string, body: unknown) => fetch(`${base}/rest/v1/rpc/${fn}`, { method: "POST",
+    headers: { apikey: anon, Authorization: `Bearer ${anon}`, "Content-Profile": "ghanacrimes", "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const res = await rpc("push_targets", { p_secret: env.GC_ALERT_SECRET });
+  if (!res.ok) { console.error("push_targets", res.status); return; }
+  const targets = (await res.json()) as { endpoint: string }[];
+  if (!targets.length) return;
+  await env.GC_OG.put(capKey, String(sent + 1), { expirationTtl: 2 * 86400 });
+  const jwts = new Map<string, string>();
+  for (const { endpoint } of targets.slice(0, 500)) {
+    try {
+      const aud = new URL(endpoint).origin;
+      if (!jwts.has(aud)) jwts.set(aud, await vapidJwt(env, aud));
+      const r = await fetch(endpoint, { method: "POST", headers: { TTL: "21600", Urgency: "high", Authorization: `vapid t=${jwts.get(aud)}, k=${VAPID_PUBLIC_KEY}` } });
+      if (r.status === 404 || r.status === 410 || r.status >= 400) await rpc("push_result", { p_secret: env.GC_ALERT_SECRET, p_endpoint: endpoint, p_status: r.status });
+    } catch (e) { console.error("push send", e); }
   }
 }
