@@ -168,3 +168,6 @@ grant execute on function ghanacrimes.report_worker_error(text, text, text) to a
 
 select cron.unschedule('ghanacrimes-notifications') where exists (select 1 from cron.job where jobname = 'ghanacrimes-notifications');
 select cron.schedule('ghanacrimes-notifications', '* * * * *', 'select ghanacrimes.send_pending_notifications()');
+
+-- Public reads go through fraud_accounts_public; anon no longer reads the base table (moderator notes stay private).
+revoke select on ghanacrimes.fraud_accounts from anon;
