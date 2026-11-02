@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Layout } from '@/components/Layout';
 import { createServerClient } from '@/lib/supabase/server';
+import { ilikeOrTerms } from '@/lib/postgrest-filter';
 import { getCategoryLabel } from '@/lib/categories';
 
 export const metadata: Metadata = { title: 'Search', robots: { index: false } };
@@ -10,7 +11,7 @@ type SP = Promise<{ q?: string }>;
 
 export default async function SearchPage({ searchParams }: { searchParams: SP }) {
   const { q = '' } = await searchParams;
-  const term = q.trim().slice(0, 100).replace(/[%_,()]/g, ' ');
+  const term = q.trim().slice(0, 100);
   let results: { id: string; title: string; summary: string; category_slug: string; article_slug: string }[] = [];
   if (term.length >= 2) {
     const supabase = createServerClient();
@@ -18,7 +19,7 @@ export default async function SearchPage({ searchParams }: { searchParams: SP })
       .from('articles')
       .select('id, title, summary, category_slug, article_slug')
       .eq('is_published', true)
-      .or(`title.ilike.%${term}%,summary.ilike.%${term}%`)
+      .or(ilikeOrTerms(['title', 'summary', 'body'], term))
       .order('published_at', { ascending: false })
       .limit(30);
     results = data ?? [];

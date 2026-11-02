@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { Layout } from '@/components/Layout';
 import { BASE_URL } from '@/lib/utils';
 import HomeView from '@/components/HomeView';
+import { DevelopingNow } from '@/components/DevelopingNow';
+import { NewsletterSignup } from '@/components/NewsletterSignup';
 import { JsonLd } from '@/components/JsonLd';
 import { getHomeArticles } from '@/lib/server-data';
 import { getMasthead, newsOrganizationJsonLd } from '@/lib/masthead';
@@ -49,7 +51,11 @@ export default async function Page() {
           },
         ]}
       />
+      <DevelopingNow />
       <HomeView initialArticles={initialArticles} />
+      <div className="mx-auto mt-14 max-w-2xl">
+        <NewsletterSignup />
+      </div>
     </Layout>
   );
 }

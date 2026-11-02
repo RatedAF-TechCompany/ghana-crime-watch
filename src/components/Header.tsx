@@ -35,7 +35,7 @@ const PRIMARY_NAV: { label: string; to: string }[] = [
 export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
   const isEmpty = useIsEmptySection();
   const [isAdmin, setIsAdmin] = useState(false);
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme: theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
 

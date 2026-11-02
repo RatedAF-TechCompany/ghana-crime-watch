@@ -19,10 +19,53 @@ const EDGE_REDIRECTS: Record<string, string> = {
   "/authors/ghanacrimes-data-desk": "/authors/ghanacrimes-newsroom",
   "/authors/ghanacrimes-desk": "/authors/ghanacrimes-newsroom",
   "/authors/ghanacrimes": "/authors/ghanacrimes-newsroom",
+  "/about-us": "/about",
 };
 
 export default {
   async fetch(request: Request, env: any, ctx: any): Promise<Response> {
+    try {
+      const res = await handleFetch(request, env, ctx);
+      if (res.status >= 500 && res.status !== 503) {
+        const u = new URL(request.url);
+        ctx.waitUntil(reportError(env, `HTTP ${res.status} ${u.pathname.split("/").slice(0, 2).join("/") || "/"}`,
+          `${request.method} ${u.pathname}${u.search}\nStatus: ${res.status}\nVersion: ${DEPLOY_ID}`));
+      }
+      return res;
+    } catch (e: any) {
+      const u = new URL(request.url);
+      ctx.waitUntil(reportError(env, `Exception ${String(e?.name || "Error")}: ${String(e?.message || e).slice(0, 80)}`,
+        `${request.method} ${u.pathname}${u.search}\nVersion: ${DEPLOY_ID}\n\n${String(e?.stack || e).slice(0, 4000)}`));
+      throw e;
+    }
+  },
+  // Every 15 min: ping IndexNow with articles published since the last run and pre-render their share cards.
+  async scheduled(_event: unknown, env: any, ctx: any): Promise<void> {
+    ctx.waitUntil(pingRecentlyPublished(env, ctx).catch((e) => reportError(env, `Cron ${String(e?.message || e).slice(0, 80)}`, String(e?.stack || e))));
+  },
+};
+
+// ---- Error alerts: email officeofnajib@gmail.com via the ghanacrimes.notifications queue (max 1 per type per hour) ----
+const errorSeen = new Map<string, number>(); // per-isolate pre-filter; the database enforces the hourly limit globally
+async function reportError(env: any, type: string, detail: string): Promise<void> {
+  try {
+    if (!env.GC_ALERT_SECRET) return;
+    const t = Date.now();
+    if ((errorSeen.get(type) ?? 0) > t - 3600_000) return;
+    if (errorSeen.size > 500) errorSeen.clear();
+    errorSeen.set(type, t);
+    console.error("reportError", type);
+    await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/report_worker_error`, {
+      method: "POST",
+      headers: { apikey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY, Authorization: `Bearer ${env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`, "Content-Profile": "ghanacrimes", "Content-Type": "application/json" },
+      body: JSON.stringify({ p_secret: env.GC_ALERT_SECRET, p_type: type, p_detail: detail }),
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch { /* alerting must never break a request */ }
+}
+
+async function handleFetch(request: Request, env: any, ctx: any): Promise<Response> {
+  {
     DEPLOY_ID ||= env.CF_VERSION_METADATA?.id || "";
     const url = new URL(request.url);
     if (REDIRECT_HOSTS.has(url.hostname) && (url.protocol === "http:" || url.hostname !== CANONICAL_HOST)) {
@@ -34,6 +77,15 @@ export default {
     const alias = EDGE_REDIRECTS[url.pathname.replace(/\/+$/, "") || "/"];
     if (alias && request.method === "GET") {
       return new Response(null, { status: 301, headers: { Location: `https://${CANONICAL_HOST}${alias}`, "Cache-Control": "public, max-age=86400" } });
+    }
+    // Category ?page=N duplicates page 1: send it to the real paginated URL (/cat/page/N).
+    if (request.method === "GET" && url.searchParams.has("page")) {
+      const seg = url.pathname.split("/").filter(Boolean);
+      const n = Number(url.searchParams.get("page"));
+      if (seg.length === 1 && isValidCategory(seg[0]) && Number.isInteger(n) && n >= 1 && n <= 10000) {
+        const target = n === 1 ? `/${seg[0]}` : `/${seg[0]}/page/${n}`;
+        return new Response(null, { status: 301, headers: { Location: `https://${CANONICAL_HOST}${target}`, "Cache-Control": "public, max-age=86400" } });
+      }
     }
     // Form pages read their query (?article=, ?type=) in the browser, so render and cache one copy.
     if (QUERY_FREE_PATHS.has(url.pathname) && url.search && request.method === "GET" && !request.headers.has("rsc")) {
@@ -48,12 +100,8 @@ export default {
     const fast = await fastArticle404(request, url, env, ctx);
     if (fast) return fast;
     return edgeCached(request, url, env, ctx);
-  },
-  // Every 15 min: ping IndexNow with articles published since the last run and pre-render their share cards.
-  async scheduled(_event: unknown, env: any, ctx: any): Promise<void> {
-    ctx.waitUntil(pingRecentlyPublished(env, ctx));
-  },
-};
+  }
+}
 
 // Edge HTML cache (free Cache API). Next SSR costs ~50-400ms CPU per page, which trips the Workers free-plan CPU
 // limit (error 1102). Serve anonymous GETs (HTML and RSC payloads) from the colo cache; refresh in the background once stale.

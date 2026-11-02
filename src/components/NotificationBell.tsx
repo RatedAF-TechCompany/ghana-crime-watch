@@ -38,9 +38,9 @@ export function NotificationBell() {
       return "Notifications blocked - enable in browser settings";
     }
     if (isSubscribed) {
-      return "Breaking news alerts enabled - click to disable";
+      return "Breaking-news alerts on while this tab is open - click to turn off";
     }
-    return "Get breaking news alerts";
+    return "Alert me to breaking news while this tab is open";
   };
 
   return (

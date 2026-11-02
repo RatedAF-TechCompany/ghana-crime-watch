@@ -44,7 +44,7 @@ export function useNotifications() {
       if (result === "granted") {
         localStorage.setItem("ghanacrimes_notifications", "true");
         setIsSubscribed(true);
-        toast.success("You'll now receive breaking news alerts!");
+        toast.success("Breaking-news alerts are on while a GhanaCrimes tab is open.");
         return true;
       } else if (result === "denied") {
         toast.error("Notifications blocked. Enable them in browser settings.");
@@ -101,7 +101,7 @@ export function useNotifications() {
         "postgres_changes",
         {
           event: "INSERT",
-          schema: "public",
+          schema: "ghanacrimes",
           table: "articles",
           filter: "is_published=eq.true",
         },

@@ -9,6 +9,7 @@ import { useTextToSpeech } from "@/hooks/use-text-to-speech";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CommentsSection } from "@/components/CommentsSection";
+import { NewsletterSignup } from "@/components/NewsletterSignup";
 import { SocialShareButtons } from "@/components/SocialShareButtons";
 import { FollowGhanaCrimes } from "@/components/FollowGhanaCrimes";
 import { formatArticleBody } from "@/lib/paragraphs";
@@ -330,6 +331,8 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
         </p>
       </div>
 
+
+      <div className="my-8"><NewsletterSignup /></div>
 
       {/* Calabashe Ad - always shown if enabled */}
       <div className="my-8">

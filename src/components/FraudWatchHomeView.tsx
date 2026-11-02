@@ -49,15 +49,15 @@ export default function FraudWatchHomeView() {
 
   const fetchDashboardData = async () => {
     const [accountsRes, latestRes, topViewedRes] = await Promise.all([
-      supabase.from("fraud_accounts").select("id, total_reported_loss, reports_count").neq("status", "Pending"),
+      supabase.from("fraud_accounts_public" as any).select("id, total_reported_loss, reports_count").neq("status", "Pending"),
       supabase
-        .from("fraud_accounts")
+        .from("fraud_accounts_public" as any)
         .select("id, account_name, account_handle, platform, status, reports_count, total_reported_loss, last_reported_at")
         .eq("status", "VerifiedScam")
         .order("last_reported_at", { ascending: false })
         .limit(6),
       supabase
-        .from("fraud_accounts")
+        .from("fraud_accounts_public" as any)
         .select("id, account_name, account_handle, platform, status, views_count, reports_count")
         .neq("status", "Pending")
         .order("views_count", { ascending: false })
@@ -65,8 +65,8 @@ export default function FraudWatchHomeView() {
     ]);
 
     if (accountsRes.data) {
-      const totalLoss = accountsRes.data.reduce((sum, a) => sum + (Number(a.total_reported_loss) || 0), 0);
-      const totalReports = accountsRes.data.reduce((sum, a) => sum + (Number(a.reports_count) || 0), 0);
+      const totalLoss = (accountsRes.data as any[]).reduce((sum: number, a: any) => sum + (Number(a.total_reported_loss) || 0), 0);
+      const totalReports = (accountsRes.data as any[]).reduce((sum: number, a: any) => sum + (Number(a.reports_count) || 0), 0);
       setStats({ accounts: accountsRes.data.length, reports: totalReports, totalLoss });
     }
     if (latestRes.data) setLatestScams(latestRes.data);
