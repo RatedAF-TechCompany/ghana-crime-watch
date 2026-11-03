@@ -78,11 +78,11 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
     <header className="w-full bg-background">
       {/* Main header row */}
       <div className="border-b border-border">
-        <div className="mx-auto flex min-w-0 max-w-editorial items-center justify-between gap-3 px-4 py-5 md:px-8 md:py-7">
+        <div className="mx-auto flex min-h-[70px] min-w-0 max-w-editorial items-center justify-between gap-3 px-4 py-2 md:px-8">
           {/* Left cluster: masthead + hamburger */}
           <div className="flex min-w-0 items-center gap-3">
             <Link href="/" className="block min-w-0">
-              <img src="/brand/ghanacrimes-logo.png" alt="GhanaCrimes" width={600} height={200} className="block h-10 w-auto md:h-14 max-w-full rounded-sm" />
+              <img src="/brand/ghanacrimes-logo.png" alt="GhanaCrimes" width={600} height={200} className="block h-10 w-auto max-w-full rounded-sm md:h-12" />
             </Link>
             <Button
               variant="ghost"
@@ -103,8 +103,8 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
                   <Link
                     href={item.to}
                     className={cn(
-                      "whitespace-nowrap font-sans text-[13px] font-medium tracking-[0.02em] text-foreground/85 hover:text-primary",
-                      pathname === item.to && "text-primary",
+                      "whitespace-nowrap font-sans text-sm font-normal tracking-normal text-foreground hover:opacity-70",
+                      pathname === item.to && "underline decoration-brand decoration-2 underline-offset-[6px]",
                     )}
                   >
                     {item.label}
@@ -147,6 +147,7 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
           </div>
         </div>
       </div>
+      <div className="h-1 w-full bg-brand" aria-hidden />
     </header>
   );
 }

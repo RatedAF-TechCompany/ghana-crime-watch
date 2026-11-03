@@ -2,106 +2,116 @@
 @tailwind components;
 @tailwind utilities;
 
-/* GhanaCrimes editorial magazine design system. Spectator-inspired. HSL tokens only. */
+/* GhanaCrimes visual system blended with the Oxygen true-crime site:
+   white field, #141414 ink, #ffef00 brand yellow, Roboto Condensed headlines,
+   Source Sans body. HSL channel tokens only. */
 
 @layer base {
   :root {
-    --background: 44 60% 98%;             /* #fffdf8 cream */
-    --foreground: 0 0% 9%;                /* #161616 */
+    --background: 0 0% 100%;              /* #ffffff */
+    --foreground: 0 0% 8%;                /* #141414 */
 
-    --card: 0 0% 100%;                    /* #ffffff paper */
-    --card-foreground: 0 0% 9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 8%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 9%;
+    --popover-foreground: 0 0% 8%;
 
-    --primary: 355 86% 37%;               /* #b20d18 masthead red */
+    --primary: 0 0% 8%;                   /* ink; yellow is --brand so text stays readable */
     --primary-foreground: 0 0% 100%;
 
-    --primary-deep: 355 76% 35%;          /* #9f151f deep red */
+    --primary-deep: 0 0% 0%;
 
-    --secondary: 0 0% 0%;
+    --secondary: 0 0% 8%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 40 25% 95%;
-    --muted-foreground: 32 6% 42%;        /* #6f6a64 */
+    --muted: 0 0% 96%;                    /* #f5f5f5 */
+    --muted-foreground: 0 0% 42%;
 
-    --accent: 355 86% 37%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 8%;
 
-    --destructive: 355 86% 37%;
+    --destructive: 0 72% 46%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 33 26% 87%;                 /* #e5ded6 hairline */
-    --input: 33 26% 87%;
-    --ring: 355 86% 37%;
+    --border: 0 0% 90%;                   /* #e6e6e6 */
+    --input: 0 0% 90%;
+    --ring: 56 100% 50%;                  /* #ffef00 */
 
-    --pale-rule: 33 22% 80%;              /* #d8cfc4 */
-    --info-blue: 206 63% 27%;             /* #174b73 */
-    --subscribe-yellow: 51 100% 50%;      /* #ffd800 */
-    --dark-panel: 0 0% 12%;               /* #1f1f1f */
-    --footer-cream: 39 33% 94%;           /* #f5f1ea */
+    --brand: 56 100% 50%;                 /* #ffef00 logo / CTA yellow */
+    --pale-rule: 0 0% 90%;
+    --info-blue: 206 63% 27%;
+    --subscribe-yellow: 56 100% 50%;
+    --dark-panel: 0 0% 8%;                /* #141414 */
+    --footer-cream: 0 0% 7%;              /* #111111 */
 
-    --radius: 0rem;
+    --radius: 0.25rem;
 
-    --sidebar-background: 44 60% 98%;
-    --sidebar-foreground: 0 0% 9%;
-    --sidebar-primary: 355 86% 37%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 8%;
+    --sidebar-primary: 0 0% 8%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 40 25% 95%;
-    --sidebar-accent-foreground: 0 0% 9%;
-    --sidebar-border: 33 26% 87%;
-    --sidebar-ring: 355 86% 37%;
+    --sidebar-accent: 0 0% 96%;
+    --sidebar-accent-foreground: 0 0% 8%;
+    --sidebar-border: 0 0% 90%;
+    --sidebar-ring: 56 100% 50%;
   }
 
   .dark {
-    --background: 0 0% 8%;
-    --foreground: 40 30% 94%;
-    --card: 0 0% 11%;
-    --card-foreground: 40 30% 94%;
-    --popover: 0 0% 11%;
-    --popover-foreground: 40 30% 94%;
-    --primary: 355 86% 55%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 0%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 0 0% 15%;
-    --muted-foreground: 40 15% 70%;
-    --accent: 355 86% 55%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 355 86% 55%;
+    --background: 0 0% 7%;
+    --foreground: 0 0% 96%;
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 96%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 96%;
+    --primary: 0 0% 96%;
+    --primary-foreground: 0 0% 8%;
+    --secondary: 0 0% 16%;
+    --secondary-foreground: 0 0% 96%;
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 70%;
+    --accent: 0 0% 16%;
+    --accent-foreground: 0 0% 96%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 22%;
-    --input: 0 0% 22%;
-    --ring: 355 86% 55%;
-    --pale-rule: 0 0% 25%;
-    --footer-cream: 0 0% 10%;
-    --sidebar-background: 0 0% 8%;
-    --sidebar-foreground: 40 30% 94%;
-    --sidebar-primary: 355 86% 55%;
-    --sidebar-primary-foreground: 0 0% 100%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 56 100% 50%;
+    --brand: 56 100% 50%;
+    --pale-rule: 0 0% 22%;
+    --footer-cream: 0 0% 5%;
+    --sidebar-background: 0 0% 7%;
+    --sidebar-foreground: 0 0% 96%;
+    --sidebar-primary: 56 100% 50%;
+    --sidebar-primary-foreground: 0 0% 8%;
     --sidebar-accent: 0 0% 14%;
-    --sidebar-accent-foreground: 40 30% 94%;
-    --sidebar-border: 0 0% 22%;
-    --sidebar-ring: 355 86% 55%;
+    --sidebar-accent-foreground: 0 0% 96%;
+    --sidebar-border: 0 0% 20%;
+    --sidebar-ring: 56 100% 50%;
   }
 }
 
 @layer base {
   * { @apply border-border; }
 
+  html {
+    --font-lora: var(--font-inter);
+    --font-cormorant: var(--font-baskerville);
+  }
+
   body {
     @apply bg-background text-foreground;
     overflow-x: hidden;
-    font-family: var(--font-lora), Georgia, 'Times New Roman', serif;
+    font-family: var(--font-inter), "Source Sans 3", Helvetica, Arial, sans-serif;
+    font-weight: 400;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-baskerville), Georgia, 'Times New Roman', serif;
+    font-family: var(--font-baskerville), "Roboto Condensed", Helvetica, Arial, sans-serif;
     font-weight: 700;
-    letter-spacing: -0.005em;
+    letter-spacing: -0.02em;
     color: hsl(var(--foreground));
   }
 
@@ -109,52 +119,40 @@
 }
 
 @layer components {
-  /* Masthead — elegant high-contrast serif */
-  .masthead-word {
-    font-family: var(--font-cormorant), Georgia, serif;
-    font-weight: 600;
-    color: hsl(var(--primary));
-    letter-spacing: -0.03em;
-    line-height: 0.9;
-  }
-
-  /* Small red serif label with optional arrow icon */
-  .section-heading {
-    font-family: var(--font-baskerville), Georgia, serif;
+  /* Condensed section title: 24px / 700 / -0.11px, matching the reference homepage headings */
+  .masthead-word,
+  .section-heading,
+  .section-title-serif,
+  .ox-section-title {
+    font-family: var(--font-baskerville), "Roboto Condensed", Helvetica, Arial, sans-serif;
     font-weight: 700;
-    line-height: 1;
-    color: hsl(var(--primary));
-    font-size: 15px;
-    letter-spacing: 0.01em;
-  }
-
-  /* Centred serif section title, Spectator-style */
-  .section-title-serif {
-    font-family: var(--font-baskerville), Georgia, serif;
-    font-weight: 400;
-    font-size: 28px;
-    line-height: 1;
+    font-size: 24px;
+    line-height: 28px;
+    letter-spacing: -0.11px;
+    text-transform: capitalize;
     color: hsl(var(--foreground));
-    letter-spacing: -0.005em;
   }
 
-  /* Story headline */
   .story-title {
-    font-family: var(--font-baskerville), Georgia, serif;
+    font-family: var(--font-baskerville), "Roboto Condensed", Helvetica, Arial, sans-serif;
     font-weight: 700;
     line-height: 1.15;
+    letter-spacing: -0.02em;
     color: hsl(var(--foreground));
-    letter-spacing: -0.005em;
   }
 
-  /* Italic red author/category kicker */
-  .author-italic-red {
-    font-family: var(--font-baskerville), Georgia, serif;
-    font-style: italic;
-    font-weight: 400;
-    color: hsl(var(--primary));
-    font-size: 15px;
-    line-height: 1.2;
+  /* Uppercase category kicker on cards */
+  .author-italic-red,
+  .card-kicker {
+    margin: 0 0 4px;
+    font-family: var(--font-inter), "Source Sans 3", Helvetica, Arial, sans-serif;
+    font-style: normal;
+    font-weight: 600;
+    font-size: 12px;
+    line-height: 16px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: hsl(var(--foreground));
   }
 
   .meta-sans {
@@ -175,8 +173,8 @@
   }
 
   .pale-rank-number {
-    font-family: var(--font-baskerville), Georgia, serif;
-    font-weight: 400;
+    font-family: var(--font-baskerville), "Roboto Condensed", Helvetica, Arial, sans-serif;
+    font-weight: 700;
     color: hsl(0 0% 78%);
     font-size: 36px;
     line-height: 1;
@@ -184,21 +182,14 @@
   }
   .most-read-number { @apply pale-rank-number; }
 
-  /* Decorative long hatched rule above sections */
+  /* Brand bar in place of the old hatched rule */
   .hatched-rule {
-    height: 14px;
-    background-image: repeating-linear-gradient(
-      -60deg,
-      hsl(var(--foreground) / 0.6) 0,
-      hsl(var(--foreground) / 0.6) 1px,
-      transparent 1px,
-      transparent 7px
-    );
+    height: 4px;
+    background: hsl(var(--brand));
   }
 
-  /* Red double rule */
   .red-double-rule {
-    border-top: 3px double hsl(var(--primary));
+    border-top: 2px solid hsl(var(--foreground));
   }
 
   .hairline { border-top: 1px solid hsl(var(--border)); }
@@ -207,7 +198,21 @@
 
   /* Kept for legacy usage in older components */
   .kicker-italic { @apply author-italic-red; }
-  .section-rule { border-top: 1px solid hsl(var(--primary)); }
+  .section-rule { border-top: 4px solid hsl(var(--brand)); }
+
+  .ox-rail {
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+  .ox-rail > li { scroll-snap-align: start; }
+  .ox-rail:focus-visible {
+    outline: 2px solid hsl(var(--brand));
+    outline-offset: 4px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ox-rail { scroll-behavior: auto; }
+  }
 
   /* Pill buttons in header */
   .pill-outline-black {
@@ -257,16 +262,17 @@
 
   /* Article body typography */
   .article-body {
-    font-family: var(--font-lora), Georgia, 'Times New Roman', serif;
-    font-size: 19px;
-    line-height: 1.65;
+    font-family: var(--font-inter), "Source Sans 3", Helvetica, Arial, sans-serif;
+    font-size: 18px;
+    font-weight: 400;
+    line-height: 1.55;
   }
   .article-body p { margin-bottom: 1.15em; }
   .article-body p:last-child { margin-bottom: 0; }
   .article-body h2,
   .article-body h3,
   .article-body h4 {
-    font-family: var(--font-baskerville), Georgia, serif;
+    font-family: var(--font-baskerville), "Roboto Condensed", Helvetica, Arial, sans-serif;
     margin-top: 1.6em;
     margin-bottom: 0.6em;
   }
@@ -277,7 +283,7 @@
   }
   .article-body li { margin-bottom: 0.5em; }
   .article-body mark {
-    background: linear-gradient(180deg, transparent 60%, hsl(var(--primary) / 0.2) 60%);
+    background: linear-gradient(180deg, transparent 60%, hsl(var(--brand) / 0.7) 60%);
     padding: 0 2px;
     color: inherit;
   }

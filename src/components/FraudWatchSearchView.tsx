@@ -123,7 +123,7 @@ export default function FraudWatchSearchView() {
               placeholder="Search by name, handle, phone number or link..."
               className="bg-white/10 border-white/20 text-primary-foreground placeholder:text-primary-foreground/50 flex-1 h-11"
             />
-            <Button type="submit" variant="secondary" className="h-11 shrink-0">
+            <Button type="submit" className="h-11 shrink-0">
               <Search className="h-4 w-4 mr-2" />
               Search
             </Button>

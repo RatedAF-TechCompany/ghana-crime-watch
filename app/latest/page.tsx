@@ -4,6 +4,7 @@ import { Layout } from '@/components/Layout';
 import { BASE_URL } from '@/lib/utils';
 import { getLatestWire } from '@/lib/server-data';
 import { WireList } from '@/components/WireList';
+import { ArticleCardRail } from '@/components/ArticleCardRail';
 import { AutoRefresh } from '@/components/AutoRefresh';
 
 export const revalidate = 60;
@@ -22,17 +23,22 @@ export default async function Page() {
       <div className="mx-auto max-w-3xl">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="mb-1 flex items-center gap-2 font-sans text-xs font-bold uppercase tracking-[0.16em] text-primary">
-              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-primary" aria-hidden /> Live crime wire
+            <p className="card-kicker mb-1 flex items-center gap-2">
+              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-brand" aria-hidden /> Live crime wire
             </p>
-            <h1 className="font-serif text-3xl font-bold md:text-4xl">Latest Ghana crime news</h1>
+            <h1 className="font-headline text-3xl font-bold tracking-tight md:text-4xl">Latest Ghana crime news</h1>
             <p className="mt-2 font-body text-sm text-muted-foreground">Every new story, newest first. This page refreshes itself every minute. Everyone charged is presumed innocent unless a court finds otherwise.</p>
           </div>
           <div className="flex gap-3 font-sans text-sm">
             <Link href="/latest/rss.xml" className="underline underline-offset-2">RSS</Link>
-            <Link href="/tips" className="font-semibold text-primary underline underline-offset-2">Send us a tip</Link>
+            <Link href="/tips" className="font-semibold underline underline-offset-2">Send us a tip</Link>
           </div>
         </div>
+        {items.length > 0 && (
+          <div className="mb-10">
+            <ArticleCardRail title="Latest stories" articles={items.slice(0, 12)} moreHref="/top-stories" />
+          </div>
+        )}
         <WireList items={items} />
       </div>
     </Layout>

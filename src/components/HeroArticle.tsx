@@ -7,7 +7,7 @@ interface HeroArticleProps {
   article: {
     id: string;
     title: string;
-    summary: string;
+    summary?: string | null;
     body?: string;
     category_slug: string;
     article_slug: string;
@@ -19,33 +19,44 @@ interface HeroArticleProps {
 export function HeroArticle({ article }: HeroArticleProps) {
   const categoryLabel = getCategoryLabel(article.category_slug);
   const publishedTime = getPublishedTime(article.published_at);
+  const imageUrl = getArticleImage(article);
+  const summary = (article.summary || "").trim();
 
   return (
     <Link
       href={`/${article.category_slug}/${article.article_slug}`}
-      className="group block"
+      className="group block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ffef00]"
     >
-      <article className="text-center">
-        {/* Italic red byline above headline */}
-        <p className="author-italic-red mb-3">GhanaCrimes Newsroom</p>
-
-        <h2 className="story-title mx-auto max-w-[520px] text-[30px] leading-[1.08] sm:text-[38px] lg:text-[44px] group-hover:text-primary">
-          {article.title}
-        </h2>
-
-        {(() => {
-          const img = getArticleImage(article);
-          return img ? (
-            <div className="mt-4 aspect-[4/5] w-full overflow-hidden">
-              <img src={img} alt={article.title} className="h-full w-full object-cover" />
-            </div>
-          ) : null;
-        })()}
-
-        <div className="mt-4 meta-text">
-          <span className="cat">{categoryLabel}</span>
-          <span className="mx-1.5">|</span>
-          <time dateTime={article.published_at}>{publishedTime}</time>
+      <article className="relative overflow-hidden rounded-[30px] bg-[#141414] text-white">
+        <div className={imageUrl ? "relative aspect-video w-full" : "relative"}>
+          {imageUrl && (
+            <img
+              src={imageUrl}
+              alt=""
+              className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+            />
+          )}
+          {imageUrl && <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-black/20" />}
+          <div className={imageUrl
+            ? "absolute inset-x-0 bottom-0 z-[1] flex flex-col items-start p-5 sm:p-8 md:max-w-4xl md:p-10"
+            : "relative z-[1] flex flex-col items-start p-6 sm:p-8 md:max-w-4xl md:p-10"}>
+            <p className="mb-3 inline-block bg-[#ffef00] px-2 py-0.5 font-sans text-[12px] font-semibold uppercase leading-4 tracking-[0.08em] text-[#141414]">
+              {categoryLabel}
+            </p>
+            <h2 className="font-headline text-[28px] font-bold leading-[1.1] tracking-[-0.02em] text-white transition-opacity duration-200 group-hover:opacity-80 sm:text-[36px] lg:text-[42px]">
+              {article.title}
+            </h2>
+            {summary && (
+              <p className="mt-3 line-clamp-2 max-w-2xl font-sans text-[15px] font-light leading-snug text-white/85">
+                {summary}
+              </p>
+            )}
+            {publishedTime && (
+              <time dateTime={article.published_at} className="mt-3 font-sans text-sm font-light text-white/75">
+                {publishedTime}
+              </time>
+            )}
+          </div>
         </div>
       </article>
     </Link>
