@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { getRelativeTime } from '@/lib/time';
+import { getAdminRelativeTime } from '@/lib/time';
 import { ArrowLeft, ChevronDown, Send, Twitter } from 'lucide-react';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
@@ -249,7 +249,7 @@ export default function ThreadUpdatesView({ threadId }: { threadId: string }) {
                     <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground">{getRelativeTime(update.published_at)}</p>
+                <p className="text-xs text-muted-foreground">{getAdminRelativeTime(update.published_at)}</p>
                 {isExpanded && (
                   <p className="mt-3 whitespace-pre-wrap border-t pt-3 text-sm">{update.body}</p>
                 )}

@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Play, RefreshCw, Newspaper, Clock, CheckCircle, XCircle, AlertCircle, Radio } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getRelativeTime } from '@/lib/time';
+import { getAdminRelativeTime } from '@/lib/time';
 import type { Tables } from '@/integrations/supabase/types';
 
 type NewsroomRun = Tables<'newsroom_runs'>;
@@ -318,7 +318,7 @@ export default function NewsroomView() {
                             </div>
                           </TableCell>
                           <TableCell className="capitalize">{run.trigger_type}</TableCell>
-                          <TableCell>{getRelativeTime(run.started_at)}</TableCell>
+                          <TableCell>{getAdminRelativeTime(run.started_at)}</TableCell>
                           <TableCell>
                             {run.completed_at
                               ? `${Math.round((new Date(run.completed_at).getTime() - new Date(run.started_at).getTime()) / 1000)}s`

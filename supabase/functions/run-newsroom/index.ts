@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "../_shared/sb.ts";
 import { AiCreditError, callGateway, newUsage, parseJson, type AiUsage } from "../_shared/ai-usage.ts";
+import { ALL_CATEGORY_SLUGS, EDITOR_CATEGORY_PROMPT, EDITOR_CATEGORY_SLUGS, toEditorCategory } from "../_shared/categories.ts";
+import { STANDING_EDITOR_RULES } from "../_shared/editor-prompt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -572,13 +574,7 @@ function filterCrimeItems(items: any[], maxAgeHours: number): any[] {
 }
 
 // Valid categories that match the database CHECK constraint
-const VALID_CATEGORIES = [
-  "top-stories", "violent-crime", "property-crime", "cybercrime",
-  "fraud-scams", "drug-offences", "domestic-violence", "traffic-offences",
-  "youth-crime", "organised-crime", "white-collar-crime", "police-reports",
-  "court-cases", "prison-news", "crime-prevention", "crime-statistics",
-  "investigations", "most-wanted"
-];
+const VALID_CATEGORIES: string[] = ALL_CATEGORY_SLUGS; // single source: _shared/categories.ts
 
 // Map AI-generated categories to valid ones
 const CATEGORY_MAPPING: Record<string, string> = {
@@ -770,7 +766,7 @@ serve(async (req) => {
 Time: ${new Date().toISOString()}. Return only crime news published within the last 20 hours FROM GHANA (or directly involving Ghanaian citizens/institutions/law enforcement).
 Only extract: arrests, court cases, sentencing, police investigations, fraud, scams, robbery, murder, assault, defilement, cybercrime, drug seizures, money laundering, corruption charges, human trafficking, kidnapping, prison news, security operations, most wanted notices. Discard opinion, politics without charges, or crimes outside Ghana.
 
-Return ONE JSON object: {"items":[{"source_name":"...","original_headline":"...","original_summary":"1-2 sentences","source_url":"real url","category_hint":"one of: ${VALID_CATEGORIES.join(", ")}","estimated_date":"YYYY-MM-DD"}...]}. 5-15 items.`;
+Return ONE JSON object: {"items":[{"source_name":"...","original_headline":"...","original_summary":"1-2 sentences","source_url":"real url","category_hint":"one of: ${EDITOR_CATEGORY_SLUGS.join(", ")}","estimated_date":"YYYY-MM-DD"}...]}. 5-15 items.`;
 
         try {
           const { content } = await callGateway(lovableApiKey, usage, {
@@ -1345,14 +1341,12 @@ Do not speculate.
 Do not repeat the same fact twice.
 Do not hedge excessively.
 Do not use filler language.
-Respect presumption of innocence.
-
-If details such as exact cause or damage are unknown, state once plainly. For example:
-"The cause of the fire is under investigation."
+Keep "alleged", "suspected", "charged", "remanded" wording until conviction. Never close with a presumption sentence.
+If a detail is unknown, leave it out. Never write a sentence that only says something is unknown or unreported.
 
 Do not write phrases like "Reports indicate", "Information was not immediately available", or "Efforts are ongoing".
 
-The reading level must be understandable by a 10 year old.
+Short sentences. Plain words.
 The tone must be calm, precise, and authoritative, like a professional wire service.
 
 ---
@@ -1369,10 +1363,12 @@ summary
 Plain English. Max 500 characters.
 
 body
-6 to 10 HTML paragraphs using <p> tags.
-Each paragraph 2 to 4 short sentences.
-Must include source attribution inside paragraphs using official sources only.
-Explain clearly: What happened, Where, When, Who was involved, What authorities said, What legal action follows, Why it matters.
+3 to 6 short HTML <p> paragraphs, 80 to 160 words in total. Paragraph 1 leads with the number or name and does not restate the headline.
+Each paragraph adds one new fact. Attribute to official sources only. Never name, link or credit a news outlet.
+If there are fewer than 80 words of distinct facts, return body = "".
+
+primary_source
+The official body the facts come from (e.g. "Ashanti Regional Police Command"). Never an outlet. "" if none.
 Never use colons, long dashes, bullet points, emojis, hashtags, or URLs inside the body.
 
 seo_description
@@ -1382,7 +1378,7 @@ slug
 Lowercase with hyphens.
 
 section
-Choose from: ${VALID_CATEGORIES.join(", ")}.
+Choose from: ${EDITOR_CATEGORY_SLUGS.join(", ")}.
 
 tags
 Array including location, agency, crime type, key individuals.
@@ -1395,7 +1391,6 @@ Every tweet must have a clear subject and verb. Use forms like:
 - "Police have arrested..."
 - "A court has remanded..."
 - "Authorities have seized..."
-- "A suspect has been charged..."
 Use active voice. No hashtags. No emojis. No links. No ellipsis. No long dashes.
 Good examples:
 - "Police have arrested five suspects in a galamsey crackdown in the Ashanti Region."
@@ -1440,7 +1435,7 @@ Return ONLY valid JSON with exactly these keys:
         try {
           const runArticleGen = async (maxTokens: number) => {
             const { content: c } = await callGateway(lovableApiKey, usage, {
-              system: "You are the GhanaCrimes Automated Newsroom Engine. You are a senior investigative crime editor. You write in clear, simple English that a 10 year old can understand, while maintaining professional newsroom standards. You do not mention or promote other media outlets. You do not narrate your verification process. You do not hedge excessively. You do not repeat facts. You do not use filler language. Return only valid JSON. Never use colons, long dashes, bullet points, emojis, hashtags, URLs, or media outlet names.",
+              system: "You are the GhanaCrimes Automated Newsroom Engine. You are a senior investigative crime editor. You write short sentences in plain words, to professional newsroom standards. You do not mention or promote other media outlets. You do not narrate your verification process. You do not hedge excessively. You do not repeat facts. You do not use filler language. Return only valid JSON. Never use colons, long dashes, bullet points, emojis, hashtags, URLs, or media outlet names.\n\n" + STANDING_EDITOR_RULES,
               user: articlePrompt,
               max_tokens: maxTokens,
               temperature: 0.4,

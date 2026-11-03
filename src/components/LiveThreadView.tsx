@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "dompurify";
 import { supabase } from "@/integrations/supabase/client";
-import { getAbsoluteTime, getRelativeTime, isRecent } from "@/lib/time";
+import { getAbsoluteTime, getRelativeTime, getStamp, isRecent } from "@/lib/time";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LiveDevelopingPill } from "@/components/LiveDevelopingPill";
@@ -195,7 +195,7 @@ export default function LiveThreadView({ threadSlug }: { threadSlug: string }) {
 
       {newestPublishedAt && (
         <p className="mt-2 text-xs uppercase tracking-[0.1em] text-muted-fg">
-          Last updated: {getRelativeTime(newestPublishedAt)}
+          Last updated: {getStamp(newestPublishedAt)}
         </p>
       )}
 

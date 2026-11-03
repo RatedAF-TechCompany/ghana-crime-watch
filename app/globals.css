@@ -284,7 +284,7 @@
   .article-body li { margin-bottom: 0.5em; }
   .article-body mark {
     background: linear-gradient(180deg, transparent 60%, hsl(var(--brand) / 0.7) 60%);
-    padding: 0 2px;
+    padding: 0; /* no padding: it split \"GH¢18.7m\" and \"7:26pm\" */
     color: inherit;
   }
 }

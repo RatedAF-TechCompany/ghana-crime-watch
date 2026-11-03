@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { getRelativeTime } from '@/lib/time';
+import { getAdminRelativeTime } from '@/lib/time';
 
 type PostedArticle = {
   id: string;
@@ -159,7 +159,7 @@ export default function AutopostView() {
           <div>
             <CardTitle className="font-serif">Controls</CardTitle>
             <p className="text-xs text-muted-foreground mt-1">
-              Last run {latestLog ? getRelativeTime(latestLog.run_time) : 'never'} · Status{' '}
+              Last run {latestLog ? getAdminRelativeTime(latestLog.run_time) : 'never'} · Status{' '}
               <Badge variant={latestLog ? statusVariant(latestLog.status) : 'outline'}>{latestLog?.status ?? 'idle'}</Badge>
             </p>
           </div>
@@ -219,7 +219,7 @@ export default function AutopostView() {
                   className="underline"
                 >View on X</a>
               )}
-              <span>{getRelativeTime(latestPost.created_at)}</span>
+              <span>{getAdminRelativeTime(latestPost.created_at)}</span>
               {latestPost.error_message && <span className="text-destructive">{latestPost.error_message}</span>}
             </div>
           </CardContent>
@@ -241,7 +241,7 @@ export default function AutopostView() {
             <TableBody>
               {posts.map(p => (
                 <TableRow key={p.id}>
-                  <TableCell className="text-xs whitespace-nowrap">{getRelativeTime(p.created_at)}</TableCell>
+                  <TableCell className="text-xs whitespace-nowrap">{getAdminRelativeTime(p.created_at)}</TableCell>
                   <TableCell className="max-w-xs">
                     <a href={p.article_url} target="_blank" rel="noreferrer" className="text-sm underline">
                       {p.article_title}
@@ -284,7 +284,7 @@ export default function AutopostView() {
             <TableBody>
               {logs.map(l => (
                 <TableRow key={l.id}>
-                  <TableCell className="text-xs whitespace-nowrap">{getRelativeTime(l.run_time)}</TableCell>
+                  <TableCell className="text-xs whitespace-nowrap">{getAdminRelativeTime(l.run_time)}</TableCell>
                   <TableCell><Badge variant={statusVariant(l.status)}>{l.status}</Badge></TableCell>
                   <TableCell className="text-xs text-muted-foreground whitespace-pre-wrap break-words max-w-xl">{l.message}</TableCell>
                 </TableRow>

@@ -1,10 +1,6 @@
-'use client';
-import { useEffect, useState } from 'react';
-import { relTime } from '@/lib/crime-labels';
+import { formatPublished } from '@/lib/article-meta';
 
-/** "12 mins ago", re-rendered every 30s. Server renders the same text at request time. */
+/** Public timestamp: "Published 3 Nov 2026, 14:05 GMT" (UK time, GMT/BST). Never relative. */
 export function RelativeTime({ iso, className }: { iso: string; className?: string }) {
-  const [now, setNow] = useState<number>(() => Date.now());
-  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(t); }, []);
-  return <time dateTime={iso} suppressHydrationWarning className={className} title={new Date(iso).toUTCString()}>{relTime(iso, now)}</time>;
+  return <time dateTime={iso} className={className}>{formatPublished(iso)}</time>;
 }

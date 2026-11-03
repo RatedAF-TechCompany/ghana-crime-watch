@@ -135,13 +135,15 @@ export const getArticleContext = cache(async (a: ArticleCtx, topicTerms: readonl
   const thread = await threadP;
   const siblings = thread?.[1].data ?? [];
   const exclude = new Set<string>(siblings.map((s) => s.id));
-  const related: typeof siblings = [];
-  for (const r of [...nearRows.flat().sort((x, y) => (y.published_at ?? '').localeCompare(x.published_at ?? '')), ...(sameCat ?? [])]) {
-    if (related.length >= 6) break;
-    if (exclude.has(r.id)) continue;
-    exclude.add(r.id);
-    related.push(r);
-  }
+  // Related: 3-5 stories, newest first, no near-duplicates (same first 8 title words) of this story or each other.
+  const norm = (t?: string | null) => (t ?? '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(Boolean).slice(0, 8).join(' ');
+  const seenT = new Set<string>([norm(a.title)]);
+  let related = [...nearRows.flat(), ...(sameCat ?? [])]
+    .filter((r) => { if (exclude.has(r.id)) return false; exclude.add(r.id); return true; })
+    .filter((r) => { const k = norm(r.title); if (seenT.has(k)) return false; seenT.add(k); return true; })
+    .sort((x, y) => (y.published_at ?? '').localeCompare(x.published_at ?? ''))
+    .slice(0, 5);
+  if (related.length < 3) related = [];
   return { thread: thread?.[0].data ?? null, siblings, related };
 });
 

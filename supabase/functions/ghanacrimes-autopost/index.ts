@@ -127,7 +127,7 @@ function classifyStory(text: string, publishedAt: string | null): StoryType {
   return "generic";
 }
 
-const CTAS = ["Full story:", "What we know:", "Details:", "The full report:"];
+const CTAS = ["Full story:", "Details:"];
 function pickCta(seed: string): string {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;

@@ -10,6 +10,7 @@ import { OG_HEIGHT, OG_WIDTH, articleModified, articleSocialImage, clipAtWord, a
 import { publisherRef, getMasthead } from '@/lib/masthead';
 import { bylineAuthor, displayByline } from '@/lib/authors';
 import { formatHearing, getCaseForArticle } from '@/lib/court-cases';
+import { primarySource, publicArticle, stripOutlets } from '@/lib/no-outlet';
 
 export const revalidate = 300;
 export const dynamicParams = true;
@@ -64,7 +65,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   }
 
   const title = articleTitleText(article);
-  const description = metaDescription(article.seo_description, article.summary);
+  const description = stripOutlets(metaDescription(article.seo_description, article.summary) ?? '');
   const socialImage = imageMeta(article);
   const canonical = `${BASE_URL}/${categorySlug}/${articleSlug}`;
 
@@ -124,7 +125,7 @@ export default async function ArticlePage({ params }: { params: Params }) {
             '@context': 'https://schema.org',
             '@type': 'NewsArticle',
             headline: clipAtWord(title, 110),
-            description: article.seo_description || article.summary,
+            description: stripOutlets(article.seo_description || article.summary || ''),
             image: jsonLdImages(article, img),
             datePublished: article.published_at,
             dateModified: articleModified(article),
@@ -137,7 +138,6 @@ export default async function ArticlePage({ params }: { params: Params }) {
             articleSection: getCategoryLabel(categorySlug),
             inLanguage: 'en-GH',
             mainEntityOfPage: { '@type': 'WebPage', '@id': canonical },
-            ...(article.source_url ? { isBasedOn: article.source_url } : {}),
           },
           {
             '@context': 'https://schema.org',
@@ -155,14 +155,14 @@ export default async function ArticlePage({ params }: { params: Params }) {
           },
         ]}
       />
-      <ArticleView categorySlug={categorySlug} articleSlug={articleSlug} initialArticle={article} thread={ctx.thread} authorHref={author?.href} updates={await getStoryUpdates(article.id)}>
+      <ArticleView categorySlug={categorySlug} articleSlug={articleSlug} initialArticle={publicArticle(article)} primarySource={primarySource(article)} thread={ctx.thread} authorHref={author?.href} updates={(await getStoryUpdates(article.id)).map(({ sources: _s, ...u }: any) => ({ ...u, summary: stripOutlets(u.summary ?? ''), body_md: u.body_md ? stripOutlets(u.body_md) : u.body_md }))}>
         {later.length > 0 && <LinkList title="What happened next" rows={later as LinkRow[]} />}
         {courtCase && (
           <section className="mt-8 rounded-md border border-border bg-card p-4 font-sans text-sm">
             <h2 className="font-headline text-lg font-bold text-foreground">Case tracker</h2>
             {courtCase.c.next_hearing && courtCase.c.next_hearing >= new Date().toISOString().slice(0, 10)
               ? <p className="mt-1">Next hearing, as reported: <strong>{formatHearing(courtCase.c.next_hearing)}</strong>.</p>
-              : <p className="mt-1 text-muted-foreground">No upcoming hearing date has been reported.</p>}
+              : null}
             <p className="mt-2"><a href={`/courts/cases/${courtCase.c.slug}`} className="text-primary underline underline-offset-2">Status and full timeline of this case</a></p>
           </section>
         )}

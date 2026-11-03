@@ -1,3 +1,4 @@
+import { formatPublished } from '@/lib/article-meta';
 import { REGIONS } from '@/lib/hubs';
 
 const OFFENCE: Record<string, { label: string; href: string }> = {
@@ -40,19 +41,12 @@ export function regionInfo(r?: string | null): { name: string; slug: string } | 
 }
 
 const STATUS_TEXT: Record<string, string> = {
-  reported: 'Reported; no arrest reported yet',
-  arrested: 'Suspect(s) arrested; not charged in court as far as reported',
-  charged: 'Charged; presumed innocent until proven guilty',
-  remanded: 'Remanded; presumed innocent until proven guilty',
-  on_trial: 'On trial; presumed innocent until proven guilty',
-  convicted: 'Convicted, according to the source',
-  acquitted: 'Acquitted, according to the source',
-  pleaded_guilty: 'Pleaded guilty, according to the source; sentence not yet reported',
-  under_investigation: 'Under investigation; no charge reported',
-  discharged: 'Discharged, according to the source',
+  reported: 'Reported', arrested: 'Arrested', charged: 'Charged', remanded: 'Remanded',
+  on_trial: 'On trial', convicted: 'Convicted', acquitted: 'Acquitted',
+  pleaded_guilty: 'Pleaded guilty', under_investigation: 'Under investigation', discharged: 'Discharged',
 };
 
-/** Short case-status label for badges. Pre-conviction stages always carry the presumption of innocence in STATUS_TEXT. */
+/** Short case-status label for badges.  */
 const STATUS_LABEL: Record<string, { label: string; tone: 'neutral' | 'pending' | 'final' }> = {
   arrested: { label: 'Arrested', tone: 'pending' },
   charged: { label: 'Charged', tone: 'pending' },
@@ -67,12 +61,5 @@ const STATUS_LABEL: Record<string, { label: string; tone: 'neutral' | 'pending' 
 export function caseStatusLabel(s?: string | null) { return s ? STATUS_LABEL[s] ?? null : null; }
 export function caseStatusText(s?: string | null) { return s ? STATUS_TEXT[s] ?? null : null; }
 
-export function relTime(iso: string, now = Date.now()) {
-  const m = Math.max(0, Math.round((now - new Date(iso).getTime()) / 60000));
-  if (m < 1) return 'just now';
-  if (m < 60) return `${m} min${m === 1 ? '' : 's'} ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h} hr${h === 1 ? '' : 's'} ago`;
-  const d = Math.floor(h / 24);
-  return `${d} day${d === 1 ? '' : 's'} ago`;
-}
+/** Public timestamps are absolute: "Published 3 Nov 2026, 14:05 GMT". */
+export function relTime(iso: string, _now?: number) { return formatPublished(iso); }

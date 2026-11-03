@@ -96,7 +96,7 @@ export default function HomeView({ initialArticles }: { initialArticles?: any[] 
             const reg = regionInfo(a.region);
             return (
               <li key={a.id} className="flex gap-3 text-sm">
-                {a.published_at && <RelativeTime iso={a.published_at} className="w-20 shrink-0 font-sans text-xs tabular-nums text-muted-foreground" />}
+                {a.published_at && <RelativeTime iso={a.published_at} className="shrink-0 font-sans text-xs tabular-nums text-muted-foreground" />}
                 <span className="leading-snug">
                   <a href={`/${a.category_slug}/${a.article_slug}`} className="hover:underline">{a.title}</a>
                   {reg && <span className="ml-1.5 whitespace-nowrap font-sans text-[11px] uppercase tracking-wide text-muted-foreground">{reg.name}</span>}

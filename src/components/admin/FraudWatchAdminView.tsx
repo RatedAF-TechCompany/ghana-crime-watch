@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { getRelativeTime } from "@/lib/time";
+import { getAdminRelativeTime } from "@/lib/time";
 
 const STATUS_LABELS: Record<string, string> = {
   Pending: "Pending Review",
@@ -254,7 +254,7 @@ export default function FraudWatchAdminView() {
                         ? `GHS ${Number(account.total_reported_loss).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
                         : "—"}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{getRelativeTime(account.created_at)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{getAdminRelativeTime(account.created_at)}</TableCell>
                     <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                       <a href={`/fraud-watch/account/${account.id}`} target="_blank" rel="noopener noreferrer">
                         <Button size="sm" variant="ghost"><Eye className="h-4 w-4" /></Button>
@@ -295,7 +295,7 @@ export default function FraudWatchAdminView() {
                                           {report.amount ? ` · ${report.currency} ${Number(report.amount).toLocaleString()}` : ""}
                                           {report.region ? ` · ${report.region}` : ""}
                                           {report.incident_date ? ` · ${report.incident_date}` : ""}
-                                          {" · "}{getRelativeTime(report.created_at)}
+                                          {" · "}{getAdminRelativeTime(report.created_at)}
                                         </div>
                                       </div>
                                       <div className="flex gap-1 shrink-0">

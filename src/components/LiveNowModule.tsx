@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { LiveDevelopingPill } from "@/components/LiveDevelopingPill";
-import { getRelativeTime } from "@/lib/time";
+import { getStamp } from "@/lib/time";
 
 const LIVE_NOW_CAP = 3;
 
@@ -82,7 +82,7 @@ export function LiveNowModule() {
               <p className="line-clamp-1 text-sm text-foreground/80">{t.summary}</p>
             )}
             <p className="text-xs uppercase tracking-[0.1em] text-muted-fg">
-              Last updated: {getRelativeTime(t.lastUpdatedAt)}
+              Last updated: {getStamp(t.lastUpdatedAt)}
             </p>
           </Link>
         ))}

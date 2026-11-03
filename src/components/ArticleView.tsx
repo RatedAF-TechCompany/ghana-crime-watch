@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getCategoryLabel } from "@/lib/categories";
-import { getRelativeTime, getReadingTime } from "@/lib/time";
+import { getReadingTime } from "@/lib/time";
 import { Volume2, Pause, Square } from "lucide-react";
 import { useTextToSpeech } from "@/hooks/use-text-to-speech";
 import { Button } from "@/components/ui/button";
@@ -14,21 +14,22 @@ import { NewsletterSignup } from "@/components/NewsletterSignup";
 import { SocialShareButtons } from "@/components/SocialShareButtons";
 import { FollowGhanaCrimes } from "@/components/FollowGhanaCrimes";
 import { formatArticleBody } from "@/lib/paragraphs";
-import { caseStatusText, offenceInfo, regionInfo } from "@/lib/crime-labels";
+import { offenceInfo, regionInfo } from "@/lib/crime-labels";
+import { stripOutlets } from "@/lib/no-outlet";
 import { BookmarkButton } from "@/components/BookmarkButton";
 import { WhatsAppChannelCTA, useShouldShowWhatsAppCTA } from "@/components/WhatsAppChannelCTA";
 import { LiveDevelopingPill } from "@/components/LiveDevelopingPill";
 import { sanitizeArticleBody } from "@/lib/sanitize";
 import { useEffect, useRef, type ReactNode } from "react";
 import { getArticleImage } from "@/lib/article-image";
-import { independentOutlets, publishedUpdatedLabels } from "@/lib/article-meta";
+import { publishedUpdatedLabels } from "@/lib/article-meta";
 import { CaseStatusBadge } from "@/components/CaseStatusBadge";
 import { displayByline } from "@/lib/authors";
 import { StoryUpdates, type StoryUpdate } from "@/components/StoryUpdates";
 
 type ThreadInfo = { thread_slug: string; is_live: boolean; live_ended_at: string | null } | null;
 
-export default function ArticleView({ categorySlug, articleSlug, initialArticle, thread = null, authorHref, children, updates: storyUpdates = [] }: { categorySlug: string; articleSlug: string; initialArticle?: any; thread?: ThreadInfo; authorHref?: string; children?: ReactNode; updates?: StoryUpdate[] }) {
+export default function ArticleView({ categorySlug, articleSlug, initialArticle, thread = null, authorHref, children, updates: storyUpdates = [], primarySource = null }: { categorySlug: string; articleSlug: string; initialArticle?: any; thread?: ThreadInfo; authorHref?: string; children?: ReactNode; updates?: StoryUpdate[]; primarySource?: string | null }) {
   const { isPlaying, isPaused, isSupported, speak, stop, togglePlayPause } = useTextToSpeech();
 
   // Determine if WhatsApp CTA should be shown (25% probability, memoized per article)
@@ -39,7 +40,7 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("articles")
-        .select("*")
+        .select("id, title, subtitle, summary, body, hero_image, hero_image_alt, category_slug, article_slug, is_published, published_at, updated_at, content_updated_at, author_name, tags, view_count, region, offence_type, case_status, thread_id")
         .eq("category_slug", categorySlug!)
         .eq("article_slug", articleSlug!)
         .eq("is_published", true)
@@ -110,41 +111,17 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
   const modifiedIso = article.content_updated_at || article.published_at;
   const dateLabels = publishedUpdatedLabels(article.published_at!, modifiedIso);
 
-  const processBodyText = (body: string) => {
-    // Highlight figures in text only: never inside tags (href/src attributes) or link text.
-    let inLink = 0;
-    return body.split(/(<[^>]+>)/g).map((part) => {
-      if (part.startsWith('<')) {
-        if (/^<a[\s>]/i.test(part)) inLink++;
-        else if (/^<\/a>/i.test(part)) inLink = Math.max(0, inLink - 1);
-        return part;
-      }
-      return inLink ? part : part.replace(/\b(\d+(?:,\d{3})*(?:\.\d+)?)\b/g, '<mark>$1</mark>');
-    }).join('');
-  };
+  // Number highlighting removed: <mark> padding split "GH¢18.7m"/"7:26pm" into "GH¢ 18 .7m"/"7 :26pm".
 
   const formattedBody = formatArticleBody(article.body);
   // Updates timeline: dated "Update (...)" paragraphs added when another outlet reports the same story.
   const updates: { when: string; html: string }[] = [];
   const mainBody = formattedBody.replace(/<p>\s*<strong>Update \(([^)]*)\):<\/strong>([\s\S]*?)<\/p>\s*/g, (_m: string, when: string, rest: string) => { updates.push({ when, html: rest.trim() }); return ''; });
-  const sanitizedBody = sanitizeArticleBody(processBodyText(mainBody));
-  const sanitizedUpdates = updates.map((u) => ({ when: u.when, html: sanitizeArticleBody(u.html) }));
+  const sanitizedBody = stripOutlets(sanitizeArticleBody(mainBody));
+  const sanitizedUpdates = updates.map((u) => ({ when: u.when, html: stripOutlets(sanitizeArticleBody(u.html)) }));
   const a2: any = article;
   const reg = regionInfo(a2.region);
   const off = offenceInfo(a2.offence_type);
-  const status = caseStatusText(a2.case_status);
-  const srcUrls: string[] = Array.from(new Set([a2.source_url, ...(a2.source_urls || [])].filter(Boolean)));
-  // "Verified" only when the pipeline matched the same story at another independent outlet (gate_report.corroborating_sources)
-  // AND at least two distinct outlets are linked. Related-but-different stories in source_urls do not count on their own.
-  const allOutlets = independentOutlets(srcUrls);
-  const corroborating = Number(a2.gate_report?.corroborating_sources || 0);
-  const outlets = corroborating >= 1 && allOutlets.length >= 2 ? allOutlets.slice(0, Math.min(allOutlets.length, corroborating + 1)) : [];
-  const unresolved = a2.case_status === 'convicted' || a2.case_status === 'acquitted' ? [] : [
-    "Whether anyone will be found guilty: no court has ruled on guilt, so everyone named is presumed innocent.",
-    ...(['reported', 'unknown', null, undefined].includes(a2.case_status) ? ["Whether any arrest has been made, as none was reported in the source."] : []),
-    ...(a2.case_status === 'arrested' ? ["Whether charges will be filed in court."] : []),
-    "Any details not stated in the original reports. GhanaCrimes has not added facts the sources did not report.",
-  ];
 
   return (
     <article className="mx-auto max-w-[760px]">
@@ -159,14 +136,9 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
           <> · <time dateTime={modifiedIso!}>{dateLabels.updated}</time></>
         )}
       </p>
-      {(a2.case_status || outlets.length >= 2) && (
+      {a2.case_status && (
         <p className="mb-5 flex flex-wrap items-center justify-center gap-2">
           <CaseStatusBadge status={a2.case_status} />
-          {outlets.length >= 2 && (
-            <span title={`The same story was reported independently by ${outlets.length} outlets.`} className="inline-block rounded-sm border border-emerald-700/40 px-1.5 py-0.5 font-sans text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
-              Verified by {outlets.length} sources
-            </span>
-          )}
         </p>
       )}
 
@@ -238,8 +210,8 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
               className="h-full w-full object-cover"
             />
           </div>
-          {(article as any).hero_image_credit && (
-            <figcaption className="mt-1 font-sans text-[11px] text-muted-fg">Photo: {(article as any).hero_image_credit}</figcaption>
+          {(article as any).hero_image_credit && stripOutlets((article as any).hero_image_credit).trim() && (
+            <figcaption className="mt-1 font-sans text-[11px] text-muted-fg">Photo: {stripOutlets((article as any).hero_image_credit).trim()}</figcaption>
           )}
         </figure>
       ) : null; })()}
@@ -248,14 +220,12 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
         <SocialShareButtons title={article.title} summary={article.summary} />
       </div>
 
-      {(reg || off || status || sanitizedUpdates.length > 0) && (
+      {(reg || off) && (
         <aside aria-label="Key facts" className="my-6 rounded-md border-l-4 border-primary bg-muted/60 px-5 py-4 font-sans text-sm">
           <h2 className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-primary">Key facts</h2>
           <dl className="grid grid-cols-[auto,1fr] gap-x-4 gap-y-1">
             {off && (<><dt className="font-semibold">Crime type</dt><dd><Link href={off.href} className="underline underline-offset-2">{off.label}</Link></dd></>)}
             {reg && (<><dt className="font-semibold">Region</dt><dd><Link href={`/regions/${reg.slug}`} className="underline underline-offset-2">{reg.name}</Link></dd></>)}
-            {status && (<><dt className="font-semibold">Case status</dt><dd>{status}</dd></>)}
-            {sanitizedUpdates.length > 0 && (<><dt className="font-semibold">Updates</dt><dd>{sanitizedUpdates.length}</dd></>)}
           </dl>
         </aside>
       )}
@@ -265,21 +235,9 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
         dangerouslySetInnerHTML={{ __html: sanitizedBody }}
       />
 
-      <section aria-label="What we know and what we don't" className="my-6 grid gap-4 font-sans text-sm md:grid-cols-2">
-        <div className="rounded-md border border-border p-4">
-          <h2 className="mb-2 text-xs font-bold uppercase tracking-[0.16em]">What we know</h2>
-          <ul className="list-disc space-y-1 pl-4">
-            {article.summary && <li>{article.summary}</li>}
-            {status && <li>Case status: {status}.</li>}
-          </ul>
-        </div>
-        {unresolved.length > 0 && (
-          <div className="rounded-md border border-border p-4">
-            <h2 className="mb-2 text-xs font-bold uppercase tracking-[0.16em]">What we don&apos;t know yet</h2>
-            <ul className="list-disc space-y-1 pl-4">{unresolved.map((t) => <li key={t}>{t}</li>)}</ul>
-          </div>
-        )}
-      </section>
+      {primarySource && (
+        <p className="mb-4 font-sans text-sm text-muted-fg"><span className="font-semibold text-foreground">Source:</span> {primarySource}</p>
+      )}
 
       {sanitizedUpdates.length > 0 && (
         <section aria-label="Updates timeline" className="my-6">
@@ -297,10 +255,6 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
       )}
 
       <FollowStory articleId={article.id} />
-
-      <div className="my-6 border-y border-border py-3">
-        <SocialShareButtons title={article.title} summary={article.summary} />
-      </div>
 
       <div className="mt-2 space-y-2 border-t border-border pt-4 font-sans text-[13px] text-muted-fg">
         <p>

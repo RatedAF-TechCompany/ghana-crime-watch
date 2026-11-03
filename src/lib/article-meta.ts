@@ -23,11 +23,19 @@ export function articleModified(a: { content_updated_at?: string | null; publish
   return c || p || null;
 }
 
-const dateFmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Accra', day: 'numeric', month: 'short', year: 'numeric' });
-const timeFmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Accra', hour: '2-digit', minute: '2-digit', hour12: false });
+// Public timestamps are UK time (Europe/London), labelled GMT or BST as appropriate.
+const dateFmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', day: 'numeric', month: 'short', year: 'numeric' });
+const timeFmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit', hour12: false });
+const zoneFmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', timeZoneName: 'short' });
+const zoneLabel = (d: Date) => {
+  const z = zoneFmt.formatToParts(d).find((p) => p.type === 'timeZoneName')?.value ?? 'GMT';
+  return z === 'GMT' || z === 'UTC' ? 'GMT' : 'BST';
+};
 
 export const formatGhanaDate = (iso: string) => dateFmt.format(new Date(iso));
-export const formatGhanaTime = (iso: string) => `${timeFmt.format(new Date(iso))} GMT`;
+export const formatGhanaTime = (iso: string) => `${timeFmt.format(new Date(iso))} ${zoneLabel(new Date(iso))}`;
+/** "Published 3 Nov 2026, 14:05 GMT" */
+export const formatPublished = (iso: string) => `Published ${formatGhanaDate(iso)}, ${formatGhanaTime(iso)}`;
 
 /** "Published 5 Oct 2026, 11:30 GMT", "Updated 14:05 GMT" (date added if a different day). Updated is null when equal. */
 export function publishedUpdatedLabels(publishedIso: string, updatedIso?: string | null) {

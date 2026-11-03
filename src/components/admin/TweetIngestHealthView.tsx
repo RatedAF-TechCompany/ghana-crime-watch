@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, RefreshCw, RotateCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getRelativeTime } from '@/lib/time';
+import { getAdminRelativeTime } from '@/lib/time';
 
 interface Row {
   tweet_id: string;
@@ -172,7 +172,7 @@ function RowsTable({ rows, onRequeue }: { rows: Row[]; onRequeue: (id: string) =
               <TableCell className="text-xs">@{r.author_username}</TableCell>
               <TableCell className="text-xs">{(r.tweet_text || '').slice(0, 160)}{(r.tweet_text?.length || 0) > 160 ? '…' : ''}</TableCell>
               <TableCell><Badge variant={((r.attempts || 0) >= 3) ? 'destructive' : 'secondary'}>{r.attempts || 0}</Badge></TableCell>
-              <TableCell className="text-xs text-muted-foreground">{r.last_attempt_at ? getRelativeTime(r.last_attempt_at) : '—'}</TableCell>
+              <TableCell className="text-xs text-muted-foreground">{r.last_attempt_at ? getAdminRelativeTime(r.last_attempt_at) : '—'}</TableCell>
               <TableCell className="text-xs text-muted-foreground max-w-[320px] truncate">{r.last_error || '—'}</TableCell>
               <TableCell>
                 <Button size="sm" variant="outline" onClick={() => onRequeue(r.tweet_id)}>

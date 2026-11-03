@@ -8,6 +8,8 @@
 import { createClient } from "./sb.ts";
 import { AiCreditError, callGateway, newUsage, parseJson } from "./ai-usage.ts";
 import { allowSourceNames, runGate, stripHtml } from "./editorial-gate.ts";
+import { ALL_CATEGORY_SLUGS, EDITOR_CATEGORY_PROMPT, EDITOR_CATEGORY_SLUGS, toEditorCategory } from "./categories.ts";
+import { STANDING_EDITOR_RULES } from "./editor-prompt.ts";
 
 export interface IngestConfig {
   username: string;          // X username to poll, e.g. "GhanaWeb"
@@ -39,12 +41,7 @@ const IGNORE_KEYWORDS = [
   "sports", "football", "black stars", "premier league",
 ];
 
-const VALID_CATEGORIES = [
-  "top-stories", "violent-crime", "property-crime", "cybercrime", "fraud-scams",
-  "drug-offences", "domestic-violence", "traffic-offences", "youth-crime",
-  "organised-crime", "white-collar-crime", "police-reports", "court-cases",
-  "prison-news", "crime-prevention", "investigations", "most-wanted",
-];
+const VALID_CATEGORIES: string[] = ALL_CATEGORY_SLUGS; // single source: _shared/categories.ts
 
 function isCrimeRelated(text: string): boolean {
   const lower = text.toLowerCase();
@@ -147,7 +144,7 @@ Return a JSON object with these fields:
   "headline": "${cfg.headlineRule}",
   "body": "<p>Short intro paragraph with key facts.</p><p>Details paragraph with context.</p>",
   "summary": "2-3 sentence summary under 200 chars",
-  "category": "One of: ${VALID_CATEGORIES.join(", ")}",
+  "category": "One of: ${EDITOR_CATEGORY_SLUGS.join(", ")}",
   "tags": ["crime", "police", "ghana", "..."],
   "seo_description": "SEO description under 160 chars"
 }
@@ -155,8 +152,9 @@ Return a JSON object with these fields:
 Rules:
 - Maintain journalistic objectivity
 - Use Ghana-specific context
-- Respect presumption of innocence
-- Attribute facts: according to ${cfg.sourceLabel} on X${cfg.extraPromptRule ? "\n- " + cfg.extraPromptRule : ""}`;
+- Keep "alleged"/"charged"/"remanded" wording until conviction; never close with a presumption sentence
+- Attribute to ${cfg.sourceLabel}${cfg.extraPromptRule ? "\n- " + cfg.extraPromptRule : ""}
+${STANDING_EDITOR_RULES}`;
 
   let parseFailures = 0;
 
