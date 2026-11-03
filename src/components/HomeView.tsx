@@ -15,6 +15,7 @@ import { ToolsDataStrip } from "@/components/ToolsDataStrip";
 import { RelativeTime } from "@/components/RelativeTime";
 import { FollowGhanaCrimes } from "@/components/FollowGhanaCrimes";
 import { offenceInfo, regionInfo } from "@/lib/crime-labels";
+import { publicRow } from "@/lib/no-outlet";
 
 const ARTICLES_PER_PAGE = 30;
 
@@ -31,7 +32,7 @@ export default function HomeView({ initialArticles }: { initialArticles?: any[] 
         .order("published_at", { ascending: false })
         .range(page * ARTICLES_PER_PAGE, (page + 1) * ARTICLES_PER_PAGE);
       if (error) throw error;
-      return data;
+      return (data ?? []).map(publicRow);
     },
     initialData: page === 0 ? initialArticles : undefined,
   });

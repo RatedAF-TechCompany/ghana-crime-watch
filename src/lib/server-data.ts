@@ -1,5 +1,6 @@
 import { cache } from 'react';
 import { createServerClient } from '@/lib/supabase/server';
+import { publicRow } from '@/lib/no-outlet';
 
 export const HOME_PAGE_SIZE = 30;
 export const CATEGORY_PAGE_SIZE = 30;
@@ -71,7 +72,7 @@ export async function getHomeArticles() {
     .order('published_at', { ascending: false })
     .range(0, HOME_PAGE_SIZE);
   if (error) throw new Error(`getHomeArticles: ${error.message}`);
-  return data ?? [];
+  return (data ?? []).map(publicRow);
 }
 
 export const getCategoryPage = cache(async (categorySlug: string, page: number) => {
@@ -83,7 +84,7 @@ export const getCategoryPage = cache(async (categorySlug: string, page: number) 
     .order('published_at', { ascending: false })
     .range((page - 1) * CATEGORY_PAGE_SIZE, page * CATEGORY_PAGE_SIZE);
   if (error) throw new Error(`getCategoryPage: ${error.message}`);
-  const rows = data ?? [];
+  const rows = (data ?? []).map(publicRow);
   return { articles: rows.slice(0, CATEGORY_PAGE_SIZE), hasNext: rows.length > CATEGORY_PAGE_SIZE };
 });
 
@@ -157,7 +158,7 @@ export async function getLatestWire(limit = 80) {
     .not('category_slug', 'in', '(crime-statistics,most-wanted)')
     .order('published_at', { ascending: false })
     .limit(limit);
-  return (data ?? []).filter((a: any) => a.published_at) as any[];
+  return (data ?? []).filter((a: any) => a.published_at).map(publicRow) as any[];
 }
 
 // Developing-story updates for an article (newest first). Never blocks the page on error.

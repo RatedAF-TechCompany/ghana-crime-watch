@@ -35,7 +35,7 @@ export function stripOutlets(html: string): string {
   return out;
 }
 
-const OFFICIAL = /\b(police|command|court|judicial|attorney[- ]general|prosecut|ministry|minister|nacoc|narcotics|eoco|economic and organised crime|special prosecutor|cid|immigration|customs|gra\b|revenue authority|fire service|nadmo|army|armed forces|gaf\b|navy|national security|naimos|bank of ghana|electoral commission|commission|authority|agency|service|directorate|department|government|parliament|assembly|regional|municipal|district|office)\b/i;
+const OFFICIAL = /\b(police|command|court|judicial|attorney[- ]general|prosecut|ministry|minister|nacoc|narcotics|eoco|economic and organised crime|special prosecutor|cid|immigration|customs|gra\b|revenue authority|fire service|nadmo|army|armed forces|gaf\b|navy|national security|naimos|bank of ghana|electoral commission|commission|authority|agency|service|directorate|department|government|parliament|assembly|regional|municipal|district|office|whip|spokes(?:person|man|woman)|commander|igp|inspector[- ]general)\b/i;
 
 /** The primary (official) source for the visible "Source:" line, or null. Never an outlet. */
 export function primarySource(a: { gate_report?: any } | null | undefined): string | null {
@@ -43,14 +43,21 @@ export function primarySource(a: { gate_report?: any } | null | undefined): stri
   for (const c of [g.primary_source, g.source]) {
     if (typeof c !== 'string') continue;
     const s = c.trim();
-    if (!s || s.length > 200 || OUTLET_RE.test(s) || /https?:|\.com|\.gh\b|online|news|radio|\bfm\b|\btv\b|report(er)?s?\b|account/i.test(s)) continue;
+    if (!s || s.length > 200 || OUTLET_RE.test(s) || /https?:|\.com|\.gh\b|online|news|radio|\bfm\b|\btv\b|report(ed|er|ers|s)?\b|account/i.test(s)) continue;
     if (OFFICIAL.test(s)) return s;
   }
   return null;
 }
 
-/** Public article payload: drop outlet URLs and internal gate data before it is embedded in the page. */
-export function publicArticle<T extends Record<string, any>>(a: T): T {
-  const { source_url, source_urls, gate_report, ...rest } = a as any;
-  return { ...rest, hero_image_credit: rest.hero_image_credit && OUTLET_RE.test(rest.hero_image_credit) ? null : rest.hero_image_credit } as T;
+const SELF_HOSTED = /^(?:https:\/\/rscqxztgtpcifcqxjskh\.supabase\.co\/storage\/|\/(?!\/))/;
+
+/** Public list/article row: outlet credit stripped from text, hot-linked outlet images and outlet URLs removed. */
+export function publicRow<T extends Record<string, any>>(a: T): T {
+  if (!a) return a;
+  const { source_url: _u, source_urls: _us, gate_report: _g, ...rest } = a as any;
+  for (const k of ['body', 'summary', 'subtitle', 'seo_description']) if (typeof rest[k] === 'string') rest[k] = stripOutlets(rest[k]);
+  if ('hero_image' in rest && rest.hero_image && !SELF_HOSTED.test(rest.hero_image)) rest.hero_image = null;
+  if (rest.hero_image_credit && OUTLET_RE.test(rest.hero_image_credit)) rest.hero_image_credit = null;
+  return rest as T;
 }
+export const publicArticle = publicRow;
