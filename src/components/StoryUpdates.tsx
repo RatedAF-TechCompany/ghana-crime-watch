@@ -4,13 +4,12 @@ export type StoryUpdate = {
   posted_at: string;
   summary: string;
   body_md: string | null;
-  sources: string[] | null;
+  sources?: string[] | null; // stored internally, never rendered
   kind: "update" | "correction" | string;
 };
 
 const ukTime = (iso: string) =>
   new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/London" }).format(new Date(iso));
-function host(u: string) { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } }
 
 function Item({ u, label }: { u: StoryUpdate; label: string }) {
   return (
@@ -19,14 +18,6 @@ function Item({ u, label }: { u: StoryUpdate; label: string }) {
         <strong>{label} {ukTime(u.posted_at)} UK:</strong> {u.summary}
       </p>
       {u.body_md && <p className="font-sans text-[13px] text-[#3A3A3A] mt-1 whitespace-pre-line">{u.body_md}</p>}
-      {u.sources && u.sources.length > 0 && (
-        <p className="font-sans text-[12px] text-[#5B5B5B] mt-1">
-          Sources:{" "}
-          {u.sources.map((s, i) => (
-            <span key={s}>{i > 0 && ", "}{/^https?:\/\//.test(s) ? <a href={s} target="_blank" rel="noopener nofollow" className="underline">{host(s)}</a> : s}</span>
-          ))}
-        </p>
-      )}
     </li>
   );
 }
