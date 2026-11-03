@@ -82,7 +82,7 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
           {/* Left cluster: masthead + hamburger */}
           <div className="flex min-w-0 items-center gap-3">
             <Link href="/" className="block min-w-0">
-              <span className="masthead-word text-[32px] md:text-[48px]">GhanaCrimes</span>
+              <img src="/brand/ghanacrimes-logo.png" alt="GhanaCrimes" width={600} height={200} className="block h-10 w-auto md:h-14 max-w-full rounded-sm" />
             </Link>
             <Button
               variant="ghost"

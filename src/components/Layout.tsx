@@ -96,7 +96,7 @@ export function Layout({ children }: LayoutProps) {
         <div className="mx-auto max-w-editorial px-4 py-12 md:px-12">
           <div className="mb-10 text-center">
             <Link href="/" className="inline-block">
-              <span className="masthead-word text-3xl md:text-4xl">GhanaCrimes</span>
+              <img src="/brand/ghanacrimes-logo.png" alt="GhanaCrimes" width={600} height={200} className="block mx-auto h-10 w-auto md:h-12 max-w-full rounded-sm" />
             </Link>
           </div>
           <div className="grid grid-cols-2 gap-8 md:grid-cols-5">

@@ -139,12 +139,11 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
   const allOutlets = independentOutlets(srcUrls);
   const corroborating = Number(a2.gate_report?.corroborating_sources || 0);
   const outlets = corroborating >= 1 && allOutlets.length >= 2 ? allOutlets.slice(0, Math.min(allOutlets.length, corroborating + 1)) : [];
-  const srcHosts = srcUrls.map((u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } }).filter(Boolean);
   const unresolved = a2.case_status === 'convicted' || a2.case_status === 'acquitted' ? [] : [
     "Whether anyone will be found guilty: no court has ruled on guilt, so everyone named is presumed innocent.",
     ...(['reported', 'unknown', null, undefined].includes(a2.case_status) ? ["Whether any arrest has been made, as none was reported in the source."] : []),
     ...(a2.case_status === 'arrested' ? ["Whether charges will be filed in court."] : []),
-    "Any details not stated by the sources below. GhanaCrimes has not added facts the sources did not report.",
+    "Any details not stated in the original reports. GhanaCrimes has not added facts the sources did not report.",
   ];
 
   return (
@@ -164,7 +163,7 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
         <p className="mb-5 flex flex-wrap items-center justify-center gap-2">
           <CaseStatusBadge status={a2.case_status} />
           {outlets.length >= 2 && (
-            <span title={`The same story was reported independently by ${outlets.length} outlets. All sources are listed below.`} className="inline-block rounded-sm border border-emerald-700/40 px-1.5 py-0.5 font-sans text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+            <span title={`The same story was reported independently by ${outlets.length} outlets.`} className="inline-block rounded-sm border border-emerald-700/40 px-1.5 py-0.5 font-sans text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
               Verified by {outlets.length} sources
             </span>
           )}
@@ -249,14 +248,13 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
         <SocialShareButtons title={article.title} summary={article.summary} />
       </div>
 
-      {(reg || off || status || srcHosts.length > 0) && (
+      {(reg || off || status || sanitizedUpdates.length > 0) && (
         <aside aria-label="Key facts" className="my-6 rounded-md border-l-4 border-primary bg-muted/60 px-5 py-4 font-sans text-sm">
           <h2 className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-primary">Key facts</h2>
           <dl className="grid grid-cols-[auto,1fr] gap-x-4 gap-y-1">
             {off && (<><dt className="font-semibold">Crime type</dt><dd><Link href={off.href} className="underline underline-offset-2">{off.label}</Link></dd></>)}
             {reg && (<><dt className="font-semibold">Region</dt><dd><Link href={`/regions/${reg.slug}`} className="underline underline-offset-2">{reg.name}</Link></dd></>)}
             {status && (<><dt className="font-semibold">Case status</dt><dd>{status}</dd></>)}
-            {srcHosts.length > 0 && (<><dt className="font-semibold">Sources</dt><dd>{Array.from(new Set(srcHosts)).join(", ")}</dd></>)}
             {sanitizedUpdates.length > 0 && (<><dt className="font-semibold">Updates</dt><dd>{sanitizedUpdates.length}</dd></>)}
           </dl>
         </aside>
@@ -273,7 +271,6 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
           <ul className="list-disc space-y-1 pl-4">
             {article.summary && <li>{article.summary}</li>}
             {status && <li>Case status: {status}.</li>}
-            {srcHosts.length > 0 && <li>Reported by {Array.from(new Set(srcHosts)).join(", ")}.</li>}
           </ul>
         </div>
         {unresolved.length > 0 && (
@@ -306,27 +303,6 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
       </div>
 
       <div className="mt-2 space-y-2 border-t border-border pt-4 font-sans text-[13px] text-muted-fg">
-        {(() => {
-          const urls: string[] = Array.from(new Set([article.source_url, ...((article as any).source_urls || [])].filter(Boolean)));
-          if (!urls.length) {
-            return (
-              <p><span className="font-semibold text-foreground">Source: </span>not recorded</p>
-            );
-          }
-          return (
-            <p>
-              <span className="font-semibold text-foreground">Source: </span>
-              {urls.map((u, i) => (
-                <span key={u}>
-                  {i > 0 && ", "}
-                  <a href={u} target="_blank" rel="noopener noreferrer nofollow" className="text-primary underline underline-offset-2">
-                    {(() => { try { return `Original report at ${new URL(u).hostname.replace(/^www\./, "")}`; } catch { return "Original report"; } })()}
-                  </a>
-                </span>
-              ))}
-            </p>
-          );
-        })()}
         <p>
           Spotted an error?{" "}
           <Link rel="nofollow" href={`/corrections?article=${encodeURIComponent(`/${article.category_slug}/${article.article_slug}`)}`} className="text-primary underline underline-offset-2">
