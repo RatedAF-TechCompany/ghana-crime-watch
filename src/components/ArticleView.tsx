@@ -29,7 +29,7 @@ import { StoryUpdates, type StoryUpdate } from "@/components/StoryUpdates";
 
 type ThreadInfo = { thread_slug: string; is_live: boolean; live_ended_at: string | null } | null;
 
-export default function ArticleView({ categorySlug, articleSlug, initialArticle, thread = null, authorHref, children, updates: storyUpdates = [], primarySource = null }: { categorySlug: string; articleSlug: string; initialArticle?: any; thread?: ThreadInfo; authorHref?: string; children?: ReactNode; updates?: StoryUpdate[]; primarySource?: string | null }) {
+export default function ArticleView({ categorySlug, articleSlug, initialArticle, thread = null, authorHref, children, updates: storyUpdates = [], primarySource: _ps = null }: { categorySlug: string; articleSlug: string; initialArticle?: any; thread?: ThreadInfo; authorHref?: string; children?: ReactNode; updates?: StoryUpdate[]; primarySource?: string | null }) {
   const { isPlaying, isPaused, isSupported, speak, stop, togglePlayPause } = useTextToSpeech();
 
   // Determine if WhatsApp CTA should be shown (25% probability, memoized per article)
@@ -234,10 +234,6 @@ export default function ArticleView({ categorySlug, articleSlug, initialArticle,
         className="article-body max-w-none py-4"
         dangerouslySetInnerHTML={{ __html: sanitizedBody }}
       />
-
-      {primarySource && (
-        <p className="mb-4 font-sans text-sm text-muted-fg"><span className="font-semibold text-foreground">Source:</span> {primarySource}</p>
-      )}
 
       {sanitizedUpdates.length > 0 && (
         <section aria-label="Updates timeline" className="my-6">

@@ -3,6 +3,7 @@ import { createClient } from "../_shared/sb.ts";
 import { AiCreditError, callGateway, newUsage, parseJson, type AiUsage } from "../_shared/ai-usage.ts";
 import { ALL_CATEGORY_SLUGS, EDITOR_CATEGORY_PROMPT, EDITOR_CATEGORY_SLUGS, toEditorCategory } from "../_shared/categories.ts";
 import { STANDING_EDITOR_RULES } from "../_shared/editor-prompt.ts";
+import { lintSlop } from "../_shared/editorial-gate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1624,7 +1625,7 @@ Return ONLY valid JSON with exactly these keys:
             title: articleJson.headline,
             subtitle: articleJson.subtitle,
             summary: articleJson.summary,
-            body: articleJson.body,
+            body: lintSlop(articleJson.headline || "", articleJson.body || "").body,
             article_slug: articleSlug,
             category_slug: normalizeCategory(articleJson.section),
             author_name: "GhanaCrimes Newsroom",

@@ -148,9 +148,9 @@ export function MostReadArticles() {
           </ol>
         </div>
 
-        {/* Writers */}
+        {/* More stories (category-labelled story list; not author profiles) */}
         <div className="border-t border-border md:border-l md:border-t-0 md:pl-10">
-          <h3 className="section-title-serif mb-4 mt-5 text-center md:mt-0">Writers</h3>
+          <h3 className="section-title-serif mb-4 mt-5 text-center md:mt-0">More stories</h3>
           <ol>
             {writers.map((a) => {
               const cat = getCategoryLabel(a.category_slug);

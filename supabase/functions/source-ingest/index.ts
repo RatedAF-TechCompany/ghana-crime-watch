@@ -536,17 +536,14 @@ Deno.serve(async (req) => {
         await supabase.from("raw_items").update({ status: "duplicate", reason: `already sourced in ${art.id}`, article_id: art.id }).eq("id", item.id);
         stats.duplicates++; return true;
       }
-      const para = `<p><strong>Update (${gmtTime()}):</strong> ${escHtml(src.name)} also reported on this story under the headline "${escHtml(item.title)}". <a href="${escHtml(item.url)}" target="_blank" rel="noopener noreferrer nofollow">Read the ${escHtml(src.name)} report</a>.</p>`;
+      // No source credit (Zeb, 3 Nov 2026): corroborating reports are recorded internally only, never appended to the body.
       let threadId = art.thread_id;
       if (!threadId) {
         const { data: t } = await supabase.from("story_threads").insert({ thread_slug: `${slugify(art.title).slice(0, 60)}-${Date.now().toString(36)}`, title: art.title, created_by: "source-ingest" }).select("id").single();
         threadId = t?.id ?? null;
       }
-      // Body change fires the content_updated_at trigger.
-      await supabase.from("articles").update({ body: `${art.body}${para}`, source_urls: urls, thread_id: threadId }).eq("id", art.id);
-      if (threadId) {
-        await supabase.from("thread_updates").insert({ thread_id: threadId, title: item.title.slice(0, 200), body: para, source_article_id: art.id, published_at: new Date().toISOString() });
-      }
+      // Internal record only: no body change (so no false "updated" stamp) and no public thread update crediting the outlet.
+      await supabase.from("articles").update({ source_urls: urls, thread_id: threadId }).eq("id", art.id);
       await supabase.from("raw_items").update({ status: "merged", reason, article_id: art.id, thread_id: threadId }).eq("id", item.id);
       merges.push({ article_id: art.id, raw_item_id: item.id, source: src.name, reason });
       return true;

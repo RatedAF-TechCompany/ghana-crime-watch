@@ -3,6 +3,7 @@ import { createClient } from "../_shared/sb.ts";
 import { callGateway, parseJson, newUsage, AiCreditError } from "../_shared/ai-usage.ts";
 import { ALL_CATEGORY_SLUGS, EDITOR_CATEGORY_PROMPT, EDITOR_CATEGORY_SLUGS, toEditorCategory } from "../_shared/categories.ts";
 import { STANDING_EDITOR_RULES } from "../_shared/editor-prompt.ts";
+import { lintSlop } from "../_shared/editorial-gate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -322,7 +323,7 @@ ${STANDING_EDITOR_RULES}`;
         title: articleData.title,
         subtitle: articleData.subtitle || null,
         summary: articleData.summary,
-        body: articleData.body,
+        body: lintSlop(articleData.title || "", articleData.body || "").body,
         category_slug: normalizedCategory,
         article_slug: finalSlug,
         author_name: "GhanaCrimes Desk",

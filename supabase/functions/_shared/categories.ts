@@ -14,7 +14,7 @@ export const CATEGORIES = [
   { slug: 'organised-crime', label: 'Organised Crime', intro: 'Gangs, illegal mining, smuggling and trafficking networks operating in or through Ghana.' },
   { slug: 'white-collar-crime', label: 'White Collar Crime', intro: 'Corruption, embezzlement, procurement fraud and financial crime involving public offices and companies in Ghana.' },
   { slug: 'police-reports', label: 'Police Reports', intro: 'Arrests, operations and official statements from the Ghana Police Service and other security agencies.' },
-  { slug: 'court-cases', label: 'Court Cases & Judgments', intro: "Arraignments, trials, judgments and sentences from Ghana's courts. Everyone accused is presumed innocent unless found guilty." },
+  { slug: 'court-cases', label: 'Court Cases & Judgments', intro: "Arraignments, trials, judgments and sentences from Ghana's courts." },
   { slug: 'prison-news', label: 'Prisons & Corrections', intro: "News from Ghana's prisons and correctional system, including escapes, pardons, conditions and reform." },
   { slug: 'crime-prevention', label: 'Crime Prevention', intro: 'Safety advice, public warnings and crime-prevention initiatives for communities across Ghana.' },
   { slug: 'crime-statistics', label: 'Crime Statistics & Data', intro: 'Figures and data on crime in Ghana from official and published sources.' },

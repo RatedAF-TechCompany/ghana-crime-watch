@@ -16,13 +16,13 @@ const STATUS_COLORS: Record<string, string> = {
 };
 const STATUS_LABELS: Record<string, string> = {
   Pending: "Pending Review",
-  VerifiedScam: "Verified Scam",
+  VerifiedScam: "Reported scam (reviewed)",
   Cleared: "Cleared",
   Disputed: "Disputed",
 };
 const STATUS_DESCRIPTIONS: Record<string, string> = {
   Pending: "This account has been reported and is awaiting review by our team.",
-  VerifiedScam: "Our team has reviewed multiple reports and confirmed this account as a scam.",
+  VerifiedScam: "Our moderators have reviewed several community reports about this account. These are allegations, not a legal finding. To dispute an entry, use the corrections page.",
   Cleared: "This account was investigated and found to be legitimate.",
   Disputed: "Reports about this account are under dispute. Exercise caution.",
 };

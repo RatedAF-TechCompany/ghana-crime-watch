@@ -7,7 +7,7 @@
 
 import { createClient } from "./sb.ts";
 import { AiCreditError, callGateway, newUsage, parseJson } from "./ai-usage.ts";
-import { allowSourceNames, runGate, stripHtml } from "./editorial-gate.ts";
+import { allowSourceNames, lintSlop, runGate, stripHtml } from "./editorial-gate.ts";
 import { ALL_CATEGORY_SLUGS, EDITOR_CATEGORY_PROMPT, EDITOR_CATEGORY_SLUGS, toEditorCategory } from "./categories.ts";
 import { STANDING_EDITOR_RULES } from "./editor-prompt.ts";
 
@@ -439,7 +439,7 @@ export async function runTweetIngest(req: Request, cfg: IngestConfig): Promise<R
           title: articleData.headline,
           subtitle: null,
           summary: articleData.summary || articleData.headline,
-          body: articleData.body,
+          body: lintSlop(articleData.title || "", articleData.body || "").body,
           category_slug: category,
           article_slug: finalSlug,
           author_name: "GhanaCrimes Newsroom",

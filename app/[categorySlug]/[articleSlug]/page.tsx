@@ -10,7 +10,7 @@ import { OG_HEIGHT, OG_WIDTH, articleModified, articleSocialImage, clipAtWord, a
 import { publisherRef, getMasthead } from '@/lib/masthead';
 import { bylineAuthor, displayByline } from '@/lib/authors';
 import { formatHearing, getCaseForArticle } from '@/lib/court-cases';
-import { primarySource, publicArticle, stripOutlets } from '@/lib/no-outlet';
+import { publicArticle, stripOutlets } from '@/lib/no-outlet';
 
 export const revalidate = 300;
 export const dynamicParams = true;
@@ -155,7 +155,7 @@ export default async function ArticlePage({ params }: { params: Params }) {
           },
         ]}
       />
-      <ArticleView categorySlug={categorySlug} articleSlug={articleSlug} initialArticle={publicArticle(article)} primarySource={primarySource(article)} thread={ctx.thread} authorHref={author?.href} updates={(await getStoryUpdates(article.id)).map(({ sources: _s, ...u }: any) => ({ ...u, summary: stripOutlets(u.summary ?? ''), body_md: u.body_md ? stripOutlets(u.body_md) : u.body_md }))}>
+      <ArticleView categorySlug={categorySlug} articleSlug={articleSlug} initialArticle={publicArticle(article)} thread={ctx.thread} authorHref={author?.href} updates={(await getStoryUpdates(article.id)).map(({ sources: _s, ...u }: any) => ({ ...u, summary: stripOutlets(u.summary ?? ''), body_md: u.body_md ? stripOutlets(u.body_md) : u.body_md })).filter((u: any) => (u.summary || '').trim() || (u.body_md || '').trim())}>
         {later.length > 0 && <LinkList title="What happened next" rows={later as LinkRow[]} />}
         {courtCase && (
           <section className="mt-8 rounded-md border border-border bg-card p-4 font-sans text-sm">

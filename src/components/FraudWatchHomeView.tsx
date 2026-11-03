@@ -30,7 +30,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 const STATUS_LABELS: Record<string, string> = {
   Pending: "Pending Review",
-  VerifiedScam: "Verified Scam",
+  VerifiedScam: "Reported scam (reviewed)",
   Cleared: "Cleared",
   Disputed: "Disputed",
 };
@@ -174,10 +174,10 @@ export default function FraudWatchHomeView() {
         </div>
 
         <div className="grid md:grid-cols-5 gap-6">
-          {/* Latest Verified Scams */}
+          {/* Latest reviewed scam reports */}
           <div className="md:col-span-3">
             <div className="flex items-center justify-between mb-4 border-b-2 border-primary pb-2">
-              <h2 className="font-serif text-xl font-bold text-foreground">Latest Verified Scams</h2>
+              <h2 className="font-serif text-xl font-bold text-foreground">Latest reviewed scam reports</h2>
               <Link href="/fraud-watch/search?status=VerifiedScam" className="text-sm text-primary hover:underline flex items-center gap-1">
                 View all <ChevronRight className="h-3 w-3" />
               </Link>

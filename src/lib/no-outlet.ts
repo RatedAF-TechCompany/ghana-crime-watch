@@ -24,6 +24,8 @@ const OWN_HOST = /^(?:https?:\/\/)?(?:www\.)?ghanacrimes\.com(?:\/|$)|^\/(?!\/)|
 /** Remove outlet credit and unwrap links to other hosts in rendered HTML (text kept, link dropped). */
 export function stripOutlets(html: string): string {
   if (!html) return html;
+  // Merged 'X also reported on this story' notes are outlet credit: drop the whole paragraph/line.
+  html = html.replace(/<p\b[^>]*>(?:(?!<\/p>)[\s\S])*also reported on this story(?:(?!<\/p>)[\s\S])*<\/p>/gi, '').replace(/^.*also reported on this story.*$/gim, '');
   let out = html.replace(/<a\b[^>]*href=["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi, (m, href: string, text: string) => (OWN_HOST.test(href) ? m : text));
   out = out.split(/(<[^>]+>)/g).map((part) => {
     if (part.startsWith('<')) return part;

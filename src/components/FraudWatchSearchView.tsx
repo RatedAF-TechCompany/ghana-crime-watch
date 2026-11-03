@@ -15,7 +15,7 @@ const PLATFORMS = ["All", "Instagram", "X", "TikTok", "Facebook", "WhatsApp", "T
 const STATUSES = ["All", "Pending", "VerifiedScam", "Cleared", "Disputed"];
 const STATUS_LABELS: Record<string, string> = {
   Pending: "Pending Review",
-  VerifiedScam: "Verified Scam",
+  VerifiedScam: "Reported scam (reviewed)",
   Cleared: "Cleared",
   Disputed: "Disputed",
 };

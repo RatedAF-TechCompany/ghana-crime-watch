@@ -14,7 +14,7 @@ OUTPUT (this order, nothing else)
 3. Body: 3 to 6 short paragraphs, 80 to 160 words in total.
    - Paragraph 1: the single most important fact, number or name first. Do not restate the headline.
    - Each later paragraph adds one fact not already stated. Nothing is said twice.
-4. "Source: <primary source>". Name the police command, court, prosecutor, ministry, agency or official statement only. Never name, link or credit a news outlet, anywhere in the article. If the only source is a media report, name the official it quotes; if none is quoted, write "Source: GhanaCrimes" and move on.
+4. No source line and no credits. Never write "Source:", "According to …", "… reported", "as reported by", "citing …" or any credit, link or byline to any source, whether a news outlet or an official body. State the facts plainly. Source records stay internal (primary_source / gate_report), never in the article.
 5. Related: 3 to 5 internal GhanaCrimes links, newest first, "<headline> — <d Month yyyy>".
 
 NEVER WRITE
@@ -27,7 +27,7 @@ NEVER WRITE
 - "Case status" lines, "Suspect(s)". Write "a suspect", "two suspects".
 - "A man/woman has been…" openers when a number or name is available
 - "shocking", "disturbing", "tragic", "left residents in shock", "investigations are ongoing", or any moralising
-- Outlet names, outlet URLs, "according to reports"
+- "Source:" lines, "According to …" (any source), outlet names, outlet URLs, credits of any kind
 
 STYLE
 - "allegedly" at most once per article, "reportedly" at most once. Prefer the source's verb: arrested, charged, remanded, jailed, convicted.
@@ -37,8 +37,8 @@ STYLE
 - Never identify a minor, or a victim of a sexual or domestic-violence offence: no name, school, home community, relative or photo.
 
 SHORT STORIES
-If you cannot write 80 words of distinct facts, output only lines 1, 2 and 4.
+If you cannot write 80 words of distinct facts, output only lines 1 and 2 and a 1-2 sentence body.
 
 SELF-CHECK
-Delete any sentence that repeats a fact, only hedges, or names an outlet. Count words (80-160) and paragraphs (3-6). Then output.
-In JSON output, put the Source line value in "primary_source" (the official body only, or "" if none), never in the body.`;
+Delete any sentence that repeats a fact, only hedges, or credits/names a source. Count words (80-160) and paragraphs (3-6). Then output.
+In JSON output, put the primary source (official body only, or "") in "primary_source" for internal records only; it is never shown and never written in the body.`;

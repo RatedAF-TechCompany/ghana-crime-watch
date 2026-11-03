@@ -79,7 +79,10 @@ export function clipAtWord(text: string, max: number): string {
 export function articleTitleText(a: { title: string; seo_title?: string | null }, max = 70): string {
   const seo = (a.seo_title || '').trim();
   const head = (a.title || '').trim();
-  if (seo && !(head.startsWith(seo) && head.length > seo.length)) return seo;
+  // Use the SEO title only if it still matches the current headline (first 4 words); otherwise the headline
+  // has been updated (e.g. new casualty count) and the stale SEO title must not be shown.
+  const w = (x: string) => x.toLowerCase().split(/\s+/).slice(0, 4).join(' ');
+  if (seo && w(seo) === w(head) && !(head.startsWith(seo) && head.length > seo.length)) return seo;
   return clipAtWord(head, max);
 }
 

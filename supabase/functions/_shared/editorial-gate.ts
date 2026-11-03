@@ -221,13 +221,18 @@ export function toneDownGore(s: string): string {
 /** News outlets are never named, linked or credited (Zeb, 3 Nov 2026). */
 export const OUTLET_NAMES = String.raw`(?:MyJoy ?Online|MyJoy ?News|Joy ?News|Joy ?FM|Citi ?(?:Newsroom|FM|TV)|Graphic Online|Daily Graphic|GhanaWeb|Adom ?(?:Online|News|FM|TV)|3News|TV3|Ghana News Agency|GNA|Starr ?FM|UTV|Daily Guide(?: Network)?|Modern ?Ghana|Pulse Ghana|Asaase(?: Radio)?|GBC(?: Ghana Online)?|Ghanaian Times|Chale News|Rainbow Radio(?: Online)?|The Ghana Report|Kessben(?: Online)?|Atinka(?: Online)?|The High Street Journal|Ghana Business News|Yen Ghana|The Chronicle(?: Ghana)?|Peace FM(?: Online)?)`;
 export const OUTLETS = new RegExp(String.raw`\b${OUTLET_NAMES}\b`, "i");
-/** Attribution is to primary sources only. Strips any "According to <outlet>," credit; never adds one. */
+/** No source is ever credited. Strips "According to …" and outlet credit; never adds attribution. */
 export function ensureAttribution(body: string, _outlet?: string): string {
   return (body || "")
     .replace(new RegExp(String.raw`\b[Aa]ccording to (?:the )?${OUTLET_NAMES}(?:,? citing [^,]{1,80})?,\s*(\S)`, "g"), (_m, c) => c.toUpperCase())
     .replace(new RegExp(String.raw`,?\s*(?:according to|as reported by|reported by|citing)\s+(?:the )?${OUTLET_NAMES}`, "g"), "")
     .replace(new RegExp(String.raw`,?\s*(?:the )?${OUTLET_NAMES}\s+(?:has )?(?:reported|reports|said|learnt|gathered)`, "g"), "")
     .replace(/,?\s*according to reports/gi, "")
+    // No source is ever credited (Zeb, 3 Nov 2026): drop "According to <anyone>," openers and "Source:" lines.
+    .replace(/(^|[.!?]\s+|>)\s*[Aa]ccording to [^,.]{1,120},\s*(\S)/g, (_m, pre, c) => pre + c.toUpperCase())
+    .replace(/,\s*according to [^,.]{1,120},/gi, "")
+    .replace(/,?\s*according to [^,.]{1,120}(?=[.,])/gi, "")
+    .replace(/^\s*(?:<p>)?\s*Source:[^\n]*$/gim, "")
     .replace(/ {2,}/g, " ").replace(/ ([.,])/g, "$1");
 }
 /** "alleged" on the first offence noun only, while a named suspect is unconvicted. No presumption closer is ever appended. */
@@ -336,7 +341,7 @@ export function runGate(opts: {
   // c) Factual
   const missing = unsupportedFacts(draft, `${sourceText}`);
   if (missing.length) hard.push(`unsupported_facts:${missing.join("|")}`);
-  if (!OFFICIAL_ATTRIBUTION.test(draftBody)) soft.push("missing_primary_attribution");
+  if (/\baccording to\b|^\s*Source:/im.test(draftBody)) soft.push("source_credited");
   if (OUTLETS.test(draft)) soft.push("outlet_named");
   if (!headlineMatchesLead(draftTitle, draftBody)) soft.push("headline_lead_mismatch");
   if (FILLER_PHRASES.test(draft)) soft.push("editorial_filler");
