@@ -4,13 +4,11 @@ import { Providers } from './providers';
 import { EmptySectionsProvider } from '@/components/EmptySectionsContext';
 import { getEmptySections } from '@/lib/empty-sections';
 import { BASE_URL } from '@/lib/utils';
-import { Cormorant_Garamond, Inter, Libre_Baskerville, Lora } from 'next/font/google';
+import { Roboto_Condensed, Source_Sans_3 } from 'next/font/google';
 import './globals.css';
 
-const baskerville = Libre_Baskerville({ subsets: ['latin'], weight: ['400', '700'], style: ['normal', 'italic'], display: 'swap', variable: '--font-baskerville' });
-const inter = Inter({ subsets: ['latin'], weight: ['400', '500', '600', '700'], display: 'swap', variable: '--font-inter' });
-const lora = Lora({ subsets: ['latin'], weight: ['400', '500', '600'], style: ['normal', 'italic'], display: 'swap', variable: '--font-lora' });
-const cormorant = Cormorant_Garamond({ subsets: ['latin'], weight: ['600', '700'], display: 'swap', variable: '--font-cormorant' });
+const condensed = Roboto_Condensed({ subsets: ['latin'], weight: ['400', '700'], display: 'swap', variable: '--font-baskerville' });
+const sourceSans = Source_Sans_3({ subsets: ['latin'], weight: ['300', '400', '600', '700'], style: ['normal', 'italic'], display: 'swap', variable: '--font-inter' });
 
 export const metadata: Metadata = {
   title: {
@@ -54,13 +52,13 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#9A0044',
+  themeColor: '#141414',
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const emptySections = await getEmptySections();
   return (
-    <html lang="en" suppressHydrationWarning className={`${baskerville.variable} ${inter.variable} ${lora.variable} ${cormorant.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${condensed.variable} ${sourceSans.variable}`}>
       <head>
         <link rel="alternate" type="application/rss+xml" title="GhanaCrimes RSS" href="/rss.xml" />
       </head>

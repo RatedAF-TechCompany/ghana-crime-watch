@@ -14,14 +14,14 @@ export default {
     },
     extend: {
       fontFamily: {
-        serif: ['var(--font-baskerville)', 'Georgia', 'Times New Roman', 'serif'],
-        sans: ['var(--font-inter)', '-apple-system', 'BlinkMacSystemFont', 'Arial', 'sans-serif'],
-        display: ['var(--font-cormorant)', 'Georgia', 'serif'],
-        headline: ['var(--font-baskerville)', 'Georgia', 'serif'],
-        body: ['var(--font-lora)', 'Georgia', 'serif'],
+        serif: ['var(--font-baskerville)', 'Roboto Condensed', 'Helvetica', 'Arial', 'sans-serif'],
+        sans: ['var(--font-inter)', 'Source Sans 3', 'Helvetica', 'Arial', 'sans-serif'],
+        display: ['var(--font-baskerville)', 'Roboto Condensed', 'Helvetica', 'Arial', 'sans-serif'],
+        headline: ['var(--font-baskerville)', 'Roboto Condensed', 'Helvetica', 'Arial', 'sans-serif'],
+        body: ['var(--font-inter)', 'Source Sans 3', 'Helvetica', 'Arial', 'sans-serif'],
       },
       maxWidth: {
-        editorial: '1260px',
+        editorial: '1310px',
         outer: '1440px',
         prose: '740px',
       },
@@ -58,6 +58,10 @@ export default {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
+        },
+        brand: {
+          DEFAULT: "hsl(var(--brand))",
+          foreground: "#141414",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",

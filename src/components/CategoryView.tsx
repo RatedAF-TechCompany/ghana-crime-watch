@@ -2,9 +2,10 @@
 import Link from "next/link";
 import { HeroArticle } from "@/components/HeroArticle";
 import { ArticleCard } from "@/components/ArticleCard";
+import { ArticleCardRail } from "@/components/ArticleCardRail";
 import { Button } from "@/components/ui/button";
 import { SectionHeading } from "@/components/broadcast/SectionHeading";
-import { StoryGrid } from "@/components/broadcast/StoryGrid";
+
 export default function CategoryView({ categorySlug, articles, page, hasNext }: { categorySlug: string; articles: any[]; page: number; hasNext: boolean }) {
 
   if (!articles || articles.length === 0) {
@@ -16,40 +17,23 @@ export default function CategoryView({ categorySlug, articles, page, hasNext }: 
   }
 
   const lead = articles[0];
-  const grid1 = articles.slice(1, 5);
-  const grid2 = articles.slice(5, 9);
-  const rest = articles.slice(9);
+  const rail = articles.slice(1, 11);
+  const rest = articles.slice(11);
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-12">
       {lead && <HeroArticle article={lead} />}
 
-
-      {grid1.length > 0 && (
-        <StoryGrid>
-          {grid1.map((a) => (
-            <ArticleCard key={a.id} article={a} variant="grid" />
-          ))}
-        </StoryGrid>
-      )}
-
-      {grid2.length > 0 && (
-        <>
-          <SectionHeading title="More in this section" />
-          <StoryGrid>
-            {grid2.map((a) => (
-              <ArticleCard key={a.id} article={a} variant="grid" />
-            ))}
-          </StoryGrid>
-        </>
+      {rail.length > 0 && (
+        <ArticleCardRail title="More in this section" articles={rail} />
       )}
 
       {rest.length > 0 && (
         <>
-          <SectionHeading title="More Headlines" />
-          <div>
+          <SectionHeading title="More headlines" />
+          <div className="grid grid-cols-1 gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
             {rest.map((a) => (
-              <ArticleCard key={a.id} article={a} variant="compact" />
+              <ArticleCard key={a.id} article={a} variant="grid" />
             ))}
           </div>
         </>

@@ -121,7 +121,7 @@ export function MostReadArticles() {
                 <div className="min-w-0 flex-1">
                   <Link href={`/${a.category_slug}/${a.article_slug}`} className="group block">
                     <p className="author-italic-red mb-1">{getCategoryLabel(a.category_slug)}</p>
-                    <h4 className="story-title text-[19px] leading-[1.15] group-hover:text-primary sm:text-[22px]">
+                    <h4 className="story-title text-[19px] leading-[1.15] transition-opacity group-hover:opacity-80 sm:text-[22px]">
                       {a.title}
                     </h4>
                   </Link>
@@ -159,7 +159,7 @@ export function MostReadArticles() {
                   <div className="min-w-0 flex-1">
                     <Link href={`/${a.category_slug}/${a.article_slug}`} className="group block">
                       <p className="author-italic-red mb-1">{cat}</p>
-                      <h4 className="story-title text-[19px] leading-[1.15] group-hover:text-primary sm:text-[22px]">
+                      <h4 className="story-title text-[19px] leading-[1.15] transition-opacity group-hover:opacity-80 sm:text-[22px]">
                         {a.title}
                       </h4>
                     </Link>

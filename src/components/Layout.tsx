@@ -88,12 +88,12 @@ export function Layout({ children }: LayoutProps) {
       <BreakingNewsTicker />
       <NavigationDrawer open={menuOpen} onClose={() => setMenuOpen(false)} />
       <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
-      <main className="mx-auto w-full max-w-editorial flex-1 bg-card px-4 py-8 md:px-12 md:py-12">
+      <main className="mx-auto w-full min-w-0 max-w-editorial flex-1 bg-background px-4 py-8 md:px-8 md:py-10">
         {children}
       </main>
       <EmergencyButton />
-      <footer className="mt-12 border-t border-pale-rule bg-footer-cream">
-        <div className="mx-auto max-w-editorial px-4 py-12 md:px-12">
+      <footer className="mt-16 bg-[#111111] text-white">
+        <div className="mx-auto max-w-editorial px-4 py-12 md:px-8">
           <div className="mb-10 text-center">
             <Link href="/" className="inline-block">
               <img src="/brand/ghanacrimes-logo.png" alt="GhanaCrimes" width={600} height={200} className="block mx-auto h-10 w-auto md:h-12 max-w-full rounded-sm" />
@@ -102,7 +102,7 @@ export function Layout({ children }: LayoutProps) {
           <div className="grid grid-cols-2 gap-8 md:grid-cols-5">
             {FOOTER_COLUMNS.map((col) => (
               <div key={col.title}>
-                <h3 className="mb-4 font-sans text-[11px] font-bold uppercase tracking-[0.16em] text-foreground">
+                <h3 className="mb-4 font-headline text-lg font-bold tracking-tight text-white">
                   {col.title}
                 </h3>
                 <ul className="space-y-2.5">
@@ -110,7 +110,7 @@ export function Layout({ children }: LayoutProps) {
                     <li key={link.label}>
                       <Link
                         href={link.to}
-                        className="font-sans text-[13px] text-muted-fg hover:text-primary"
+                        className="font-sans text-sm font-light text-white/75 hover:text-[#ffef00]"
                       >
                         {link.label}
                       </Link>
@@ -121,15 +121,15 @@ export function Layout({ children }: LayoutProps) {
             ))}
           </div>
           <WhatsAppFollowBlock className="mx-auto mt-10 max-w-md" />
-          <div className="mt-10 flex flex-col items-start justify-between gap-3 border-t border-pale-rule pt-6 font-sans text-xs text-muted-fg sm:flex-row sm:items-center">
+          <div className="mt-10 flex flex-col items-start justify-between gap-3 border-t border-white/15 pt-6 font-sans text-xs text-white/60 sm:flex-row sm:items-center">
             <span>© {new Date().getFullYear()} GhanaCrimes. All rights reserved.</span>
             <span className="flex flex-wrap gap-4">
               <LiteModeToggle />
-              <Link href="/lite" className="hover:text-primary">Text-only</Link>
-              <Link href="/editorial-policy" className="hover:text-primary">Editorial Policy</Link>
-              <Link href="/corrections" className="hover:text-primary">Corrections</Link>
-              <Link href="/privacy" className="hover:text-primary">Privacy</Link>
-              <Link href="/terms" className="hover:text-primary">Terms</Link>
+              <Link href="/lite" className="hover:text-[#ffef00]">Text-only</Link>
+              <Link href="/editorial-policy" className="hover:text-[#ffef00]">Editorial Policy</Link>
+              <Link href="/corrections" className="hover:text-[#ffef00]">Corrections</Link>
+              <Link href="/privacy" className="hover:text-[#ffef00]">Privacy</Link>
+              <Link href="/terms" className="hover:text-[#ffef00]">Terms</Link>
             </span>
           </div>
         </div>

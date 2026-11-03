@@ -102,7 +102,7 @@ export default function FraudWatchHomeView() {
               placeholder="Search by account name, handle, phone number or link..."
               className="bg-white/10 border-white/20 text-primary-foreground placeholder:text-primary-foreground/50 flex-1 h-12 text-base"
             />
-            <Button type="submit" variant="secondary" size="lg" className="shrink-0 h-12">
+            <Button type="submit" size="lg" className="shrink-0 h-12">
               <Search className="h-5 w-5 mr-2" />
               Search
             </Button>

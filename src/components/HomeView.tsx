@@ -1,9 +1,9 @@
 'use client';
-import { formatGhanaDate, formatGhanaTime } from '@/lib/article-meta';
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { HeroArticle } from "@/components/HeroArticle";
 import { ArticleCard } from "@/components/ArticleCard";
+import { ArticleCardRail } from "@/components/ArticleCardRail";
 import { MostReadArticles } from "@/components/MostReadArticles";
 import { EditorialSectionHeading } from "@/components/editorial/EditorialSectionHeading";
 import { LiveNowModule } from "@/components/LiveNowModule";
@@ -11,9 +11,6 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
-import { getCategoryLabel } from "@/lib/categories";
-import { getPublishedTime } from "@/lib/time";
-import { ArrowUpRight } from "lucide-react";
 import { ToolsDataStrip } from "@/components/ToolsDataStrip";
 import { RelativeTime } from "@/components/RelativeTime";
 import { FollowGhanaCrimes } from "@/components/FollowGhanaCrimes";
@@ -41,16 +38,10 @@ export default function HomeView({ initialArticles }: { initialArticles?: any[] 
 
   if (isLoading) {
     return (
-      <div className="space-y-10">
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-          <div className="lg:col-span-3 space-y-6">
-            <Skeleton className="h-48 w-full" />
-            <Skeleton className="h-48 w-full" />
-          </div>
-          <Skeleton className="aspect-[4/5] w-full lg:col-span-6" />
-          <div className="lg:col-span-3 space-y-4">
-            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
-          </div>
+      <div className="space-y-8">
+        <Skeleton className="aspect-video w-full rounded-[30px]" />
+        <div className="flex gap-5 overflow-hidden">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="aspect-[3/4] w-[240px] shrink-0" />)}
         </div>
       </div>
     );
@@ -66,9 +57,8 @@ export default function HomeView({ initialArticles }: { initialArticles?: any[] 
   }
 
   const lead = articles[0];
-  const leftStack = articles.slice(1, 4);
-  const rightList = articles.slice(4, 10);
-  const overflow = articles.slice(10);
+  const rail = articles.slice(1, 13);
+  const overflow = articles.slice(13);
 
   return (
     <div className="space-y-14">
@@ -79,7 +69,7 @@ export default function HomeView({ initialArticles }: { initialArticles?: any[] 
         const breaking = articles.filter((a: any) => a.published_at && Date.now() - new Date(a.published_at).getTime() < 2 * 3600_000).slice(0, 3);
         if (!breaking.length) return null;
         return (
-          <section aria-label="Breaking news" className="-mt-8 rounded-md bg-primary px-4 py-3 text-primary-foreground">
+          <section aria-label="Breaking news" className="-mt-8 rounded-md bg-brand px-4 py-3 text-[#141414]">
             <ul className="space-y-1.5">
               {breaking.map((a: any) => (
                 <li key={a.id} className="flex flex-wrap items-baseline gap-x-3">
@@ -96,10 +86,10 @@ export default function HomeView({ initialArticles }: { initialArticles?: any[] 
       {/* Live crime wire: newest first, relative times, links to /latest */}
       <section aria-labelledby="just-in" className="border-y border-border py-4">
         <div className="mb-3 flex items-center justify-between">
-          <h2 id="just-in" className="flex items-center gap-2 font-sans text-xs font-bold uppercase tracking-[0.16em] text-primary">
-            <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-primary" aria-hidden /> Live crime wire
+          <h2 id="just-in" className="flex items-center gap-2 font-sans text-xs font-bold uppercase tracking-[0.16em] text-foreground">
+            <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-brand" aria-hidden /> Live crime wire
           </h2>
-          <Link href="/latest" className="font-sans text-xs font-bold uppercase tracking-wider text-primary hover:underline">All latest stories &rarr;</Link>
+          <Link href="/latest" className="font-sans text-xs font-bold uppercase tracking-wider text-foreground hover:underline">All latest stories &rarr;</Link>
         </div>
         <ol className="grid gap-x-8 gap-y-2 md:grid-cols-2">
           {articles.slice(0, 8).map((a: any) => {
@@ -108,7 +98,7 @@ export default function HomeView({ initialArticles }: { initialArticles?: any[] 
               <li key={a.id} className="flex gap-3 text-sm">
                 {a.published_at && <RelativeTime iso={a.published_at} className="w-20 shrink-0 font-sans text-xs tabular-nums text-muted-foreground" />}
                 <span className="leading-snug">
-                  <a href={`/${a.category_slug}/${a.article_slug}`} className="hover:text-primary">{a.title}</a>
+                  <a href={`/${a.category_slug}/${a.article_slug}`} className="hover:underline">{a.title}</a>
                   {reg && <span className="ml-1.5 whitespace-nowrap font-sans text-[11px] uppercase tracking-wide text-muted-foreground">{reg.name}</span>}
                 </span>
               </li>
@@ -117,52 +107,11 @@ export default function HomeView({ initialArticles }: { initialArticles?: any[] 
         </ol>
       </section>
 
-      {/* Three-column front page */}
-      <section className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-10">
-        {/* Left: stacked secondaries */}
-        <div className="order-3 space-y-2 lg:order-1 lg:col-span-3">
-          {leftStack.map((a) => (
-            <ArticleCard key={a.id} article={a} variant="stacked" />
-          ))}
-        </div>
-
-        {/* Centre: lead cover story */}
-        <div className="order-1 lg:order-2 lg:col-span-6">
-          {lead && <HeroArticle article={lead} />}
-        </div>
-
-        {/* Right: Latest from GhanaCrimes */}
-        <aside className="order-2 lg:order-3 lg:col-span-3">
-          <div className="red-double-rule pt-3">
-            <div className="mb-4 flex items-center gap-2">
-              <h3 className="section-heading">Latest from GhanaCrimes</h3>
-              <Link
-                href="/latest"
-                aria-label="More latest"
-                className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-              >
-                <ArrowUpRight className="h-3 w-3" strokeWidth={2} />
-              </Link>
-            </div>
-            <ul>
-              {rightList.map((a) => (
-                <li key={a.id} className="border-b border-border py-3.5 last:border-b-0">
-                  <Link href={`/${a.category_slug}/${a.article_slug}`} className="group block">
-                    <p className="author-italic-red mb-1 text-[14px]">
-                      {getCategoryLabel(a.category_slug)}
-                    </p>
-                    <h4 className="story-title text-[16px] leading-[1.2] group-hover:text-primary">
-                      {a.title}
-                    </h4>
-                    <div className="mt-1 meta-text">
-                      <time dateTime={a.published_at}>{getPublishedTime(a.published_at)}</time>
-                    </div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </aside>
+      <section className="space-y-12">
+        {lead && <HeroArticle article={lead} />}
+        {rail.length > 0 && (
+          <ArticleCardRail title="Latest stories" articles={rail} moreHref="/latest" />
+        )}
       </section>
 
       <ToolsDataStrip />
@@ -187,10 +136,10 @@ export default function HomeView({ initialArticles }: { initialArticles?: any[] 
         const types = [...byType.values()].sort((x, y) => y.items.length - x.items.length).slice(0, 4);
         const block = (title: string, href: string, items: any[]) => (
           <div key={title} className="border-t-2 border-foreground pt-2">
-            <Link href={href} className="font-sans text-xs font-bold uppercase tracking-[0.14em] hover:text-primary">{title} &rarr;</Link>
+            <Link href={href} className="font-sans text-xs font-bold uppercase tracking-[0.14em] hover:underline">{title} &rarr;</Link>
             <ul className="mt-2 space-y-2">
               {items.slice(0, 3).map((a) => (
-                <li key={a.id}><a href={`/${a.category_slug}/${a.article_slug}`} className="text-sm leading-snug hover:text-primary">{a.title}</a></li>
+                <li key={a.id}><a href={`/${a.category_slug}/${a.article_slug}`} className="font-headline text-sm font-bold leading-snug hover:underline">{a.title}</a></li>
               ))}
             </ul>
           </div>
@@ -219,7 +168,7 @@ export default function HomeView({ initialArticles }: { initialArticles?: any[] 
         <div className="rounded-md border border-border p-6">
           <h2 className="font-serif text-2xl font-bold">Seen something? Send us a tip</h2>
           <p className="mt-2 font-body text-sm text-muted-foreground">Tell the GhanaCrimes desk about an arrest, court case, scam or incident. We verify before we publish and protect sources.</p>
-          <Link href="/tips" className="mt-4 inline-block rounded bg-primary px-4 py-2 font-sans text-sm font-bold text-primary-foreground">Send a tip</Link>
+          <Link href="/tips" className="mt-4 inline-block rounded-full bg-brand px-5 py-2 font-sans text-sm font-semibold text-[#141414] hover:bg-[#d9cb00]">Send a tip</Link>
         </div>
       </section>
 
@@ -227,9 +176,9 @@ export default function HomeView({ initialArticles }: { initialArticles?: any[] 
       {overflow.length > 0 && (
         <section>
           <EditorialSectionHeading title="More headlines" moreHref="/top-stories" />
-          <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
             {overflow.map((a) => (
-              <ArticleCard key={a.id} article={a} variant="compact" />
+              <ArticleCard key={a.id} article={a} variant="grid" />
             ))}
           </div>
         </section>

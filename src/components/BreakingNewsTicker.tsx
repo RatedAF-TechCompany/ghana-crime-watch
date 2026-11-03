@@ -50,7 +50,7 @@ export function BreakingNewsTicker() {
   const currentArticle = breakingNews[currentIndex];
 
   return (
-    <div className="w-full bg-primary text-primary-foreground">
+    <div className="w-full bg-brand text-[#141414]">
       <div className="container mx-auto max-w-7xl px-4">
         <div className="flex items-center gap-3 py-2">
           <div className="flex shrink-0 items-center gap-1.5">
@@ -59,7 +59,7 @@ export function BreakingNewsTicker() {
               Breaking
             </span>
           </div>
-          <div className="h-4 w-px bg-primary-foreground/40" />
+          <div className="h-4 w-px bg-[#141414]/30" />
           <div className="min-w-0 flex-1 overflow-hidden">
             <Link
               href={`/${currentArticle.category_slug}/${currentArticle.article_slug}`}
@@ -76,8 +76,8 @@ export function BreakingNewsTicker() {
                   onClick={() => setCurrentIndex(index)}
                   className={`h-1.5 w-1.5 rounded-full transition-colors ${
                     index === currentIndex
-                      ? "bg-primary-foreground"
-                      : "bg-primary-foreground/40"
+                      ? "bg-[#141414]"
+                      : "bg-[#141414]/35"
                   }`}
                   aria-label={`Go to news ${index + 1}`}
                 />
