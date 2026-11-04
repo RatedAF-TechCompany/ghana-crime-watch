@@ -8,14 +8,36 @@ export function parsePeriod(v?: string | string[]): number {
   return PERIODS.some((p) => p.days === n) ? n : 90;
 }
 
+/**
+ * Display-only synonym map (raw offence_type values are kept unchanged in the DB and in `raw`).
+ * Only clear synonyms are merged. Different legal categories (e.g. "Alleged murder" vs "Murder")
+ * are NOT merged here; that needs an editor decision.
+ */
+const TYPE_ALIASES: Record<string, string> = {
+  'galamsey': 'Illegal mining (galamsey)',
+  'illegal mining': 'Illegal mining (galamsey)',
+  'drugs': 'Drug offences',
+  'drug offences': 'Drug offences',
+  'cyber & data': 'Cybercrime',
+  'cyber and data': 'Cybercrime',
+  'cybercrime': 'Cybercrime',
+  'road crash': 'Road crash',
+  'road traffic accident': 'Road crash',
+};
+export function canonicalTypeLabel(label: string): string {
+  const k = label.trim().toLowerCase().replace(/\s+/g, ' ');
+  return TYPE_ALIASES[k] ?? label.trim().replace(/^\w/, (c) => c.toUpperCase());
+}
+
 /** Crime types shown in filters: offence_type values grouped by their public label (e.g. fraud + fraud_cyber = Fraud). */
 export function crimeTypes(c: StoryCounts) {
   const m = new Map<string, { key: string; label: string; raw: string[]; count: number }>();
   for (const [raw, n] of Object.entries(c.offences)) {
     const info = offenceInfo(raw);
     if (!info) continue;
-    const key = info.label.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    const g = m.get(key) ?? { key, label: info.label, raw: [], count: 0 };
+    const label = canonicalTypeLabel(info.label);
+    const key = label.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const g = m.get(key) ?? { key, label, raw: [], count: 0 };
     g.raw.push(raw); g.count += n; m.set(key, g);
   }
   return [...m.values()].sort((a, b) => b.count - a.count);

@@ -1,22 +1,26 @@
 import { formatDistanceToNow } from 'date-fns';
+import { formatGhanaDate, formatGhanaTime, formatPublished } from '@/lib/article-meta';
 
-export function getRelativeTime(date: string | Date): string {
+/** Absolute UK stamp without the word Published: "3 Nov 2026, 14:05 GMT". */
+export function getStamp(date: string | Date): string {
+  const iso = (typeof date === 'string' ? new Date(date) : date).toISOString();
+  return `${formatGhanaDate(iso)}, ${formatGhanaTime(iso)}`;
+}
+
+/** Admin-only relative time ("5 minutes ago"). Public pages use getPublishedTime. */
+export function getAdminRelativeTime(date: string | Date): string {
   const parsedDate = typeof date === 'string' ? new Date(date) : date;
   return formatDistanceToNow(parsedDate, { addSuffix: true }).replace('about ', '');
 }
 
+/** Public timestamps are absolute: "Published 3 Nov 2026, 14:05 GMT" (UK time, GMT/BST). */
+export function getRelativeTime(date: string | Date): string {
+  return getPublishedTime(date);
+}
+
 export function getPublishedTime(date: string | Date): string {
   const parsedDate = typeof date === 'string' ? new Date(date) : date;
-  return `Published ${new Intl.DateTimeFormat('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone: 'Africa/Accra',
-    timeZoneName: 'short',
-  }).format(parsedDate)}`;
+  return formatPublished(parsedDate.toISOString());
 }
 
 export function getAbsoluteTime(date: string | Date): string {

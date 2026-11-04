@@ -8,14 +8,14 @@ export type StoryUpdate = {
   kind: "update" | "correction" | string;
 };
 
-const ukTime = (iso: string) =>
-  new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/London" }).format(new Date(iso));
+import { formatGhanaDate, formatGhanaTime } from "@/lib/article-meta";
+const ukTime = (iso: string) => `${formatGhanaDate(iso)}, ${formatGhanaTime(iso)}`;
 
 function Item({ u, label }: { u: StoryUpdate; label: string }) {
   return (
     <li className="py-2 border-b border-[#E5E5E5] last:border-0">
       <p className="font-sans text-[14px] text-[#1A1A1A]">
-        <strong>{label} {ukTime(u.posted_at)} UK:</strong> {u.summary}
+        <strong>{label} {ukTime(u.posted_at)}:</strong> {u.summary}
       </p>
       {u.body_md && <p className="font-sans text-[13px] text-[#3A3A3A] mt-1 whitespace-pre-line">{u.body_md}</p>}
     </li>

@@ -15,7 +15,7 @@ export function TokenAction({ token, mode }: { token: string; mode: 'confirm' | 
   };
   if (!valid) return <p className="font-sans">This link is not valid. Copy the full link from the email.</p>;
   if (state === 'ok') return <p className="font-sans text-lg">{mode === 'confirm'
-    ? (what === 'newsletter' ? 'Confirmed. Your first Crime Brief arrives at 7am UK time (7am GMT).' : 'Confirmed. We will email you when this story is updated.')
+    ? (what === 'newsletter' ? 'Confirmed. Your first Crime Brief arrives at 7am GMT/BST (London time).' : 'Confirmed. We will email you when this story is updated.')
     : 'Done. You will not get these emails any more.'}</p>;
   if (state === 'bad') return <p className="font-sans">We could not find that link. It may already have been used, or it was copied incompletely.</p>;
   return (

@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Download, Play } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getRelativeTime } from '@/lib/time';
+import { getAdminRelativeTime } from '@/lib/time';
 
 const db = supabase as any;
 const REJECT_REASONS = ['Not Ghana', 'Duplicate', 'Politics/policy', 'Unverified', 'Not crime', 'Other'];
@@ -188,7 +188,7 @@ export default function ReviewQueueView() {
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex flex-col">
             <label className="flex items-center gap-2 text-sm">Auto-publish <Switch checked={autoOn} disabled={!isAdmin || !settingsLoaded} onCheckedChange={toggleAuto} /></label>
-            {lastChange && <span className="text-[11px] text-muted-foreground">Changed by {lastChange.by} {getRelativeTime(lastChange.at)}{lastChange.setting ? ` (${lastChange.setting === 'auto_publish_daily_cap' ? 'cap' : 'switch'}: ${String(lastChange.value)})` : ''}</span>}
+            {lastChange && <span className="text-[11px] text-muted-foreground">Changed by {lastChange.by} {getAdminRelativeTime(lastChange.at)}{lastChange.setting ? ` (${lastChange.setting === 'auto_publish_daily_cap' ? 'cap' : 'switch'}: ${String(lastChange.value)})` : ''}</span>}
             {!settingsLoaded && <span className="text-[11px] text-destructive">Settings failed to load</span>}
           </div>
           <label className="flex items-center gap-2 text-sm">Daily cap
@@ -220,7 +220,7 @@ export default function ReviewQueueView() {
                     <Badge variant="outline">{a.status}</Badge>
                     {a.offence_type && <Badge variant="secondary">{a.offence_type}</Badge>}
                     {a.region && <Badge variant="secondary">{a.region}</Badge>}
-                    <span className="text-xs text-muted-foreground">{g.source} (tier {g.source_tier}) · {g.corroborating_sources ?? 0} other sources · {getRelativeTime(a.created_at)}</span>
+                    <span className="text-xs text-muted-foreground">{g.source} (tier {g.source_tier}) · {g.corroborating_sources ?? 0} other sources · {getAdminRelativeTime(a.created_at)}</span>
                   </div>
                   <CardTitle className="font-serif text-lg">{a.title}</CardTitle>
                 </CardHeader>
@@ -275,7 +275,7 @@ export default function ReviewQueueView() {
             <div key={r.id} className="rounded border border-border p-3 text-sm">
               <p className="font-semibold">{r.title}</p>
               <p className="text-xs text-destructive">{r.reject_reason}</p>
-              <p className="text-xs text-muted-foreground">{getRelativeTime(r.updated_at)}</p>
+              <p className="text-xs text-muted-foreground">{getAdminRelativeTime(r.updated_at)}</p>
             </div>
           ))}
           {rejectedArticles.length > 0 && <p className="pt-2 text-xs font-semibold uppercase text-muted-foreground">Rejected by the pipeline</p>}
@@ -283,7 +283,7 @@ export default function ReviewQueueView() {
             <div key={r.id} className="rounded border border-border p-3 text-sm">
               <a href={r.url} target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline">{r.title}</a>
               <p className="text-xs text-destructive">{r.reason}</p>
-              <p className="text-xs text-muted-foreground">{getRelativeTime(r.fetched_at)}</p>
+              <p className="text-xs text-muted-foreground">{getAdminRelativeTime(r.fetched_at)}</p>
             </div>
           ))}
         </TabsContent>
@@ -300,7 +300,7 @@ export default function ReviewQueueView() {
           </div>
           {backfill && (
             <p className="text-sm text-muted-foreground">
-              Last run {getRelativeTime(backfill.started_at)}: {backfill.stats.unpublished} set to draft, {backfill.stats.flagged_rows} flagged in total.
+              Last run {getAdminRelativeTime(backfill.started_at)}: {backfill.stats.unpublished} set to draft, {backfill.stats.flagged_rows} flagged in total.
             </p>
           )}
         </TabsContent>
@@ -308,7 +308,7 @@ export default function ReviewQueueView() {
         <TabsContent value="audit" className="space-y-1">
           {audit.map((l) => (
             <div key={l.id} className="flex gap-3 border-b border-border py-1 text-xs">
-              <span className="w-28 shrink-0 text-muted-foreground">{getRelativeTime(l.created_at)}</span>
+              <span className="w-28 shrink-0 text-muted-foreground">{getAdminRelativeTime(l.created_at)}</span>
               <span className="w-40 shrink-0 font-semibold">{l.action}{l.details?.reason ? ` (${l.details.reason}${l.details.note ? `: ${l.details.note}` : ''})` : ''}</span>
               <span className="truncate text-muted-foreground">{l.resource_id} {l.details ? JSON.stringify(l.details) : ''}</span>
             </div>

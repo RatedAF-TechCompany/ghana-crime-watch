@@ -218,21 +218,71 @@ export function toneDownGore(s: string): string {
   for (const [re, rep] of GORE_SOFT) out = out.replace(re, rep as any);
   return out.replace(/ {2,}/g, " ").replace(/ ([.,])/g, "$1");
 }
-/** Prefix "According to <outlet>," when the draft has no explicit attribution. */
-export function ensureAttribution(body: string, outlet: string): string {
-  if (/according to/i.test(body) || !outlet) return body;
-  const b = body.trimStart();
-  const m = b.match(/^(The|A|An)\s/);
-  return `According to ${outlet}, ${m ? m[1].toLowerCase() + b.slice(m[1].length) : b}`;
+/** News outlets are never named, linked or credited (Zeb, 3 Nov 2026). */
+export const OUTLET_NAMES = String.raw`(?:MyJoy ?Online|MyJoy ?News|Joy ?News|Joy ?FM|Citi ?(?:Newsroom|FM|TV)|Graphic Online|Daily Graphic|GhanaWeb|Adom ?(?:Online|News|FM|TV)|3News|TV3|Ghana News Agency|GNA|Starr ?FM|UTV|Daily Guide(?: Network)?|Modern ?Ghana|Pulse Ghana|Asaase(?: Radio)?|GBC(?: Ghana Online)?|Ghanaian Times|Chale News|Rainbow Radio(?: Online)?|The Ghana Report|Kessben(?: Online)?|Atinka(?: Online)?|The High Street Journal|Ghana Business News|Yen Ghana|The Chronicle(?: Ghana)?|Peace FM(?: Online)?)`;
+export const OUTLETS = new RegExp(String.raw`\b${OUTLET_NAMES}\b`, "i");
+/** No source is ever credited. Strips "According to …" and outlet credit; never adds attribution. */
+export function ensureAttribution(body: string, _outlet?: string): string {
+  return (body || "")
+    .replace(new RegExp(String.raw`\b[Aa]ccording to (?:the )?${OUTLET_NAMES}(?:,? citing [^,]{1,80})?,\s*(\S)`, "g"), (_m, c) => c.toUpperCase())
+    .replace(new RegExp(String.raw`,?\s*(?:according to|as reported by|reported by|citing)\s+(?:the )?${OUTLET_NAMES}`, "g"), "")
+    .replace(new RegExp(String.raw`,?\s*(?:the )?${OUTLET_NAMES}\s+(?:has )?(?:reported|reports|said|learnt|gathered)`, "g"), "")
+    .replace(/,?\s*according to reports/gi, "")
+    // No source is ever credited (Zeb, 3 Nov 2026): drop "According to <anyone>," openers and "Source:" lines.
+    .replace(/(^|[.!?]\s+|>)\s*[Aa]ccording to [^,.]{1,120},\s*(\S)/g, (_m, pre, c) => pre + c.toUpperCase())
+    .replace(/,\s*according to [^,.]{1,120},/gi, "")
+    .replace(/,?\s*according to [^,.]{1,120}(?=[.,])/gi, "")
+    .replace(/^\s*(?:<p>)?\s*Source:[^\n]*$/gim, "")
+    .replace(/ {2,}/g, " ").replace(/ ([.,])/g, "$1");
 }
-/** Insert presumption wording when a suspect is named and there is no conviction. */
+/** "alleged" on the first offence noun only, while a named suspect is unconvicted. No presumption closer is ever appended. */
 export function ensurePresumption(body: string, a: Analysis): string {
   if (!a.suspect_named || a.case_status === "convicted" || a.case_status === "acquitted") return body;
-  let out = body
-    .replace(/\b(the |a )(robbery|murder|killing|attack|theft|fraud|assault|kidnapping|rape|defilement|stabbing|shooting)\b/gi, (_m, art, w) => `${art}alleged ${w}`)
-    .replace(/alleged alleged/gi, "alleged");
-  if (!PRESUMPTION_WORDS.test(out)) out = `${out.trim()}\n\nThe suspect is presumed innocent unless proven guilty by a court.`;
-  return out;
+  let done = /\balleged\b/i.test(body);
+  return body.replace(/\b(the |a )(robbery|murder|killing|attack|theft|fraud|assault|kidnapping|rape|defilement|stabbing|shooting)\b/gi,
+    (m, art, w) => (done ? m : (done = true, `${art}alleged ${w}`)));
+}
+
+const SLOP_SENTENCE = [
+  /\bWhat we (don'?t )?know\b/i, /has not added facts/i, /\b(remains?|is|are) presumed innocent\b/i,
+  /^It is (not yet clear|not known|unclear)\b/i, /\bat the time of publication\b/i,
+  /^(No|The)[^.]{0,80}\b(has|have|had|was|were) not (been )?(reported|released|disclosed|named|made public|confirmed)\.?$/i,
+  /^(Police )?[Ii]nvestigations (are|were) (ongoing|underway|continuing)\.?$/,
+  /\b(left residents in shock|sparked outrage|shocking|heinous)\b/i,
+];
+/** Deterministic cleanup run on every draft before insert. Returns body + warnings (stored in gate_report.slop_warnings). */
+export function lintSlop(title: string, body: string): { body: string; warnings: string[] } {
+  const w: string[] = [];
+  let paras = (body || "").split(/\n\s*\n|<\/p>\s*<p>/).map((p) => p.replace(/<\/?p>/g, "").trim()).filter(Boolean);
+  const seen = new Set<string>();
+  paras = paras.map((p) => p.split(/(?<=[.!?]["')]*)\s+(?=[A-Z0-9"'(])/).map((s) => s.trim()).filter((s) => {
+    const k = s.toLowerCase().replace(/\W+/g, " ").trim();
+    if (SLOP_SENTENCE.some((r) => r.test(s))) { w.push(`dropped: ${s.slice(0, 60)}`); return false; }
+    if (seen.has(k)) { w.push("duplicate sentence"); return false; }
+    seen.add(k); return true;
+  }).join(" ")).filter(Boolean);
+  let out = ensureAttribution(paras.join("\n\n"))
+    .replace(/GH(?:S|₵|¢)\s*(\d[\d,]*(?:\.\d+)?)\s*(m|mn|million)\b/gi, "GH¢$1 million")
+    .replace(/GH(?:S|₵|¢)\s*(\d[\d,]*(?:\.\d+)?)\s*(bn|billion)\b/gi, "GH¢$1 billion")
+    .replace(/GH(?:S|₵|¢)\s+(\d)/g, "GH¢$1")
+    .replace(/(\d) \.(\d)/g, "$1.$2")
+    .replace(/\bSuspect\(s\)/g, "suspects")
+    .replace(/[^\S\n]{2,}/g, " ");
+  for (const word of ["allegedly", "reportedly"]) {
+    let n = 0; out = out.replace(new RegExp(`\\s?\\b${word}\\b`, "gi"), (m) => (++n > 1 ? "" : m));
+    if (n > 1) w.push(`${word} x${n} trimmed`);
+  }
+  if (OUTLETS.test(out)) w.push("outlet_named");
+  if (out.split(/[.!?] /).some((s) => (s.match(/ — /g) || []).length > 1)) w.push("em-dash chain");
+  const p1 = (paras[0] || "").toLowerCase();
+  const tw = (title.toLowerCase().match(/[a-z0-9]{3,}/g) || []);
+  if (tw.length && tw.filter((t) => p1.includes(t)).length / tw.length >= 0.8) w.push("headline restated in paragraph 1");
+  if (/^(A|An) (man|woman|boy|girl)\b/.test(paras[0] || "")) w.push('"A man has been" opener');
+  const finalParas = out.split(/\n\s*\n/).filter(Boolean);
+  const words = out.split(/\s+/).filter(Boolean).length;
+  if (words > 160 || finalParas.length > 6) w.push(`too long: ${words} words / ${finalParas.length} paras`);
+  if (words < 80) w.push("under 80 words: publish as headline-only");
+  return { body: finalParas.join("\n\n"), warnings: w };
 }
 const IDENT_CUES = /\b(named|identified as|known as|called|name withheld|a pupil of|a student of|student at|pupil at|attends?|lives? (at|in)|resident of|daughter of|son of|niece|nephew|granddaughter|grandson|house (no|number)|GPS)\b/i;
 export function isProtectedCase(a: Analysis, text: string): boolean {
@@ -291,12 +341,13 @@ export function runGate(opts: {
   // c) Factual
   const missing = unsupportedFacts(draft, `${sourceText}`);
   if (missing.length) hard.push(`unsupported_facts:${missing.join("|")}`);
-  if (!/according to/i.test(draftBody)) soft.push("missing_attribution");
+  if (/\baccording to\b|^\s*Source:/im.test(draftBody)) soft.push("source_credited");
+  if (OUTLETS.test(draft)) soft.push("outlet_named");
   if (!headlineMatchesLead(draftTitle, draftBody)) soft.push("headline_lead_mismatch");
   if (FILLER_PHRASES.test(draft)) soft.push("editorial_filler");
   FILLER_PHRASES.lastIndex = 0;
   const wc = wordCount(draftBody);
-  if (wc < 80 || wc > 180) soft.push(`word_count_${wc}`);
+  if (wc < 80 || wc > 160) soft.push(`word_count_${wc}`);
   // Named suspects publish only when the claim comes from an official body (official source, or the source attributes it to
   // Police/EOCO/NACOC/courts/A-G) or 2+ independent outlets report it, and the draft keeps presumption-of-innocence wording.
   // Single-source stories publish with "According to <outlet>"; presumption wording is inserted upstream (ensurePresumption).

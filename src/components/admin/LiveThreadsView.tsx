@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { getRelativeTime } from '@/lib/time';
+import { getAdminRelativeTime } from '@/lib/time';
 import { ArrowLeft, Plus, Radio, Square, Settings2, Sparkles, Pencil } from 'lucide-react';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
@@ -261,7 +261,7 @@ export default function LiveThreadsView() {
                     </div>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {getRelativeTime(thread.updated_at)}
+                    {getAdminRelativeTime(thread.updated_at)}
                   </TableCell>
                   <TableCell className="text-right">
                     {!thread.is_live ? (

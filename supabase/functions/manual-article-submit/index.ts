@@ -1,6 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "../_shared/sb.ts";
 import { callGateway, parseJson, newUsage, AiCreditError } from "../_shared/ai-usage.ts";
+import { ALL_CATEGORY_SLUGS, EDITOR_CATEGORY_PROMPT, EDITOR_CATEGORY_SLUGS, toEditorCategory } from "../_shared/categories.ts";
+import { STANDING_EDITOR_RULES } from "../_shared/editor-prompt.ts";
+import { lintSlop } from "../_shared/editorial-gate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,26 +11,7 @@ const corsHeaders = {
 };
 
 
-const VALID_CATEGORIES = [
-  "top-stories",
-  "violent-crime",
-  "property-crime",
-  "cybercrime",
-  "fraud-scams",
-  "drug-offences",
-  "domestic-violence",
-  "traffic-offences",
-  "youth-crime",
-  "organised-crime",
-  "white-collar-crime",
-  "police-reports",
-  "court-cases",
-  "prison-news",
-  "crime-prevention",
-  "crime-statistics",
-  "investigations",
-  "most-wanted",
-];
+const VALID_CATEGORIES: string[] = ALL_CATEGORY_SLUGS; // single source: _shared/categories.ts
 
 // Peak publishing hours in GMT
 const PEAK_HOURS = [7, 9, 12, 15, 18, 20];
@@ -256,11 +240,11 @@ Given raw text or a URL's content, structure it into a proper news article.
 
 Return a JSON object with these exact fields:
 {
-  "title": "Compelling headline under 100 characters",
+  "title": "Verb-led headline, sentence case, under 15 words",
   "subtitle": "Brief subtitle expanding on the headline, under 150 characters",
   "summary": "2-3 sentence summary of the key facts, under 200 characters",
   "body": "Full article body with proper paragraphs wrapped in <p> tags.",
-  "category": "One of: top-stories, violent-crime, property-crime, cybercrime, fraud-scams, drug-offences, domestic-violence, traffic-offences, youth-crime, organised-crime, white-collar-crime, police-reports, court-cases, prison-news, crime-prevention, crime-statistics, investigations, most-wanted",
+  "category": "One of: ${EDITOR_CATEGORY_SLUGS.join(", ")}",
   "tags": ["array", "of", "relevant", "tags"],
   "seo_description": "SEO-optimized description under 160 characters"
 }
@@ -269,7 +253,8 @@ Important:
 - Maintain journalistic objectivity
 - Use Ghana-specific context and terminology
 - Format body text with proper HTML paragraphs
-- Respect the presumption of innocence for suspects`;
+- Keep "alleged"/"charged"/"remanded" wording until conviction; never close with a presumption sentence
+${STANDING_EDITOR_RULES}`;
 
     const usage = newUsage();
     let articleData;
@@ -338,7 +323,7 @@ Important:
         title: articleData.title,
         subtitle: articleData.subtitle || null,
         summary: articleData.summary,
-        body: articleData.body,
+        body: lintSlop(articleData.title || "", articleData.body || "").body,
         category_slug: normalizedCategory,
         article_slug: finalSlug,
         author_name: "GhanaCrimes Desk",

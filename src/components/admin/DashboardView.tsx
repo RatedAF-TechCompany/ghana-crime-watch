@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Edit, Trash2, ArrowLeft, Users, FileText, MessageSquare, BarChart3, Newspaper, Zap, Megaphone, Twitter, Shield, ShieldAlert, Radio } from 'lucide-react';
 import { AdSettingsPanel } from '@/components/admin/AdSettingsPanel';
 import { useToast } from '@/hooks/use-toast';
-import { getRelativeTime } from '@/lib/time';
+import { getAdminRelativeTime } from '@/lib/time';
 import type { Tables, Database } from '@/integrations/supabase/types';
 
 type Article = Tables<'articles'>;
@@ -378,7 +378,7 @@ export default function DashboardView() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {getRelativeTime(article.updated_at)}
+                          {getAdminRelativeTime(article.updated_at)}
                         </TableCell>
                         <TableCell className="text-right">
                           <Button
@@ -462,7 +462,7 @@ export default function DashboardView() {
                             </Select>
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {getRelativeTime(user.created_at)}
+                            {getAdminRelativeTime(user.created_at)}
                           </TableCell>
                         </TableRow>
                       ))
@@ -517,7 +517,7 @@ export default function DashboardView() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {getRelativeTime(comment.created_at)}
+                            {getAdminRelativeTime(comment.created_at)}
                           </TableCell>
                           <TableCell className="text-right">
                             <Button

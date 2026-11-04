@@ -11,6 +11,7 @@ import { BASE_URL } from '@/lib/utils';
 import { createServerClient } from '@/lib/supabase/server';
 import { sanitizeArticleBody } from '@/lib/sanitize';
 import { OG_HEIGHT, OG_WIDTH, formatGhanaDate, formatGhanaTime, hubSocialImage, isIndexableThread } from '@/lib/article-meta';
+import { stripOutlets } from '@/lib/no-outlet';
 
 export const revalidate = 120;
 export const dynamicParams = true;
@@ -87,7 +88,7 @@ export default async function LiveThreadPage({ params }: { params: Params }) {
       '@type': 'BlogPosting',
       headline: u.title.slice(0, 110),
       datePublished: u.published_at,
-      articleBody: plain(u.body),
+      articleBody: plain(stripOutlets(u.body)),
       url: `${canonical}#update-${u.id}`,
     })),
   };
@@ -121,7 +122,7 @@ export default async function LiveThreadPage({ params }: { params: Params }) {
                 </time>
                 {u.is_key_point && u.key_point_label && <p className="mt-1 text-xs font-semibold text-primary">{u.key_point_label}</p>}
                 <h2 className="mt-1 font-headline text-lg font-bold text-foreground">{u.title}</h2>
-                <div className="article-body mt-2 text-[15px]" dangerouslySetInnerHTML={{ __html: sanitizeArticleBody(u.body) }} />
+                <div className="article-body mt-2 text-[15px]" dangerouslySetInnerHTML={{ __html: stripOutlets(sanitizeArticleBody(u.body)) }} />
               </li>
             ))}
           </ol>

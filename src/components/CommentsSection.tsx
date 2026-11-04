@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { getRelativeTime } from "@/lib/time";
+import { getStamp } from "@/lib/time";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -149,7 +149,7 @@ export function CommentsSection({ articleId }: CommentsSectionProps) {
       <div className="mb-2 flex items-center gap-2">
         <span className="font-medium text-foreground">{comment.commenter_name}</span>
         <span className="text-xs text-muted-foreground">
-          {getRelativeTime(comment.created_at)}
+          {getStamp(comment.created_at)}
         </span>
       </div>
       <p className="text-sm leading-relaxed text-foreground mb-2">{comment.comment_text}</p>

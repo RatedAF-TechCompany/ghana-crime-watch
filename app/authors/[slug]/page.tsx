@@ -7,6 +7,7 @@ import { BASE_URL } from '@/lib/utils';
 import { createServerClient } from '@/lib/supabase/server';
 import { getMasthead } from '@/lib/masthead';
 import { DESK_SLUG } from '@/lib/authors';
+import { publicRow } from '@/lib/no-outlet';
 
 export const revalidate = 600;
 export const dynamicParams = true;
@@ -70,5 +71,5 @@ export default async function AuthorPage({ params }: { params: Params }) {
   const jsonLd = desk
     ? { '@context': 'https://schema.org', '@type': 'Organization', name: title, url: `${BASE_URL}/authors/${slug}`, description: DESK_DESCRIPTION, ...(page.masthead.contactEmail ? { email: page.masthead.contactEmail } : {}), publishingPrinciples: `${BASE_URL}/editorial-policy`, correctionsPolicy: `${BASE_URL}/corrections`, parentOrganization: { '@type': 'NewsMediaOrganization', name: 'GhanaCrimes', url: BASE_URL } }
     : { '@context': 'https://schema.org', '@type': 'ProfilePage', url: `${BASE_URL}/authors/${slug}`, mainEntity: { '@type': 'Person', name: title, ...(page.entry?.role ? { jobTitle: page.entry.role } : {}), ...(page.entry?.bio ? { description: page.entry.bio } : {}), ...(page.entry?.same_as?.length ? { sameAs: page.entry.same_as } : {}), url: `${BASE_URL}/authors/${slug}` } };
-  return <Layout><JsonLd data={jsonLd} /><HubPage kicker="Author" title={title} intro={intro} note={desk && page.masthead.editor ? `Editor: ${page.masthead.editor}` : page.entry?.role} articles={page.articles} emptyMessage="No published reports are available for this byline." />{desk && <DeskAbout editor={page.masthead.editor} email={page.masthead.contactEmail} />}</Layout>;
+  return <Layout><JsonLd data={jsonLd} /><HubPage kicker="Author" title={title} intro={intro} note={desk && page.masthead.editor ? `Editor: ${page.masthead.editor}` : page.entry?.role} articles={page.articles.map(publicRow)} emptyMessage="No published reports are available for this byline." />{desk && <DeskAbout editor={page.masthead.editor} email={page.masthead.contactEmail} />}</Layout>;
 }

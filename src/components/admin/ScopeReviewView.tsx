@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowLeft, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getRelativeTime } from '@/lib/time';
+import { getAdminRelativeTime } from '@/lib/time';
 
 // Words that commonly indicate out-of-scope entertainment / lifestyle stories
 const OUT_OF_SCOPE_PATTERNS = [
@@ -173,7 +173,7 @@ export default function ScopeReviewView() {
                       <TableCell className="text-sm text-muted-foreground">{a.matched}</TableCell>
                       <TableCell className="text-sm capitalize">{a.category_slug.replace(/-/g, ' ')}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {a.published_at ? getRelativeTime(a.published_at) : '—'}
+                        {a.published_at ? getAdminRelativeTime(a.published_at) : '—'}
                       </TableCell>
                       <TableCell className="text-right space-x-2">
                         <Button size="sm" variant="outline" onClick={() => handleKeep(a.id)}>Keep</Button>

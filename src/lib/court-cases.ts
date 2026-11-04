@@ -2,10 +2,10 @@ import { cache } from 'react';
 import { createServerClient } from '@/lib/supabase/server';
 
 export interface CourtCase { id: string; slug: string; title: string; status: string | null; next_hearing: string | null; next_hearing_text: string | null; next_hearing_article_id: string | null; updated_at: string }
-export interface CaseArticle { id: string; title: string; category_slug: string; article_slug: string; published_at: string; case_status: string | null; source_url: string | null; summary: string | null }
+export interface CaseArticle { id: string; title: string; category_slug: string; article_slug: string; published_at: string; case_status: string | null; source_url?: string | null; summary: string | null }
 
 const CASE_COLS = 'id, slug, title, status, next_hearing, next_hearing_text, next_hearing_article_id, updated_at';
-const ART_COLS = 'id, title, category_slug, article_slug, published_at, case_status, source_url, summary';
+const ART_COLS = 'id, title, category_slug, article_slug, published_at, case_status, summary';
 
 /** Cases with a sourced next-hearing date, soonest first (today onwards), then recently passed ones. */
 export const getCourtCases = cache(async (): Promise<{ upcoming: CourtCase[]; past: CourtCase[] }> => {

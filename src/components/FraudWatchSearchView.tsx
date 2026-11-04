@@ -9,13 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { ilikeOr } from "@/lib/postgrest-filter";
-import { getRelativeTime } from "@/lib/time";
+import { getStamp } from "@/lib/time";
 
 const PLATFORMS = ["All", "Instagram", "X", "TikTok", "Facebook", "WhatsApp", "Telegram", "Website", "Other"];
 const STATUSES = ["All", "Pending", "VerifiedScam", "Cleared", "Disputed"];
 const STATUS_LABELS: Record<string, string> = {
   Pending: "Pending Review",
-  VerifiedScam: "Verified Scam",
+  VerifiedScam: "Reported scam (reviewed)",
   Cleared: "Cleared",
   Disputed: "Disputed",
 };
@@ -280,7 +280,7 @@ export default function FraudWatchSearchView() {
                             )}
                             {account.last_reported_at && (
                               <span className="text-xs text-muted-foreground">
-                                Last reported {getRelativeTime(account.last_reported_at)}
+                                Last reported {getStamp(account.last_reported_at)}
                               </span>
                             )}
                           </div>

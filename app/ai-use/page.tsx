@@ -33,7 +33,7 @@ export default function AiUsePage() {
         <p>Some stories are published automatically, but only when every check passes and the report comes from an official body or is confirmed by at least two independent outlets. Everything else goes to an editor for review before it can be published. Stories found only through news search tools are never published on their own.</p>
         <h2>What the tools never do</h2>
         <ul>
-          <li>We do not use AI to create or alter images. Article photos come only from the original source; otherwise no photo is shown.</li>
+          <li>We do not use AI to create or alter images. We show an article photo only when GhanaCrimes holds it or has the right to use it; we do not use photographs belonging to other publishers. Otherwise no photo is shown.</li>
           <li>We do not add facts, quotes or context that are not in the source report.</li>
         </ul>
         <h2>Sources and corrections</h2>

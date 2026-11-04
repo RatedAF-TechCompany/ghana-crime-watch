@@ -5,7 +5,7 @@ import { ArrowLeft, Shield, AlertTriangle, ExternalLink, Share2, Flag, Clock, Do
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { getRelativeTime } from "@/lib/time";
+import { getStamp } from "@/lib/time";
 import { useToast } from "@/hooks/use-toast";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -16,13 +16,13 @@ const STATUS_COLORS: Record<string, string> = {
 };
 const STATUS_LABELS: Record<string, string> = {
   Pending: "Pending Review",
-  VerifiedScam: "Verified Scam",
+  VerifiedScam: "Reported scam (reviewed)",
   Cleared: "Cleared",
   Disputed: "Disputed",
 };
 const STATUS_DESCRIPTIONS: Record<string, string> = {
   Pending: "This account has been reported and is awaiting review by our team.",
-  VerifiedScam: "Our team has reviewed multiple reports and confirmed this account as a scam.",
+  VerifiedScam: "Our moderators have reviewed several community reports about this account. These are allegations, not a legal finding. To dispute an entry, use the corrections page.",
   Cleared: "This account was investigated and found to be legitimate.",
   Disputed: "Reports about this account are under dispute. Exercise caution.",
 };
@@ -189,12 +189,12 @@ export default function FraudWatchAccountView({ accountId }: { accountId: string
               )}
               <div>
                 <span className="text-muted-foreground">First Reported</span>
-                <p className="font-medium mt-0.5">{getRelativeTime(account.created_at)}</p>
+                <p className="font-medium mt-0.5">{getStamp(account.created_at)}</p>
               </div>
               {account.last_reported_at && (
                 <div>
                   <span className="text-muted-foreground">Last Reported</span>
-                  <p className="font-medium mt-0.5">{getRelativeTime(account.last_reported_at)}</p>
+                  <p className="font-medium mt-0.5">{getStamp(account.last_reported_at)}</p>
                 </div>
               )}
             </div>
@@ -244,7 +244,7 @@ export default function FraudWatchAccountView({ accountId }: { accountId: string
                 <div key={i} className="bg-muted rounded-lg p-3">
                   <p className="text-sm text-foreground">{note.note}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {note.admin_name || "GhanaCrimes Team"} · {getRelativeTime(note.created_at)}
+                    {note.admin_name || "GhanaCrimes Team"} · {getStamp(note.created_at)}
                   </p>
                 </div>
               ))}
@@ -271,7 +271,7 @@ export default function FraudWatchAccountView({ accountId }: { accountId: string
                         {report.amount && ` · ${report.currency} ${Number(report.amount).toLocaleString()}`}
                         {report.region && ` · ${report.region}`}
                       </span>
-                      <span className="text-xs text-muted-foreground shrink-0">{getRelativeTime(report.created_at)}</span>
+                      <span className="text-xs text-muted-foreground shrink-0">{getStamp(report.created_at)}</span>
                     </div>
                     <p className="text-sm text-foreground">{report.description}</p>
                     {report.evidence_files && report.evidence_files.filter((u: string) => /^https:\/\//.test(u)).length > 0 && (

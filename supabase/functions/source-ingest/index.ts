@@ -4,8 +4,9 @@
 import { createClient } from "../_shared/sb.ts";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { AiCreditError, callGateway, newUsage, parseJson } from "../_shared/ai-usage.ts";
-import { allowSourceNames, officialAttribution, hasGhanaSignal, redactProtected, toneDownGore, ensureAttribution, ensurePresumption, detectRegion, runGate, stripEditorialFiller, stripHtml, wordCount, type Analysis } from "../_shared/editorial-gate.ts";
+import { allowSourceNames, officialAttribution, hasGhanaSignal, redactProtected, toneDownGore, ensureAttribution, ensurePresumption, lintSlop, OUTLETS, detectRegion, runGate, stripEditorialFiller, stripHtml, wordCount, type Analysis } from "../_shared/editorial-gate.ts";
 import { extractHeroImage } from "../_shared/extract-image.ts";
+import { STANDING_EDITOR_RULES } from "../_shared/editor-prompt.ts";
 
 const UA = "GhanaCrimesBot/1.0 (+https://www.ghanacrimes.com/about)";
 const MAX_AI_ITEMS = 4; // small, frequent runs (cron every 10 min) instead of 3 big ones a day
@@ -301,11 +302,14 @@ function slugify(s: string) {
 
 const SYSTEM = `You are a wire-service desk editor for GhanaCrimes, a Ghana crime news site.
 You receive SOURCE TEXT from one publisher. Return strict JSON only.
-Headline style: punchy, breaking-first, TMZ pace but legally safe. Lead with the strongest verified fact (who/what/where), active verbs, present tense, concrete place and number, e.g. "Police arrest 3 suspects over Kasoa robbery" or "Court remands ex-official over GH\u00a2 2m fraud". No clickbait questions, no 'shocking', no puns about victims. Keep 'alleged'/'suspected' in the headline when guilt is not proven, and never name a victim of a sexual offence or any minor in it.
+Headline style: punchy, breaking-first, TMZ pace but legally safe. Lead with the strongest verified fact (who/what/where), active verbs, present tense, concrete place and number, e.g. "Police arrest 3 suspects over Kasoa robbery" or "Court remands ex-official over GH\u00a22 million fraud". No clickbait questions, no 'shocking', no puns about victims. Keep 'alleged'/'suspected' in the headline when guilt is not proven, and never name a victim of a sexual offence or any minor in it.
 Rules for the draft:
-- Write an ORIGINAL factual summary of 80 to 180 words in plain, neutral English. Do not copy sentences.
+- Write an ORIGINAL article of 80 to 160 words in 3 to 6 short paragraphs, plain neutral English. Do not copy sentences.
 - Use ONLY facts present in the SOURCE TEXT. Never add names, numbers, dates, places, ages, motives or context that are not in it.
-- Attribute explicitly: include "according to <publisher name>" (or the official body quoted in the source).
+- Attribute only to the primary source (police, court, prosecutor, ministry, agency, named official). Never name, link or credit any news outlet or publisher, and never write "according to reports".
+- Never close with a presumption-of-innocence sentence. Keep "alleged"/"charged"/"remanded" wording until conviction.
+- Return "primary_source": the official body the facts come from (e.g. "Ashanti Regional Police Command"), or "" if none. Never an outlet.
+${STANDING_EDITOR_RULES}
 - Presumption of innocence: use alleged, suspected, arrested, charged, remanded. Never call anyone a killer, thief, criminal, murderer or robber unless the source says they were convicted.
 - Never name the victim of a sexual offence or domestic violence. Never give any identifying detail (name, school, community, relatives) of anyone under 18. Redact these details and write the rest of the story; do not skip it.
 - No home addresses, phone numbers or graphic descriptions of injuries or bodies.
@@ -532,17 +536,14 @@ Deno.serve(async (req) => {
         await supabase.from("raw_items").update({ status: "duplicate", reason: `already sourced in ${art.id}`, article_id: art.id }).eq("id", item.id);
         stats.duplicates++; return true;
       }
-      const para = `<p><strong>Update (${gmtTime()}):</strong> ${escHtml(src.name)} also reported on this story under the headline "${escHtml(item.title)}". <a href="${escHtml(item.url)}" target="_blank" rel="noopener noreferrer nofollow">Read the ${escHtml(src.name)} report</a>.</p>`;
+      // No source credit (Zeb, 3 Nov 2026): corroborating reports are recorded internally only, never appended to the body.
       let threadId = art.thread_id;
       if (!threadId) {
         const { data: t } = await supabase.from("story_threads").insert({ thread_slug: `${slugify(art.title).slice(0, 60)}-${Date.now().toString(36)}`, title: art.title, created_by: "source-ingest" }).select("id").single();
         threadId = t?.id ?? null;
       }
-      // Body change fires the content_updated_at trigger.
-      await supabase.from("articles").update({ body: `${art.body}${para}`, source_urls: urls, thread_id: threadId }).eq("id", art.id);
-      if (threadId) {
-        await supabase.from("thread_updates").insert({ thread_id: threadId, title: item.title.slice(0, 200), body: para, source_article_id: art.id, published_at: new Date().toISOString() });
-      }
+      // Internal record only: no body change (so no false "updated" stamp) and no public thread update crediting the outlet.
+      await supabase.from("articles").update({ source_urls: urls, thread_id: threadId }).eq("id", art.id);
       await supabase.from("raw_items").update({ status: "merged", reason, article_id: art.id, thread_id: threadId }).eq("id", item.id);
       merges.push({ article_id: art.id, raw_item_id: item.id, source: src.name, reason });
       return true;
@@ -654,17 +655,19 @@ Deno.serve(async (req) => {
           max_tokens: 900, json: true, temperature: 0.1,
         });
         stats.ai_calls++;
-        const out = extractJson<{ analysis: Analysis; title: string; summary: string; body: string }>(content);
+        const out = extractJson<{ analysis: Analysis; title: string; summary: string; body: string; primary_source?: string }>(content);
         let body = stripEditorialFiller((out.body || "").replace(/[\u2013\u2014]/g, ", ")).trim();
         let title = stripEditorialFiller((out.title || item.title).replace(/[\u2013\u2014]/g, ", ")).trim().slice(0, 120);
         // Loosened gate: fix instead of hold. Redact protected people, tone down gore, add attribution and presumption wording.
         const red = redactProtected(title, body, out.analysis || {}, sourceText);
         title = toneDownGore(red.title); body = toneDownGore(red.body);
-        body = ensurePresumption(ensureAttribution(body, src.name), out.analysis || {});
+        body = ensurePresumption(ensureAttribution(body), out.analysis || {});
+        const slop = lintSlop(title, body); body = slop.body;
+        const primarySource = (out.primary_source || "").trim() && !OUTLETS.test(out.primary_source || "") && true ? out.primary_source!.trim() : null;
         const gate = runGate({ analysis: out.analysis || {}, draftTitle: title, draftBody: body, sourceText, isOfficial: src.trust_tier === 1, corroboratingSources: corroborating });
         stats.gated++;
 
-        const report: any = { ...gate, analysis: out.analysis, source: src.name, source_tier: src.trust_tier, corroborating_sources: corroborating, raw_item_id: item.id, checked_at: new Date().toISOString() };
+        const report: any = { ...gate, analysis: out.analysis, primary_source: primarySource, slop_warnings: slop.warnings, source: src.name, source_tier: src.trust_tier, corroborating_sources: corroborating, raw_item_id: item.id, checked_at: new Date().toISOString() };
 
         // Ghana relevance before anything can publish.
         if (out.analysis?.is_ghana === false) {

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { callGateway, parseJson, newUsage, AiCreditError } from "../_shared/ai-usage.ts";
+import { EDITOR_CATEGORY_SLUGS } from "../_shared/categories.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,7 +39,7 @@ Article Body as a single text block pasted by the editor.
 On Generate, you must automatically fill these fields from the Article Body.
 
 Title
-Extract or generate a compelling news headline from the article. Keep it concise and factual.
+Write a verb-led headline in sentence case, under 15 words. Factual, no hype.
 
 Subtitle
 Generate a brief secondary headline that adds context to the title. Optional but recommended.
@@ -53,10 +54,10 @@ Author
 Always set to GhanaCrimes Desk.
 
 Section
-Always set to Crime And Investigation.
+Choose the one category slug that fits best from: ${EDITOR_CATEGORY_SLUGS.join(", ")}.
 
 Category
-Always set to Public Order.
+Same value as Section (one of: ${EDITOR_CATEGORY_SLUGS.join(", ")}).
 
 Tags
 Generate 5 to 10 comma separated tags based strictly on the Article Body. Include places organisations and key topics. No hashtags. No duplicates.
@@ -88,8 +89,8 @@ Example output
 "summary": "Ghana Police Service is investigating an attempted takeover of a palace in Boadua. The incident is connected to a chieftaincy dispute in the Eastern Region.",
 "slug": "police-investigate-palace-incident-boadua",
 "author": "GhanaCrimes Desk",
-"section": "Crime And Investigation",
-"category": "Public Order",
+"section": "police-reports",
+"category": "police-reports",
 "tags": ["Boadua", "Chieftaincy dispute", "Ghana Police Service", "Palace", "Eastern Region"],
 "seo_description": "Police are investigating an attempted takeover of a palace in Boadua linked to a chieftaincy dispute."
 }`;

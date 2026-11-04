@@ -50,7 +50,6 @@ export default async function CourtCasePage({ params }: { params: Params }) {
               {hearingSource && (
                 <p className="mt-2 text-xs text-muted-foreground">
                   Source: <Link className="underline hover:text-primary" href={`/${hearingSource.category_slug}/${hearingSource.article_slug}`}>{hearingSource.title}</Link>
-                  {hearingSource.source_url && <> · <a className="underline hover:text-primary" href={hearingSource.source_url} target="_blank" rel="noopener nofollow">original report</a></>}
                 </p>
               )}
               {!upcoming && <p className="mt-2 text-xs text-muted-foreground">We have not yet published a report on what happened at this hearing.</p>}

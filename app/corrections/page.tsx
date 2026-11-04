@@ -57,9 +57,8 @@ export default async function CorrectionsPage() {
         )}
         <h2 id="transparency">Transparency</h2>
         <ul>
-          <li>Most stories are summaries of reports from Ghanaian publishers and official bodies, written with AI assistance and automatic checks. Each one names and links its source. <Link href="/ai-use">How we use AI</Link>.</li>
+          <li>Most stories are summaries of reports from Ghanaian publishers and official bodies, written with AI assistance and automatic checks. Each one names its primary source (police, court or other official body); news outlets are never named or linked. <Link href="/ai-use">How we use AI</Link>.</li>
           <li>Labels such as &ldquo;Charged&rdquo; or &ldquo;Convicted&rdquo; come from the source report. When one is wrong, we fix it and log it above.</li>
-          <li>&ldquo;Verified by 2 sources&rdquo; (or more) appears only when at least two separate outlets or official bodies reported the story.</li>
           <li>Off-topic items that slip through are unpublished, not deleted, and the change is recorded in our internal audit log.</li>
           <li>Who is responsible for GhanaCrimes: {masthead.editor && masthead.editor !== 'GhanaCrimes Newsroom' ? <>Editor: {masthead.editor}. Full details: </> : null}<Link href="/masthead">Masthead</Link>.{masthead.contactEmail ? <> Email: <a href={`mailto:${masthead.contactEmail}`}>{masthead.contactEmail}</a>.</> : null} Our rules: <Link href="/editorial-policy">Editorial Policy</Link>.</li>
         </ul>
