@@ -1,0 +1,9 @@
+--- app/sitemaps/[file]/route.ts  (as in PR #12 / main; live source tree not in GitHub — apply to the live tree)
++++ app/sitemaps/[file]/route.ts
+@@
+     } catch {
+-      noticePaths = ['/wanted', '/missing'];
++      // On lookup failure omit them: /wanted and /missing render noindex when empty, and a noindexed URL in a sitemap
++      // is reported by Search Console as "Excluded by 'noindex' tag" (notice of 9 Nov 2026).
++      noticePaths = [];
+     }
