@@ -17,6 +17,7 @@ interface HeaderProps {
 
 const PRIMARY_NAV: { label: string; to: string }[] = [
   { label: "Latest", to: "/latest" },
+  { label: "Archive", to: "/archive" },
   { label: "Crime", to: "/violent-crime" },
   { label: "Court", to: "/court-cases" },
   { label: "Police", to: "/police-reports" },
@@ -96,26 +97,37 @@ export function Header({ onMenuClick, onSearchClick }: HeaderProps) {
           </div>
 
           {/* Centre nav (desktop) */}
-          <nav className="hidden min-w-0 flex-1 items-center justify-center [@media(min-width:1025px)]:flex">
-            <ul className="flex min-w-0 items-center gap-3 xl:gap-5">
-              {PRIMARY_NAV.filter((item) => !isEmpty(item.to)).map((item) => (
-                <li key={item.to}>
+          <nav className="hidden min-w-0 flex-1 [@media(min-width:1025px)]:block">
+            <ul className="flex w-full min-w-0 items-center justify-[safe_center] gap-3 overflow-x-auto px-1 xl:gap-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {PRIMARY_NAV.filter((item) => !isEmpty(item.to)).map((item) => {
+                const active = item.to === "/archive" ? pathname === "/archive" || pathname.startsWith("/archive/") : pathname === item.to;
+                return (
+                <li key={item.to} className="shrink-0">
                   <Link
                     href={item.to}
                     className={cn(
                       "whitespace-nowrap font-sans text-sm font-normal tracking-normal text-foreground hover:opacity-70",
-                      pathname === item.to && "underline decoration-brand decoration-2 underline-offset-[6px]",
+                      active && "underline decoration-brand decoration-2 underline-offset-[6px]",
                     )}
                   >
                     {item.label}
                   </Link>
                 </li>
-              ))}
+              );})}
             </ul>
           </nav>
 
           {/* Right cluster */}
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+            <Link
+              href="/archive"
+              className={cn(
+                "px-1.5 font-sans text-sm text-foreground hover:opacity-70 sm:px-2 [@media(min-width:1025px)]:hidden",
+                (pathname === "/archive" || pathname.startsWith("/archive/")) && "underline decoration-brand decoration-2 underline-offset-[6px]",
+              )}
+            >
+              Archive
+            </Link>
             <Button
               variant="ghost"
               size="icon"

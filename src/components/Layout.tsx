@@ -21,6 +21,7 @@ const FOOTER_COLUMNS: { title: string; links: { label: string; to: string }[] }[
     links: [
       { label: "Homepage", to: "/" },
       { label: "Latest", to: "/latest" },
+      { label: "Archive", to: "/archive" },
       { label: "Top Stories", to: "/top-stories" },
       { label: "Live Crime Map", to: "/map/live" },
       { label: "Crime This Week", to: "/crime-this-week" },
@@ -106,7 +107,7 @@ export function Layout({ children }: LayoutProps) {
                   {col.title}
                 </h3>
                 <ul className="space-y-2.5">
-                  {col.links.filter((l) => !isEmpty(l.to)).slice(0, 8).map((link) => (
+                  {col.links.filter((l) => !isEmpty(l.to)).slice(0, col.title === "GhanaCrimes" ? 9 : 8).map((link) => (
                     <li key={link.label}>
                       <Link
                         href={link.to}
