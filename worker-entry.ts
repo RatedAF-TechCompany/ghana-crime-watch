@@ -66,6 +66,25 @@ async function reportError(env: any, type: string, detail: string): Promise<void
   } catch { /* alerting must never break a request */ }
 }
 
+// Junk Next.js requests (scanner POSTs with a Next-Action header; RSC requests with a malformed
+// Next-Router-State-Tree header) made Next throw and return 500, which fired the Worker-error alert emails.
+// The site has no Server Actions, so answer these at the edge with 404 / 400 before Next runs.
+function nextJunkResponse(request: Request): Response | null {
+  const h = { "Content-Type": "text/plain", "Cache-Control": "no-store", "X-Robots-Tag": "noindex" };
+  if (request.headers.has("next-action")) return new Response("Not Found", { status: 404, headers: h });
+  const t = request.headers.get("next-router-state-tree");
+  if (t !== null) {
+    let ok = false;
+    try {
+      const v = JSON.parse(decodeURIComponent(t));
+      ok = t.length <= 40000 && Array.isArray(v) && v.length >= 2 && (typeof v[0] === "string" || Array.isArray(v[0])) &&
+        v[1] !== null && typeof v[1] === "object" && !Array.isArray(v[1]);
+    } catch {}
+    if (!ok) return new Response("Bad Request", { status: 400, headers: h });
+  }
+  return null;
+}
+
 async function handleFetch(request: Request, env: any, ctx: any): Promise<Response> {
   {
     DEPLOY_ID ||= env.CF_VERSION_METADATA?.id || "";
@@ -85,6 +104,8 @@ async function handleFetch(request: Request, env: any, ctx: any): Promise<Respon
       if (!env.GC_MAIL_SECRET || request.headers.get("x-gc-mail") !== env.GC_MAIL_SECRET) return new Response("forbidden", { status: 403 });
       return new Response(await sendPushAlerts(env));
     }
+    const junk = nextJunkResponse(request);
+    if (junk) return junk;
     if (request.method === "GET" && (url.pathname === "/podcast.xml" || url.pathname.startsWith("/audio/"))) {
       const r = await bulletinRoute(url, env);
       if (r) return r;
