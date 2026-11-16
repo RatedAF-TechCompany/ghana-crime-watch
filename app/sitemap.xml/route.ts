@@ -4,7 +4,7 @@ import { ARTICLES_PER_SITEMAP, SITEMAP_BASE, countPublishedArticles, xmlResponse
 export const revalidate = 600;
 export const dynamic = 'force-dynamic';
 
-/** Sitemap index: pages, every articles-N.xml (from the published count), news sitemap. */
+/** Sitemap index: pages, every articles-N.xml (from the published count), the date archive, news sitemap. */
 export async function GET() {
   const supabase = createServerClient();
   const count = await countPublishedArticles();
@@ -27,6 +27,7 @@ export async function GET() {
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${entry(`${SITEMAP_BASE}/sitemaps/pages.xml`, iso(latestThread?.content_updated_at))}
 ${Array.from({ length: pages }, (_, i) => entry(`${SITEMAP_BASE}/sitemaps/articles-${i + 1}.xml`, chunkMods[i])).join('\n')}
+${entry(`${SITEMAP_BASE}/sitemaps/archive.xml`, iso(latestPub?.published_at))}
 ${entry(`${SITEMAP_BASE}/news-sitemap.xml`, iso(latestPub?.published_at))}
 </sitemapindex>`;
   return xmlResponse(xml);

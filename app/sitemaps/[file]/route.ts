@@ -8,6 +8,7 @@ import { isIndexableThread } from '@/lib/article-meta';
 import { getNotices } from '@/lib/notices';
 import { getMasthead } from '@/lib/masthead';
 import { getCategoryPage } from '@/lib/server-data';
+import { getArchiveCalendar } from '@/lib/archive';
 
 export const revalidate = 600;
 export const dynamic = 'force-dynamic';
@@ -108,6 +109,36 @@ export async function GET(_req: Request, { params }: { params: Promise<{ file: s
     ];
 
     return xmlResponse(urlset(pages));
+  }
+
+  if (file === 'archive.xml') {
+    let days: { date: string; lastPublishedAt: string | null }[] = [];
+    try {
+      days = await getArchiveCalendar();
+    } catch {
+      days = [];
+    }
+    const monthLast = new Map<string, string | null>();
+    let newest: string | null = null;
+    for (const day of days) {
+      const month = day.date.slice(0, 7);
+      const prev = monthLast.get(month);
+      if (!prev || (day.lastPublishedAt && day.lastPublishedAt > prev)) monthLast.set(month, day.lastPublishedAt);
+      if (day.lastPublishedAt && (!newest || day.lastPublishedAt > newest)) newest = day.lastPublishedAt;
+    }
+    const iso = (v?: string | null) => (v ? new Date(v).toISOString() : null);
+    const urls = [
+      { loc: `${BASE_URL}/archive`, lastmod: iso(newest) },
+      ...[...monthLast.entries()].map(([month, last]) => {
+        const [y, m] = month.split('-');
+        return { loc: `${BASE_URL}/archive/${y}/${m}`, lastmod: iso(last) };
+      }),
+      ...days.map((day) => {
+        const [y, m, d] = day.date.split('-');
+        return { loc: `${BASE_URL}/archive/${y}/${m}/${d}`, lastmod: iso(day.lastPublishedAt) };
+      }),
+    ];
+    return xmlResponse(urlset(urls));
   }
 
   const m = file.match(/^articles-(\d+)\.xml$/);
